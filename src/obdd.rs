@@ -1,0 +1,241 @@
+use std::usize;
+
+pub const BDD_BOT: usize = 0;
+pub const BDD_TOP: usize = 1;
+
+use std::collections::HashMap;
+
+type Term = usize;
+
+#[derive(Eq, PartialEq, Hash, Clone, Copy)]
+struct BddNode {
+    var: usize,
+    lo: Term,
+    hi: Term,
+}
+
+impl std::fmt::Display for BddNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BDDNode: {}, lo:{}, hi: {}", self.var, self.lo, self.hi)
+    }
+}
+
+struct Bdd {
+    nodes: Vec<BddNode>,
+    hash: HashMap<BddNode, Term>,
+}
+
+impl Bdd {
+    pub fn new() -> Self {
+        let botnode = BddNode {
+            var: usize::MAX,
+            lo: BDD_BOT,
+            hi: BDD_BOT,
+        };
+        let topnode = BddNode {
+            var: usize::MAX,
+            lo: BDD_TOP,
+            hi: BDD_TOP,
+        };
+        Self {
+            nodes: vec![botnode, topnode],
+            hash: HashMap::new(),
+        }
+    }
+
+    fn create_node(&mut self, var: usize, lo: Term, hi: Term) -> Term {
+        if lo == hi {
+            lo
+        } else {
+            let node = BddNode {
+                var: var,
+                lo: lo,
+                hi: hi,
+            };
+            match self.hash.get(&node) {
+                Some(n) => *n,
+                None => {
+                    let newid = self.nodes.len();
+                    if newid == usize::MAX {
+                        panic!("Maximal amount of elements in node-table reached!")
+                    }
+                    self.nodes.push(node.clone());
+                    self.hash.insert(node, newid);
+                    newid
+                }
+            }
+        }
+    }
+
+    fn variable(&mut self, var: usize) -> Term {
+        self.create_node(var, BDD_BOT, BDD_TOP)
+    }
+
+    fn constant(&self, val: bool) -> Term {
+        if val {
+            BDD_TOP
+        } else {
+            BDD_BOT
+        }
+    }
+
+    fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
+        let treenode = self.nodes[subtree];
+        if treenode.var > var || treenode.var == usize::MAX {
+            subtree
+        } else if treenode.var < var {
+            let lonode = self.restrict(treenode.lo, var, val);
+            let hinode = self.restrict(treenode.hi, var, val);
+            self.create_node(treenode.var, lonode, hinode)
+        } else {
+            if val {
+                self.restrict(treenode.hi, var, val)
+            } else {
+                self.restrict(treenode.lo, var, val)
+            }
+        }
+    }
+
+    fn if_then_else(&mut self, i: Term, t: Term, e: Term) -> Term {
+        if i == BDD_TOP {
+            t
+        } else if i == BDD_BOT {
+            e
+        } else if t == e {
+            t
+        } else if t == BDD_TOP && e == BDD_BOT {
+            i
+        } else {
+            let ivar = self.nodes[i].var;
+            let tvar = self.nodes[t].var;
+            let evar = self.nodes[e].var;
+
+            let minvar = std::cmp::min(ivar, std::cmp::min(tvar, evar));
+
+            let itop = self.restrict(i, minvar, true);
+            let ttop = self.restrict(t, minvar, true);
+            let etop = self.restrict(e, minvar, true);
+            let ibot = self.restrict(i, minvar, false);
+            let tbot = self.restrict(t, minvar, false);
+            let ebot = self.restrict(e, minvar, false);
+
+            let topite = self.if_then_else(itop, ttop, etop);
+            let botite = self.if_then_else(ibot, tbot, ebot);
+            self.create_node(minvar, botite, topite)
+        }
+    }
+
+    pub fn not(&mut self, term: Term) -> Term {
+        self.if_then_else(term, BDD_BOT, BDD_TOP)
+    }
+
+    pub fn and(&mut self, terma: Term, termb: Term) -> Term {
+        self.if_then_else(terma, termb, BDD_BOT)
+    }
+
+    pub fn or(&mut self, terma: Term, termb: Term) -> Term {
+        self.if_then_else(terma, BDD_TOP, termb)
+    }
+
+    fn printtree(&self, tree: Term) {
+        let node = self.nodes[tree];
+        println!("Index: {}, Node: {}", tree, node);
+
+        if tree > BDD_TOP {
+            self.printtree(node.lo);
+            self.printtree(node.hi);
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn newbdd() {
+        let bdd = Bdd::new();
+        assert_eq!(bdd.nodes.len(), 2);
+    }
+
+    #[test]
+    fn addconst() {
+        let bdd = Bdd::new();
+        assert_eq!(bdd.constant(true), BDD_TOP);
+        assert_eq!(bdd.constant(false), BDD_BOT);
+        assert_eq!(bdd.nodes.len(), 2);
+    }
+
+    #[test]
+    fn addvar() {
+        let mut bdd = Bdd::new();
+        assert_eq!(bdd.variable(0), 2);
+        assert_eq!(bdd.variable(1), 3);
+        assert_eq!(bdd.variable(0), 2);
+    }
+
+    #[test]
+    fn use_negation() {
+        let mut bdd = Bdd::new();
+        let v1 = bdd.variable(0);
+        assert_eq!(v1, 2);
+        assert_eq!(bdd.not(v1), 3);
+    }
+
+    #[test]
+    fn use_add() {
+        let mut bdd = Bdd::new();
+        let v1 = bdd.variable(0);
+        let v2 = bdd.variable(1);
+        let v3 = bdd.variable(2);
+
+        let a1 = bdd.and(v1, v2);
+        let a2 = bdd.and(a1, v3);
+        assert_eq!(a2, 7);
+    }
+
+    #[test]
+    fn use_or() {
+        let mut bdd = Bdd::new();
+
+        let v1 = bdd.variable(0);
+        let v2 = bdd.variable(1);
+        let v3 = bdd.variable(2);
+
+        let a1 = bdd.and(v1, v2);
+        let a2 = bdd.or(a1, v3);
+        assert_eq!(a2, 7);
+    }
+
+    #[test]
+    fn produce_different_conversions() {
+        let mut bdd = Bdd::new();
+
+        let v1 = bdd.variable(0);
+        let v2 = bdd.variable(1);
+
+        let t1 = bdd.and(v1, v2);
+        let nt1 = bdd.not(t1);
+        let ft = bdd.or(v1, nt1);
+
+        assert_eq!(ft, BDD_TOP);
+
+        let v3 = bdd.variable(2);
+        let nv3 = bdd.not(v3);
+        assert_eq!(bdd.and(v3, nv3), BDD_BOT);
+
+        let conj = bdd.and(v1, v2);
+        assert_eq!(bdd.restrict(conj, 0, false), BDD_BOT);
+        assert_eq!(bdd.restrict(conj, 0, true), v2);
+
+        let a = bdd.and(v3, v2);
+        let b = bdd.or(v2, v1);
+
+        let con1 = bdd.and(a, conj);
+        let con2 = bdd.and(v1, v3);
+
+        let end = bdd.or(con1, b);
+        let x = bdd.restrict(end, 1, false);
+        assert_eq!(x, 2);
+    }
+}
