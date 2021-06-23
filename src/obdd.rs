@@ -20,7 +20,7 @@ impl std::fmt::Display for BddNode {
     }
 }
 
-struct Bdd {
+pub (crate) struct Bdd {
     nodes: Vec<BddNode>,
     hash: HashMap<BddNode, Term>,
 }
@@ -67,11 +67,11 @@ impl Bdd {
         }
     }
 
-    fn variable(&mut self, var: usize) -> Term {
+    pub fn variable(&mut self, var: usize) -> Term {
         self.create_node(var, BDD_BOT, BDD_TOP)
     }
 
-    fn constant(&self, val: bool) -> Term {
+    pub fn constant(&self, val: bool) -> Term {
         if val {
             BDD_TOP
         } else {
