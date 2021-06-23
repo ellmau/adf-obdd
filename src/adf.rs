@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     num::ParseFloatError,
+    ops::Deref,
     str::{self, FromStr},
 };
 
@@ -48,6 +49,25 @@ impl Adf {
                 .push(Statement::new(statement, self.bdd.variable(pos).clone()));
             self.dict.insert(self.stmts[pos].label.to_string(), pos);
         }
+    }
+
+    pub fn init_statements(&mut self, stmts: Vec<&str>) -> usize {
+        for i in stmts.iter() {
+            self.add_statement(*i);
+        }
+        self.stmts.len()
+    }
+
+    pub fn add_ac(&mut self, statement: &str, ac: &str) { 
+          if let Some(stmt) = self.dict.get(statement) {         
+            let stm = *stmt;
+            let ac_nmbr = self.parseformula(ac); 
+            self.set_ac(stm, ac_nmbr)
+          }
+      }
+
+    fn set_ac(&mut self, st: usize, ac: usize) {
+        self.stmts[st].ac = Some(ac);
     }
 
     fn parseformula(&mut self, ac: &str) -> usize {
@@ -115,27 +135,37 @@ mod test {
     }
 
     #[test]
-    fn parseformula(){
+    fn parseformula() {
         let mut adf = Adf::new();
 
         adf.add_statement("a");
         adf.add_statement("b");
         adf.add_statement("c");
 
-        assert_eq!(adf.parseformula("and(a,or(b,c))"),6);
-        assert_eq!(adf.parseformula("xor(a,b)"),11);
-        assert_eq!(adf.parseformula("or(c(f),b)"),3); // is b
+        assert_eq!(adf.parseformula("and(a,or(b,c))"), 6);
+        assert_eq!(adf.parseformula("xor(a,b)"), 11);
+        assert_eq!(adf.parseformula("or(c(f),b)"), 3); // is b
     }
 
     #[test]
     #[should_panic]
-    fn parseformula_panic(){
-      let mut adf = Adf::new();
+    fn parseformula_panic() {
+        let mut adf = Adf::new();
 
-      adf.add_statement("a");
-      adf.add_statement("b");
-      adf.add_statement("c");
+        adf.add_statement("a");
+        adf.add_statement("b");
+        adf.add_statement("c");
 
-      adf.parseformula("and(a,or(b,d))");
+        adf.parseformula("and(a,or(b,d))");
+    }
+
+    #[test]
+    fn init_statements() {
+        let mut adf = Adf::new();
+
+        let stmts: Vec<&str> = vec!["a", "b", "c", "extra long text type statement"];
+
+        assert_eq!(adf.init_statements(stmts), 4);
+        assert_eq!(adf.stmts[3].label, "extra long text type statement");
     }
 }
