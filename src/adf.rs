@@ -58,13 +58,16 @@ impl Adf {
         self.stmts.len()
     }
 
-    pub fn add_ac(&mut self, statement: &str, ac: &str) { 
-          if let Some(stmt) = self.dict.get(statement) {         
-            let stm = *stmt;
-            let ac_nmbr = self.parseformula(ac); 
-            self.set_ac(stm, ac_nmbr)
-          }
-      }
+    pub fn add_ac(&mut self, statement: &str, ac: &str) {
+        if let Some(stmt) = self.dict.get(statement) {
+          self.add_ac_by_number(*stmt, ac)
+        }
+    }
+
+    fn add_ac_by_number(&mut self, st:usize, ac: &str){
+      let ac_num = self.parseformula(ac);
+      self.set_ac(st, ac_num);
+    }
 
     fn set_ac(&mut self, st: usize, ac: usize) {
         self.stmts[st].ac = Some(ac);
