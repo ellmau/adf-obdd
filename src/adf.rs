@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    str::{self, FromStr},
-};
+use std::{collections::HashMap, str::{self, FromStr}, usize};
 
 use super::obdd::Bdd;
 
@@ -119,6 +116,64 @@ impl Adf {
             if !change {break;}
         }
         interpretation
+    }
+
+    pub fn cur_interpretation(&self) -> Vec<usize>{
+        let mut interpretation: Vec<usize> = Vec::new();
+        for it in self.stmts.iter(){
+            interpretation.push((*it).ac.unwrap())
+        }
+        interpretation
+    }
+
+    pub fn to_fixpoint(&mut self, interpretation:Vec<usize>) -> Option<Vec<usize>>{
+        let new_interpretation = self.apply_interpretation(interpretation.as_ref());
+        match Adf::information_enh(interpretation.as_ref(), new_interpretation.as_ref()){
+            Some(n) => {
+                if n {
+                    return self.to_fixpoint(new_interpretation);
+                }else{
+                    return Some(new_interpretation)
+                }
+            },
+            None => None,
+        }
+    }
+
+    fn apply_interpretation(&mut self, interpretation:&Vec<usize>) -> Vec<usize>{
+        let mut new_interpretation = interpretation.clone();
+        for (pos,it) in interpretation.iter().enumerate(){
+            match *it {
+                super::obdd::BDD_BOT => {
+                    if let Some(n) = self.setvarvalue(new_interpretation.clone(),self.bdd.nodes[self.stmts[pos].var].var(),false){
+                        new_interpretation.clone_from(&n);
+                        
+                    }
+                },
+                super::obdd::BDD_TOP => {
+                    if let Some(n) = self.setvarvalue(new_interpretation.clone(),self.bdd.nodes[self.stmts[pos].var].var(),true){
+                        new_interpretation.clone_from(&n);                        
+                    }
+                },
+                _ => (),
+            }
+            
+        }
+        new_interpretation
+    }
+
+    fn information_enh(i1:&Vec<usize>,i2:&Vec<usize>) -> Option<bool> {
+        let mut enhanced = false;
+        for i in 0..i1.len(){
+            if i1[i] < 2{
+                if i1[i] != i2[i] {
+                    return None;
+                }
+            } else if (i1[i]>=2) & (i2[i] < 2){
+                enhanced = true;
+            }
+        }
+        Some(enhanced)
     }
 
     fn setvarvalue(&mut self,interpretation:Vec<usize>, var:usize, val:bool) -> Option<Vec<usize>>{
