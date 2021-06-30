@@ -1,7 +1,5 @@
 use std::{
     collections::HashMap,
-    num::ParseFloatError,
-    ops::Deref,
     str::{self, FromStr},
 };
 
@@ -22,7 +20,8 @@ impl Statement {
         }
     }
 
-    pub fn add_ac(&mut self, ac: usize) {
+    
+    pub fn _add_ac(&mut self, ac: usize) {
         self.ac = Some(ac);
     }
 }
@@ -70,7 +69,8 @@ impl Adf {
     /// This ac needs to be in the prefix notation for ADFs as defined by the DIAMOND implementation. 
     pub fn add_ac(&mut self, statement: &str, ac: &str) {
         if let Some(stmt) = self.dict.get(statement) {
-          self.add_ac_by_number(*stmt, ac)
+            let st = *stmt;
+            self.add_ac_by_number(st, ac)
         }
     }
 
@@ -85,7 +85,7 @@ impl Adf {
 
     pub fn grounded(&mut self) -> Vec<usize> {
         let mut interpretation: Vec<usize> = Vec::new();
-        let mut change:bool = false;
+        let mut change:bool;
 
         for it in self.stmts.iter(){
             interpretation.push((*it).ac.unwrap())
@@ -119,7 +119,7 @@ impl Adf {
     fn setvarvalue(&mut self,interpretation:Vec<usize>, var:usize, val:bool) -> Option<Vec<usize>>{
         let mut interpretation2:Vec<usize> = vec![0;interpretation.len()];
         let mut change: bool = false;
-        for (pos,it) in interpretation.iter().enumerate(){
+        for (pos,_it) in interpretation.iter().enumerate(){
             interpretation2[pos] = self.bdd.restrict(interpretation[pos], var, val);
             if interpretation[pos] != interpretation2[pos]{
                 change = true

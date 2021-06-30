@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::{env, process::exit};
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -37,13 +36,13 @@ fn main() {
 
   println!("parsed {} statements", statements.len());
   if statements.len() > 0 && ac.len() > 0 {
-    let mut myAdf = Adf::new();
-    myAdf.init_statements(statements.iter().map(AsRef::as_ref).collect());
+    let mut my_adf = Adf::new();
+    my_adf.init_statements(statements.iter().map(AsRef::as_ref).collect());
     for (s,c) in ac {
-      myAdf.add_ac(s.as_str(), c.as_str());
+      my_adf.add_ac(s.as_str(), c.as_str());
     }
 
-    let result = myAdf.grounded();
+    let result = my_adf.grounded();
     println!("{:?}",result);
     for (p,s) in statements.iter().enumerate(){
       match result[p] {

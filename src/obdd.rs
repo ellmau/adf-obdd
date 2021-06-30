@@ -143,13 +143,13 @@ impl Bdd {
         self.if_then_else(terma, BDD_TOP, termb)
     }
 
-    fn printtree(&self, tree: Term) {
+    fn _printtree(&self, tree: Term) {
         let node = self.nodes[tree];
         println!("Index: {}, Node: {}", tree, node);
 
         if tree > BDD_TOP {
-            self.printtree(node.lo);
-            self.printtree(node.hi);
+            self._printtree(node.lo);
+            self._printtree(node.hi);
         }
     }
 }
@@ -238,7 +238,6 @@ mod test {
         let b = bdd.or(v2, v1);
 
         let con1 = bdd.and(a, conj);
-        let con2 = bdd.and(v1, v3);
 
         let end = bdd.or(con1, b);
         let x = bdd.restrict(end, 1, false);
