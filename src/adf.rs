@@ -15,7 +15,7 @@ impl Statement {
     pub fn new(label: &str, var: usize) -> Self {
         Statement {
             label: String::from_str(label).unwrap(),
-            var: var,
+            var,
             ac: None,
         }
     }
@@ -30,6 +30,12 @@ pub struct Adf {
     bdd: Bdd,
     stmts: Vec<Statement>,
     dict: HashMap<String, usize>, // label to pos in vec
+}
+
+impl Default for Adf{
+    fn default() -> Self {
+        Adf::new()
+    }
 }
 
 impl Adf {
@@ -48,7 +54,7 @@ impl Adf {
             //self.stmts
             //    .push(Statement::new(statement, pos.clone()));
             self.stmts
-               .push(Statement::new(statement, self.bdd.variable(pos).clone()));
+               .push(Statement::new(statement, self.bdd.variable(pos)));
             self.dict.insert(self.stmts[pos].label.to_string(), pos);
         }
     }
@@ -111,7 +117,6 @@ impl Adf {
                 }
             }
             if !change {break;}
-            println!("bla");
         }
         interpretation
     }
@@ -184,13 +189,13 @@ impl Adf {
         }
     }
 
-    pub fn findpairs<'a>(formula: &'a str) -> (&'a str,&'a str){
+    pub fn findpairs(formula: &str) -> (&str,&str){
         let lpos = Adf::findterm(formula).unwrap();
         let rpos = Adf::findterm(&formula[lpos+1..]).unwrap() + lpos;
         (&formula[..lpos],&formula[lpos+1..rpos+1])
     }
 
-    pub fn findterm_str<'a> (formula: &'a str) -> &'a str{
+    pub fn findterm_str(formula: &str) -> &str{
         &formula[..Adf::findterm(formula).unwrap()]
     }
 

@@ -54,9 +54,9 @@ impl Bdd {
             lo
         } else {
             let node = BddNode {
-                var: var,
-                lo: lo,
-                hi: hi,
+                var,
+                lo,
+                hi,
             };
             match self.hash.get(&node) {
                 Some(n) => *n,
@@ -65,7 +65,7 @@ impl Bdd {
                     if newid == usize::MAX {
                         panic!("Maximal amount of elements in node-table reached!")
                     }
-                    self.nodes.push(node.clone());
+                    self.nodes.push(node);
                     self.hash.insert(node, newid);
                     newid
                 }
@@ -87,6 +87,7 @@ impl Bdd {
 
     pub fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
         let treenode = self.nodes[subtree];
+        #[allow(clippy::clippy::collapsible_else_if)]  // Better readabilty of the if/then/else structure of the algorithm
         if treenode.var > var || treenode.var == usize::MAX {
             subtree
         } else if treenode.var < var {

@@ -18,24 +18,24 @@ fn main() {
   let mut ac: Vec<(String,String)> = Vec::new();
   let path = Path::new(args[1].as_str());
   if let Ok(lines) = read_lines(path){
-    for resline in lines {
-      if let Ok(line) = resline {
+    for line in lines.flatten() {
+      //if let Ok(line) = resline {
         //let slice = line.as_str();
         if line.starts_with("s("){
          // let slice = line.as_str();
          // statements.push(Adf::findterm_str(&slice[2..]).clone());
-          statements.push(String::from(Adf::findterm_str(&line[2..]).replace(" ", "")));
+          statements.push(Adf::findterm_str(line.strip_prefix("s(").unwrap()).replace(" ", ""));
         }
         else if line.starts_with("ac("){      
-          let (s,c) = Adf::findpairs(&line[3..]);
-          ac.push((String::from(s.replace(" ","")),String::from(c.replace(" ", ""))));
+          let (s,c) = Adf::findpairs(line.strip_prefix("ac(").unwrap());
+          ac.push((s.replace(" ",""),c.replace(" ", "")));
         }
-      }
+      //}
     }
   }
 
   println!("parsed {} statements", statements.len());
-  if statements.len() > 0 && ac.len() > 0 {
+  if !statements.is_empty() && !ac.is_empty() {
     let mut my_adf = Adf::new();
     my_adf.init_statements(statements.iter().map(AsRef::as_ref).collect());
     for (s,c) in ac {
