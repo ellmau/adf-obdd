@@ -1,5 +1,5 @@
 [package]
-name = "obdd"
+name = "adf_bdd"
 version = "0.1.0"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2018"
