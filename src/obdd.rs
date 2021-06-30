@@ -8,7 +8,7 @@ use std::collections::HashMap;
 type Term = usize;
 
 #[derive(Eq, PartialEq, Hash, Clone, Copy)]
-struct BddNode {
+pub (crate) struct BddNode {
     var: usize,
     lo: Term,
     hi: Term,
@@ -20,8 +20,14 @@ impl std::fmt::Display for BddNode {
     }
 }
 
+impl BddNode{
+    pub fn var(self)->usize{
+        self.var
+    }
+}
+
 pub (crate) struct Bdd {
-    nodes: Vec<BddNode>,
+    pub (crate) nodes: Vec<BddNode>,
     hash: HashMap<BddNode, Term>,
 }
 
@@ -79,7 +85,7 @@ impl Bdd {
         }
     }
 
-    fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
+    pub fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
         let treenode = self.nodes[subtree];
         if treenode.var > var || treenode.var == usize::MAX {
             subtree
