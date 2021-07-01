@@ -1,4 +1,4 @@
-# Prototype-solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
+#Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
 
 
 ## Abstract Dialectical Frameworks
@@ -16,5 +16,3 @@ The binary predicate ac relates each statement to one propositional formula in p
 - neg(x): classical negation
 - c(v): constant symbol "verum" - tautology/top
 - c(f): constant symbol "falsum" - inconsistency/bot
-
-
