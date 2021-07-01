@@ -1,4 +1,4 @@
-#Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
+# Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
 
 
 ## Abstract Dialectical Frameworks
