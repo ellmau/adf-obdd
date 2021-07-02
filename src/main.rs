@@ -64,11 +64,11 @@ fn main() {
 
         let mut my_adf2 = Adf::default();
         my_adf2.init_statements(statements.iter().map(AsRef::as_ref).collect());
-        for (s, c) in ac {
+        for (s, c) in ac.clone() {
             my_adf2.add_ac(s.as_str(), c.as_str());
         }
         let empty_int = my_adf2.cur_interpretation().to_owned();
-        let result2 = my_adf2.to_fixpoint(empty_int).unwrap();
+        let result2 = my_adf2.to_fixpoint(empty_int.as_ref()).unwrap();
         //   for (p, s) in statements.iter().enumerate() {
         //     match result2[p] {
         //         0 => print!("f("),
@@ -77,8 +77,23 @@ fn main() {
         //     }
         //     println!("{}) ", *s);
         // }
+
+        
         print_interpretation(result2);
         println!("finished after {}ms", start_fp.elapsed().as_millis());
+
+        // optional test of complete extensions
+        // let mut my_adf3 = Adf::default();
+        // my_adf3.init_statements(statements.iter().map(AsRef::as_ref).collect());
+        // for (s, c) in ac.clone() {
+        //     my_adf3.add_ac(s.as_str(), c.as_str());
+        // }
+
+        // let result3 = my_adf3.complete();
+        // for it in result3.iter() {
+        //     print_interpretation(it.to_vec());
+        // }
+        // println!("{}",result3.len());
     }
 }
 
@@ -91,12 +106,17 @@ where
 }
 
 fn print_interpretation(interpretation: Vec<usize>) {
+    let mut stable = true;
     for it in interpretation.iter() {
         match *it {
             0 => print!("f"),
             1 => print!("t"),
-            _ => print!("u"),
+            _ => {print!("u");stable=false},
         }
     }
+    if stable {
+        println!(" stm");
+    }else{
     println!("");
+}
 }

@@ -118,6 +118,55 @@ impl Adf {
         interpretation
     }
 
+    pub fn complete(&mut self) -> Vec<Vec<usize>> {
+        let base_int = self.cur_interpretation();
+        let mut complete: Vec<Vec<usize>> = Vec::new();
+        let mut change:bool;
+        let mut pos:usize=0;
+        let mut cache:HashMap<Vec<usize>,usize> = HashMap::new();
+
+        // compute grounded interpretation
+        complete.push(self.to_fixpoint(base_int.as_ref()).unwrap());
+        loop{
+            change = false;
+            let interpr = complete.get(pos).unwrap().clone();
+            for (pos, it) in interpr.iter().enumerate(){
+                if *it > 1 {
+                    let mut int1 = interpr.clone();
+                    int1[pos] = 0;
+                    match self.to_fixpoint(int1.as_ref()){
+                        Some(n) => {
+                            if !cache.contains_key(&n){
+                                cache.insert(n.clone(), complete.len());
+                                complete.push(n);
+                                change = true;
+                            }
+                        },
+                        None => (),
+                    }
+                    int1[pos] = 1;
+                    match self.to_fixpoint(int1.as_ref()){
+                        Some(n) => {
+                            if !cache.contains_key(&n){
+                                cache.insert(n.clone(), complete.len());
+                                complete.push(n);
+                                change = true;
+                            }
+                        },
+                        None => (),
+                    }
+
+                }
+            }
+            if !change {break};
+            pos += 1;
+           // println!("{}",complete.len());
+            
+        }
+        complete
+    }
+
+    /// represents the starting interpretation due to the acceptance conditions. (i.e. the currently represented set of formulae)
     pub fn cur_interpretation(&self) -> Vec<usize>{
         let mut interpretation: Vec<usize> = Vec::new();
         for it in self.stmts.iter(){
@@ -126,12 +175,12 @@ impl Adf {
         interpretation
     }
 
-    pub fn to_fixpoint(&mut self, interpretation:Vec<usize>) -> Option<Vec<usize>>{
+    pub fn to_fixpoint(&mut self, interpretation:&Vec<usize>) -> Option<Vec<usize>>{
         let new_interpretation = self.apply_interpretation(interpretation.as_ref());
         match Adf::information_enh(interpretation.as_ref(), new_interpretation.as_ref()){
             Some(n) => {
                 if n {
-                    return self.to_fixpoint(new_interpretation);
+                    return self.to_fixpoint(new_interpretation.as_ref());
                 }else{
                     return Some(new_interpretation)
                 }
