@@ -1,12 +1,18 @@
 use std::usize;
 
+/// constant which represents the bottom concept (i.e. inconsistency)
 pub const BDD_BOT: usize = 0;
+/// constant which represents the top concept (i.e. universal truth)
 pub const BDD_TOP: usize = 1;
 
 use std::collections::HashMap;
 
+/// Convenience type substition
 type Term = usize;
 
+/// Represents a node in the BDD
+///
+/// 
 #[derive(Eq, PartialEq, Hash, Clone, Copy)]
 pub (crate) struct BddNode {
     var: usize,
@@ -72,6 +78,7 @@ impl Bdd {
             }
         }
     }
+    
 
     pub fn variable(&mut self, var: usize) -> Term {
         self.create_node(var, BDD_BOT, BDD_TOP)
@@ -87,7 +94,7 @@ impl Bdd {
 
     pub fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
         let treenode = self.nodes[subtree];
-        #[allow(clippy::clippy::collapsible_else_if)]  // Better readabilty of the if/then/else structure of the algorithm
+        #[allow(clippy::collapsible_else_if)]  // Better readabilty of the if/then/else structure of the algorithm
         if treenode.var > var || treenode.var == usize::MAX {
             subtree
         } else if treenode.var < var {

@@ -1,9 +1,14 @@
 [package]
 name = "adf_bdd"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2018"
+license = "GPL-3.0-only"
+
+description = "Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = "2.33.*"

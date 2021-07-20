@@ -1,4 +1,18 @@
-use std::{collections::HashMap, str::{self, FromStr}, usize};
+//! This module describes the abstract dialectical framework
+//!
+//! It handles
+//!  - parsing of statements and acceptance functions
+//!  - computing interpretations
+//!  - computing fixpoints
+//!  - computing the least fixpoint by using a shortcut
+
+#![warn(missing_docs)]
+
+use std::{
+    collections::HashMap,
+    str::{self, FromStr},
+    usize,
+};
 
 use super::obdd::Bdd;
 
@@ -17,29 +31,33 @@ impl Statement {
         }
     }
 
-    
     pub fn _add_ac(&mut self, ac: usize) {
         self.ac = Some(ac);
     }
 }
 
+/// ADF structure which offers some statice and instance methods for handling ADFs.
 pub struct Adf {
     bdd: Bdd,
     stmts: Vec<Statement>,
     dict: HashMap<String, usize>, // label to pos in vec
 }
 
-impl Default for Adf{
+impl Default for Adf {
     fn default() -> Self {
         Adf::new()
     }
 }
 
 impl Adf {
+    /// Creates a new and empty ADF.
+    ///
+    /// To add statements call [`init_statements`](Adf::init_statements()) and then add to each statement it's corresponding acceptance contidion via
+    /// [`add_ac`](Adf::add_ac()).
     pub fn new() -> Self {
         Adf {
             bdd: Bdd::new(),
-            stmts: Vec::new(),   
+            stmts: Vec::new(),
             dict: HashMap::new(),
         }
     }
@@ -51,15 +69,16 @@ impl Adf {
             //self.stmts
             //    .push(Statement::new(statement, pos.clone()));
             self.stmts
-               .push(Statement::new(statement, self.bdd.variable(pos)));
+                .push(Statement::new(statement, self.bdd.variable(pos)));
             self.dict.insert(self.stmts[pos].label.to_string(), pos);
         }
     }
 
     /// Initialise statements
     ///
-    /// The order of statements given as a parameter will determine die ordering for the OBDD. 
-    /// Note that only initialised statements will regocnised as variables later on
+    /// The order of statements given as a parameter will determine die ordering for the OBDD.
+    /// Note that only initialised statements will be regocnised as variables later on.
+    /// This method can be called multiple times to add more statements.
     pub fn init_statements(&mut self, stmts: Vec<&str>) -> usize {
         for i in stmts.iter() {
             self.add_statement(*i);
@@ -68,8 +87,9 @@ impl Adf {
     }
 
     /// Adds to a given statement its acceptance condition.
-    /// 
-    /// This ac needs to be in the prefix notation for ADFs as defined by the DIAMOND implementation. 
+    ///
+    /// This ac needs to be in the prefix notation for ADFs as defined by the DIAMOND implementation.
+    /// Every statement needs to be initialised before by [`init_statements'](Adf::init_statements()).
     pub fn add_ac(&mut self, statement: &str, ac: &str) {
         if let Some(stmt) = self.dict.get(statement) {
             let st = *stmt;
@@ -77,229 +97,271 @@ impl Adf {
         }
     }
 
-    fn add_ac_by_number(&mut self, st:usize, ac: &str){
-      let ac_num = self.parseformula(ac);
-      self.set_ac(st, ac_num);
+    fn add_ac_by_number(&mut self, st: usize, ac: &str) {
+        let ac_num = self.parse_formula(ac);
+        self.set_ac(st, ac_num);
     }
 
     fn set_ac(&mut self, st: usize, ac: usize) {
         self.stmts[st].ac = Some(ac);
     }
 
+    /// Computes the grounded model of the adf.
+    ///
+    /// Note that this computation will shortcut interpretation updates and needs less steps than computing the least fixpoint by an usual fixpoint-construction
     pub fn grounded(&mut self) -> Vec<usize> {
         let mut interpretation: Vec<usize> = Vec::new();
-        let mut change:bool;
+        let mut change: bool;
 
-        for it in self.stmts.iter(){
+        for it in self.stmts.iter() {
             interpretation.push((*it).ac.unwrap())
         }
-        loop{
+        loop {
             change = false;
-            for pos in 0..self.stmts.len()-1{
+            for pos in 0..self.stmts.len() - 1 {
                 let curint = interpretation.clone();
                 match curint[pos] {
                     super::obdd::BDD_BOT => {
-                        if let Some(n) = self.setvarvalue(curint,self.bdd.nodes[self.stmts[pos].var].var(),false){
+                        if let Some(n) = self.setvarvalue(
+                            curint,
+                            self.bdd.nodes[self.stmts[pos].var].var(),
+                            false,
+                        ) {
                             interpretation.clone_from(&n);
                             change = true;
                         }
-                    },
+                    }
                     super::obdd::BDD_TOP => {
-                        if let Some(n) = self.setvarvalue(curint,self.bdd.nodes[self.stmts[pos].var].var(),true){
+                        if let Some(n) = self.setvarvalue(
+                            curint,
+                            self.bdd.nodes[self.stmts[pos].var].var(),
+                            true,
+                        ) {
                             interpretation.clone_from(&n);
                             change = true;
                         }
-                    },
+                    }
                     _ => (),
                 }
             }
-            if !change {break;}
+            if !change {
+                break;
+            }
         }
         interpretation
     }
 
-    pub fn complete(&mut self) -> Vec<Vec<usize>> {
+    /// Function not working - do not use
+    pub(crate) fn _complete(&mut self) -> Vec<Vec<usize>> {
         let base_int = self.cur_interpretation();
         let mut complete: Vec<Vec<usize>> = Vec::new();
-        let mut change:bool;
-        let mut pos:usize=0;
-        let mut cache:HashMap<Vec<usize>,usize> = HashMap::new();
+        let mut change: bool;
+        let mut pos: usize = 0;
+        let mut cache: HashMap<Vec<usize>, usize> = HashMap::new();
 
         // compute grounded interpretation
-        complete.push(self.to_fixpoint(base_int.as_ref()).unwrap());
-        loop{
+        complete.push(self.compute_fixpoint(base_int.as_ref()).unwrap());
+        loop {
             change = false;
             let interpr = complete.get(pos).unwrap().clone();
-            for (pos, it) in interpr.iter().enumerate(){
+            for (pos, it) in interpr.iter().enumerate() {
                 if *it > 1 {
                     let mut int1 = interpr.clone();
                     int1[pos] = 0;
-                    match self.to_fixpoint(int1.as_ref()){
-                        Some(n) => {
-                            if !cache.contains_key(&n){
-                                cache.insert(n.clone(), complete.len());
-                                complete.push(n);
-                                change = true;
-                            }
-                        },
-                        None => (),
+                    if let Some(n) = self.compute_fixpoint(int1.as_ref()) {
+                        if !cache.contains_key(&n) {
+                            cache.insert(n.clone(), complete.len());
+                            complete.push(n);
+                            change = true;
+                        }
                     }
                     int1[pos] = 1;
-                    match self.to_fixpoint(int1.as_ref()){
-                        Some(n) => {
-                            if !cache.contains_key(&n){
-                                cache.insert(n.clone(), complete.len());
-                                complete.push(n);
-                                change = true;
-                            }
-                        },
-                        None => (),
+                    if let Some(n) = self.compute_fixpoint(int1.as_ref()) {
+                        if !cache.contains_key(&n) {
+                            cache.insert(n.clone(), complete.len());
+                            complete.push(n);
+                            change = true;
+                        }
                     }
-
                 }
             }
-            if !change {break};
+            if !change {
+                break;
+            };
             pos += 1;
-           // println!("{}",complete.len());
-            
+            // println!("{}",complete.len());
         }
         complete
     }
 
     /// represents the starting interpretation due to the acceptance conditions. (i.e. the currently represented set of formulae)
-    pub fn cur_interpretation(&self) -> Vec<usize>{
+    pub fn cur_interpretation(&self) -> Vec<usize> {
         let mut interpretation: Vec<usize> = Vec::new();
-        for it in self.stmts.iter(){
+        for it in self.stmts.iter() {
             interpretation.push((*it).ac.unwrap())
         }
         interpretation
     }
 
-    pub fn to_fixpoint(&mut self, interpretation:&Vec<usize>) -> Option<Vec<usize>>{
+    /// Given an Interpretation, follow the `Γ`-Operator to a fixpoint. Returns `None` if no valid fixpoint can be reached from the given interpretation and
+    /// the interpretation which represents the fixpoint otherwise.
+    #[allow(clippy::ptr_arg)]
+    pub fn compute_fixpoint(&mut self, interpretation: &Vec<usize>) -> Option<Vec<usize>> {
         let new_interpretation = self.apply_interpretation(interpretation.as_ref());
-        match Adf::information_enh(interpretation.as_ref(), new_interpretation.as_ref()){
+        match Adf::information_enh(interpretation, new_interpretation.as_ref()) {
             Some(n) => {
                 if n {
-                    return self.to_fixpoint(new_interpretation.as_ref());
-                }else{
-                    return Some(new_interpretation)
+                    self.compute_fixpoint(new_interpretation.as_ref())
+                } else {
+                    Some(new_interpretation)
                 }
-            },
+            }
             None => None,
         }
     }
-
-    fn apply_interpretation(&mut self, interpretation:&Vec<usize>) -> Vec<usize>{
+    
+    #[allow(clippy::ptr_arg)]
+    fn apply_interpretation(&mut self, interpretation: &Vec<usize>) -> Vec<usize> {
         let mut new_interpretation = interpretation.clone();
-        for (pos,it) in interpretation.iter().enumerate(){
+        for (pos, it) in interpretation.iter().enumerate() {
             match *it {
                 super::obdd::BDD_BOT => {
-                    if let Some(n) = self.setvarvalue(new_interpretation.clone(),self.bdd.nodes[self.stmts[pos].var].var(),false){
+                    if let Some(n) = self.setvarvalue(
+                        new_interpretation.clone(),
+                        self.bdd.nodes[self.stmts[pos].var].var(),
+                        false,
+                    ) {
                         new_interpretation.clone_from(&n);
-                        
                     }
-                },
+                }
                 super::obdd::BDD_TOP => {
-                    if let Some(n) = self.setvarvalue(new_interpretation.clone(),self.bdd.nodes[self.stmts[pos].var].var(),true){
-                        new_interpretation.clone_from(&n);                        
+                    if let Some(n) = self.setvarvalue(
+                        new_interpretation.clone(),
+                        self.bdd.nodes[self.stmts[pos].var].var(),
+                        true,
+                    ) {
+                        new_interpretation.clone_from(&n);
                     }
-                },
+                }
                 _ => (),
             }
-            
         }
         new_interpretation
     }
 
-    fn information_enh(i1:&Vec<usize>,i2:&Vec<usize>) -> Option<bool> {
+    #[allow(clippy::ptr_arg)]
+    fn information_enh(i1: &Vec<usize>, i2: &Vec<usize>) -> Option<bool> {
         let mut enhanced = false;
-        for i in 0..i1.len(){
-            if i1[i] < 2{
+        for i in 0..i1.len() {
+            if i1[i] < 2 {
                 if i1[i] != i2[i] {
                     return None;
                 }
-            } else if (i1[i]>=2) & (i2[i] < 2){
+            } else if (i1[i] >= 2) & (i2[i] < 2) {
                 enhanced = true;
             }
         }
         Some(enhanced)
     }
 
-    fn setvarvalue(&mut self,interpretation:Vec<usize>, var:usize, val:bool) -> Option<Vec<usize>>{
-        let mut interpretation2:Vec<usize> = vec![0;interpretation.len()];
+    fn setvarvalue(
+        &mut self,
+        interpretation: Vec<usize>,
+        var: usize,
+        val: bool,
+    ) -> Option<Vec<usize>> {
+        let mut interpretation2: Vec<usize> = vec![0; interpretation.len()];
         let mut change: bool = false;
-        for (pos,_it) in interpretation.iter().enumerate(){
+        for (pos, _it) in interpretation.iter().enumerate() {
             interpretation2[pos] = self.bdd.restrict(interpretation[pos], var, val);
-            if interpretation[pos] != interpretation2[pos]{
+            if interpretation[pos] != interpretation2[pos] {
                 change = true
             }
         }
-        if change{
+        if change {
             Some(interpretation2)
-        }else{
+        } else {
             None
         }
     }
 
-    fn parseformula(&mut self, ac: &str) -> usize {
+    fn parse_formula(&mut self, ac: &str) -> usize {
         if ac.len() > 3 {
             match &ac[..4] {
                 "and(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parseformula(left);
-                    let rterm = self.parseformula(right);
+                    let lterm = self.parse_formula(left);
+                    let rterm = self.parse_formula(right);
                     return self.bdd.and(lterm, rterm);
-                },
+                }
                 "iff(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parseformula(left);
-                    let rterm = self.parseformula(right);
+                    let lterm = self.parse_formula(left);
+                    let rterm = self.parse_formula(right);
                     let notlt = self.bdd.not(lterm);
                     let notrt = self.bdd.not(rterm);
                     let con1 = self.bdd.and(lterm, rterm);
-                    let con2 = self.bdd.and(notlt,notrt);
-                    return self.bdd.or(con1,con2);
-                },
+                    let con2 = self.bdd.and(notlt, notrt);
+                    return self.bdd.or(con1, con2);
+                }
                 "xor(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parseformula(left);
-                    let rterm = self.parseformula(right);
+                    let lterm = self.parse_formula(left);
+                    let rterm = self.parse_formula(right);
                     let notlt = self.bdd.not(lterm);
                     let notrt = self.bdd.not(rterm);
                     let con1 = self.bdd.and(notlt, rterm);
-                    let con2 = self.bdd.and(lterm,notrt);
-                    return self.bdd.or(con1,con2);
-                },
+                    let con2 = self.bdd.and(lterm, notrt);
+                    return self.bdd.or(con1, con2);
+                }
                 "neg(" => {
-                    let pos = Adf::findterm(&ac[4..]).unwrap()+4;
-                    let term = self.parseformula(&ac[4..pos]);
+                    let pos = Adf::findterm(&ac[4..]).unwrap() + 4;
+                    let term = self.parse_formula(&ac[4..pos]);
                     return self.bdd.not(term);
-                },
+                }
                 "c(f)" => return self.bdd.constant(false),
                 "c(v)" => return self.bdd.constant(true),
                 _ if &ac[..3] == "or(" => {
                     let (left, right) = Adf::findpairs(&ac[3..]);
-                    let lterm = self.parseformula(left);
-                    let rterm = self.parseformula(right);
+                    let lterm = self.parse_formula(left);
+                    let rterm = self.parse_formula(right);
                     return self.bdd.or(lterm, rterm);
-                },
+                }
                 _ => (),
             }
-            
         }
         match self.dict.get(ac) {
             Some(it) => self.bdd.variable(*it),
-            _ => {println!("{}",ac); unreachable!()}
+            _ => {
+                println!("{}", ac);
+                unreachable!()
+            }
         }
     }
 
-    pub fn findpairs(formula: &str) -> (&str,&str){
+    /// Given a pair of literals, returns both literals as strings
+    /// # Example
+    /// ```rust
+    /// use adf_bdd::adf::Adf;
+    /// assert_eq!(Adf::findpairs("a,or(b,c))"), ("a", "or(b,c)"));
+    /// assert_eq!(Adf::findpairs("a,or(b,c)"), ("a", "or(b,c)"));
+    /// ```
+    pub fn findpairs(formula: &str) -> (&str, &str) {
         let lpos = Adf::findterm(formula).unwrap();
-        let rpos = Adf::findterm(&formula[lpos+1..]).unwrap() + lpos;
-        (&formula[..lpos],&formula[lpos+1..rpos+1])
+        let rpos = Adf::findterm(&formula[lpos + 1..]).unwrap() + lpos;
+        (&formula[..lpos], &formula[lpos + 1..rpos + 1])
     }
 
-    pub fn findterm_str(formula: &str) -> &str{
+    /// Returns the first term in the given slice as a string slice
+    /// # Example
+    /// ```rust
+    /// use adf_bdd::adf::Adf;  
+    /// assert_eq!(Adf::findterm_str("formula"), "formula");
+    /// assert_eq!(Adf::findterm_str("and(a,b),or(a,b)"), "and(a,b)");
+    /// assert_eq!(Adf::findterm_str("neg(atom(a.d.ee))"), "neg(atom(a.d.ee))");
+    /// assert_eq!(Adf::findterm_str("formula)"), "formula");
+    /// ```
+    pub fn findterm_str(formula: &str) -> &str {
         &formula[..Adf::findterm(formula).unwrap()]
     }
 
@@ -307,7 +369,7 @@ impl Adf {
         let mut sqbrack: i16 = 0;
         let mut cobrack: i16 = 0;
 
-        for (i,c) in formula.chars().enumerate() {
+        for (i, c) in formula.chars().enumerate() {
             match c {
                 '(' => sqbrack += 1,
                 '[' => cobrack += 1,
@@ -319,19 +381,18 @@ impl Adf {
                 ')' => {
                     if sqbrack > 0 {
                         sqbrack -= 1;
-                    }else{
+                    } else {
                         return Some(i);
                     }
                 }
                 ']' => {
                     if cobrack > 0 {
                         cobrack -= 1;
-                    }else{
+                    } else {
                         return Some(i);
                     }
                 }
                 _ => (),
-
             }
         }
         Some(formula.len())
@@ -357,43 +418,43 @@ mod test {
     }
 
     #[test]
-    fn parseformula() {
+    fn parse_formula() {
         let mut adf = Adf::new();
 
         adf.add_statement("a");
         adf.add_statement("b");
         adf.add_statement("c");
 
-        assert_eq!(adf.parseformula("and(a,or(b,c))"), 6);
-        assert_eq!(adf.parseformula("xor(a,b)"), 11);
-        assert_eq!(adf.parseformula("or(c(f),b)"), 3); // is b
+        assert_eq!(adf.parse_formula("and(a,or(b,c))"), 6);
+        assert_eq!(adf.parse_formula("xor(a,b)"), 11);
+        assert_eq!(adf.parse_formula("or(c(f),b)"), 3); // is b
 
-        adf.parseformula("and(or(c(f),a),and(b,c))");
+        adf.parse_formula("and(or(c(f),a),and(b,c))");
     }
 
     #[test]
     #[should_panic]
-    fn parseformula_panic() {
+    fn parse_formula_panic() {
         let mut adf = Adf::new();
 
         adf.add_statement("a");
         adf.add_statement("b");
         adf.add_statement("c");
 
-        adf.parseformula("and(a,or(b,d))");
+        adf.parse_formula("and(a,or(b,d))");
     }
 
     #[test]
     fn findterm() {
-        assert_eq!(Adf::findterm("formula"),Some(7));
-        assert_eq!(Adf::findterm("and(a,b),or(a,b)"),Some(8));
-        assert_eq!(Adf::findterm("neg(atom(a.d.ee))"),Some(17));
-        assert_eq!(Adf::findterm("formula)"),Some(7));
+        assert_eq!(Adf::findterm("formula"), Some(7));
+        assert_eq!(Adf::findterm("and(a,b),or(a,b)"), Some(8));
+        assert_eq!(Adf::findterm("neg(atom(a.d.ee))"), Some(17));
+        assert_eq!(Adf::findterm("formula)"), Some(7));
     }
 
     #[test]
     fn findpairs() {
-        assert_eq!(Adf::findpairs("a,or(b,c))"),("a","or(b,c)"));
+        assert_eq!(Adf::findpairs("a,or(b,c))"), ("a", "or(b,c)"));
     }
 
     #[test]
