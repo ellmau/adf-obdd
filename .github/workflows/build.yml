@@ -19,17 +19,17 @@ jobs:
           RUSTTARGET: ${{ matrix.target }}
           EXTRA_FILES: "README.md LICENSE"
           SRC_DIR: "."
-  release_without_not_required:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        target: [x86_64-unknown-linux-musl]
-    steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUSTTARGET: ${{ matrix.target }}
+  #release_without_not_required:
+  #  name: release ${{ matrix.target }}
+  #  runs-on: ubuntu-latest
+  #  strategy:
+  #    fail-fast: true
+  #    matrix:
+  #      target: [x86_64-unknown-linux-musl]
+  #  steps:
+  #    - uses: actions/checkout@master
+  #    - name: Compile and release
+  #      uses: rust-build/rust-build.action@master
+  #      env:
+  #        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #        RUSTTARGET: ${{ matrix.target }}
