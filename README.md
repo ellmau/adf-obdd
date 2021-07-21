@@ -1,3 +1,4 @@
+[![.github/workflows/build.yml](https://github.com/ellmau/adf-obdd/actions/workflows/build.yml/badge.svg)](https://github.com/ellmau/adf-obdd/actions/workflows/build.yml) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total)
 # Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
 
 
