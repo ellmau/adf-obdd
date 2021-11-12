@@ -12,9 +12,9 @@ type Term = usize;
 
 /// Represents a node in the BDD
 ///
-/// 
+///
 #[derive(Eq, PartialEq, Hash, Clone, Copy)]
-pub (crate) struct BddNode {
+pub(crate) struct BddNode {
     var: usize,
     lo: Term,
     hi: Term,
@@ -26,14 +26,14 @@ impl std::fmt::Display for BddNode {
     }
 }
 
-impl BddNode{
-    pub fn var(self)->usize{
+impl BddNode {
+    pub fn var(self) -> usize {
         self.var
     }
 }
 
-pub (crate) struct Bdd {
-    pub (crate) nodes: Vec<BddNode>,
+pub(crate) struct Bdd {
+    pub(crate) nodes: Vec<BddNode>,
     hash: HashMap<BddNode, Term>,
 }
 
@@ -59,11 +59,7 @@ impl Bdd {
         if lo == hi {
             lo
         } else {
-            let node = BddNode {
-                var,
-                lo,
-                hi,
-            };
+            let node = BddNode { var, lo, hi };
             match self.hash.get(&node) {
                 Some(n) => *n,
                 None => {
@@ -78,7 +74,6 @@ impl Bdd {
             }
         }
     }
-    
 
     pub fn variable(&mut self, var: usize) -> Term {
         self.create_node(var, BDD_BOT, BDD_TOP)
@@ -94,7 +89,8 @@ impl Bdd {
 
     pub fn restrict(&mut self, subtree: Term, var: usize, val: bool) -> Term {
         let treenode = self.nodes[subtree];
-        #[allow(clippy::collapsible_else_if)]  // Better readabilty of the if/then/else structure of the algorithm
+        #[allow(clippy::collapsible_else_if)]
+        // Better readabilty of the if/then/else structure of the algorithm
         if treenode.var > var || treenode.var == usize::MAX {
             subtree
         } else if treenode.var < var {

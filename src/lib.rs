@@ -1,7 +1,7 @@
 //! This library contains an efficient representation of `Abstract Dialectical Frameworks (ADf)` by utilising an implementation of `Ordered Binary Decision Diagrams (OBDD)`
 //!
 //! # Abstract Dialectical Frameworks
-//! An `abstract dialectical framework` consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration. 
+//! An `abstract dialectical framework` consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration.
 //! # Ordered Binary Decision Diagram
 //! An `ordered binary decision diagram` is a normalised representation of binary functions, where satisfiability- and validity checks can be done relatively cheap.
 //!
@@ -25,11 +25,11 @@
 //! s(b).
 //! s(c).
 //! s(d).
-//! 
+//!
 //! ac(a,c(v)).
 //! ac(b,or(a,b)).
 //! ac(c,neg(b)).
 //! ac(d,d).
 //! ```
-pub mod obdd;
 pub mod adf;
+pub mod obdd;

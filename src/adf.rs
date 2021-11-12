@@ -219,7 +219,7 @@ impl Adf {
             None => None,
         }
     }
-    
+
     #[allow(clippy::ptr_arg)]
     fn apply_interpretation(&mut self, interpretation: &Vec<usize>) -> Vec<usize> {
         let mut new_interpretation = interpretation.clone();
