@@ -32,4 +32,6 @@
 //! ac(d,d).
 //! ```
 pub mod adf;
+pub mod datatypes;
 pub mod obdd;
+pub mod obdd2;
