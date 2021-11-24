@@ -14,7 +14,9 @@ use std::{
     usize,
 };
 
-use super::obdd::Bdd;
+use crate::datatypes::{Term, Var};
+
+use crate::obdd::Bdd;
 
 struct Statement {
     label: String,     // label of the statement
@@ -68,8 +70,10 @@ impl Adf {
             //self.bdd.variable(pos);
             //self.stmts
             //    .push(Statement::new(statement, pos.clone()));
-            self.stmts
-                .push(Statement::new(statement, self.bdd.variable(pos)));
+            self.stmts.push(Statement::new(
+                statement,
+                self.bdd.variable(Var(pos)).value(),
+            ));
             self.dict.insert(self.stmts[pos].label.to_string(), pos);
         }
     }
@@ -120,21 +124,21 @@ impl Adf {
             change = false;
             for pos in 0..self.stmts.len() - 1 {
                 let curint = interpretation.clone();
-                match curint[pos] {
-                    super::obdd::BDD_BOT => {
+                match Term(curint[pos]) {
+                    Term::BOT => {
                         if let Some(n) = self.setvarvalue(
                             curint,
-                            self.bdd.nodes[self.stmts[pos].var].var(),
+                            self.bdd.nodes[self.stmts[pos].var].var().value(),
                             false,
                         ) {
                             interpretation.clone_from(&n);
                             change = true;
                         }
                     }
-                    super::obdd::BDD_TOP => {
+                    Term::TOP => {
                         if let Some(n) = self.setvarvalue(
                             curint,
-                            self.bdd.nodes[self.stmts[pos].var].var(),
+                            self.bdd.nodes[self.stmts[pos].var].var().value(),
                             true,
                         ) {
                             interpretation.clone_from(&n);
@@ -224,20 +228,20 @@ impl Adf {
     fn apply_interpretation(&mut self, interpretation: &Vec<usize>) -> Vec<usize> {
         let mut new_interpretation = interpretation.clone();
         for (pos, it) in interpretation.iter().enumerate() {
-            match *it {
-                super::obdd::BDD_BOT => {
+            match Term(*it) {
+                Term::BOT => {
                     if let Some(n) = self.setvarvalue(
                         new_interpretation.clone(),
-                        self.bdd.nodes[self.stmts[pos].var].var(),
+                        self.bdd.nodes[self.stmts[pos].var].var().value(),
                         false,
                     ) {
                         new_interpretation.clone_from(&n);
                     }
                 }
-                super::obdd::BDD_TOP => {
+                Term::TOP => {
                     if let Some(n) = self.setvarvalue(
                         new_interpretation.clone(),
-                        self.bdd.nodes[self.stmts[pos].var].var(),
+                        self.bdd.nodes[self.stmts[pos].var].var().value(),
                         true,
                     ) {
                         new_interpretation.clone_from(&n);
@@ -273,7 +277,10 @@ impl Adf {
         let mut interpretation2: Vec<usize> = vec![0; interpretation.len()];
         let mut change: bool = false;
         for (pos, _it) in interpretation.iter().enumerate() {
-            interpretation2[pos] = self.bdd.restrict(interpretation[pos], var, val);
+            interpretation2[pos] = self
+                .bdd
+                .restrict(Term(interpretation[pos]), Var(var), val)
+                .value();
             if interpretation[pos] != interpretation2[pos] {
                 change = true
             }
@@ -290,48 +297,46 @@ impl Adf {
             match &ac[..4] {
                 "and(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parse_formula(left);
-                    let rterm = self.parse_formula(right);
-                    return self.bdd.and(lterm, rterm);
+                    let lterm: Term = self.parse_formula(left).into();
+                    let rterm: Term = self.parse_formula(right).into();
+                    return self.bdd.and(lterm, rterm).value();
                 }
                 "iff(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parse_formula(left);
-                    let rterm = self.parse_formula(right);
-                    let notlt = self.bdd.not(lterm);
-                    let notrt = self.bdd.not(rterm);
-                    let con1 = self.bdd.and(lterm, rterm);
-                    let con2 = self.bdd.and(notlt, notrt);
-                    return self.bdd.or(con1, con2);
+                    let lterm: Term = self.parse_formula(left).into();
+                    let rterm: Term = self.parse_formula(right).into();
+                    return self.bdd.iff(lterm, rterm).value();
                 }
                 "xor(" => {
                     let (left, right) = Adf::findpairs(&ac[4..]);
-                    let lterm = self.parse_formula(left);
-                    let rterm = self.parse_formula(right);
-                    let notlt = self.bdd.not(lterm);
-                    let notrt = self.bdd.not(rterm);
-                    let con1 = self.bdd.and(notlt, rterm);
-                    let con2 = self.bdd.and(lterm, notrt);
-                    return self.bdd.or(con1, con2);
+                    let lterm: Term = self.parse_formula(left).into();
+                    let rterm: Term = self.parse_formula(right).into();
+                    return self.bdd.xor(lterm, rterm).value();
+                }
+                "imp(" => {
+                    let (left, right) = Adf::findpairs(&ac[4..]);
+                    let lterm: Term = self.parse_formula(left).into();
+                    let rterm: Term = self.parse_formula(right).into();
+                    return self.bdd.imp(lterm, rterm).value();
                 }
                 "neg(" => {
                     let pos = Adf::findterm(&ac[4..]).unwrap() + 4;
-                    let term = self.parse_formula(&ac[4..pos]);
-                    return self.bdd.not(term);
+                    let term: Term = self.parse_formula(&ac[4..pos]).into();
+                    return self.bdd.not(term).value();
                 }
-                "c(f)" => return self.bdd.constant(false),
-                "c(v)" => return self.bdd.constant(true),
+                "c(f)" => return Bdd::constant(false).value(),
+                "c(v)" => return Bdd::constant(true).value(),
                 _ if &ac[..3] == "or(" => {
                     let (left, right) = Adf::findpairs(&ac[3..]);
-                    let lterm = self.parse_formula(left);
-                    let rterm = self.parse_formula(right);
-                    return self.bdd.or(lterm, rterm);
+                    let lterm: Term = self.parse_formula(left).into();
+                    let rterm: Term = self.parse_formula(right).into();
+                    return self.bdd.or(lterm, rterm).value();
                 }
                 _ => (),
             }
         }
         match self.dict.get(ac) {
-            Some(it) => self.bdd.variable(*it),
+            Some(it) => self.bdd.variable(Var(*it)).value(),
             _ => {
                 println!("{}", ac);
                 unreachable!()
@@ -426,7 +431,7 @@ mod test {
         adf.add_statement("c");
 
         assert_eq!(adf.parse_formula("and(a,or(b,c))"), 6);
-        assert_eq!(adf.parse_formula("xor(a,b)"), 11);
+        assert_eq!(adf.parse_formula("xor(a,b)"), 8);
         assert_eq!(adf.parse_formula("or(c(f),b)"), 3); // is b
 
         adf.parse_formula("and(or(c(f),a),and(b,c))");
