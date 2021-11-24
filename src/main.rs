@@ -5,6 +5,7 @@ use std::time::Instant;
 use std::usize;
 
 pub mod adf;
+pub mod datatypes;
 pub mod obdd;
 
 use adf::Adf;
