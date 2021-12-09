@@ -36,6 +36,7 @@
               pkgs.rust-analyzer
               pkgs.cargo-audit
               pkgs.cargo-license
+              pkgs.cargo-tarpaulin
             ];
           };
       }
