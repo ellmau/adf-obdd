@@ -34,4 +34,5 @@
 pub mod adf;
 pub mod datatypes;
 pub mod obdd;
+pub mod parser;
 //pub mod obdd2;
