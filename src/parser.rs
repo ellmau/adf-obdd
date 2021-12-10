@@ -1,16 +1,19 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap};
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{alphanumeric1, multispace0},
+    combinator::value,
     multi::{many0, many1},
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Formula<'a> {
+    Bot,
+    Top,
     Atom(&'a str),
     Not(Box<Formula<'a>>),
     And(Box<Formula<'a>>, Box<Formula<'a>>),
@@ -44,14 +47,20 @@ impl std::fmt::Debug for Formula<'_> {
             Formula::Iff(f1, f2) => {
                 write!(f, "iff({:?},{:?})", f1, f2)?;
             }
+            Formula::Bot => {
+                write!(f, "Const(B)");
+            }
+            Formula::Top => {
+                write!(f, "Const(T)");
+            }
         }
         write!(f, "")
     }
 }
 
 pub struct AdfParser<'a> {
-    namelist: RefCell<Vec<String>>,
-    dict: RefCell<HashMap<String, usize>>,
+    namelist: Rc<RefCell<Vec<String>>>,
+    dict: Rc<RefCell<HashMap<String, usize>>>,
     formulae: RefCell<Vec<Formula<'a>>>,
     formulaname: RefCell<Vec<String>>,
 }
@@ -59,8 +68,8 @@ pub struct AdfParser<'a> {
 impl Default for AdfParser<'_> {
     fn default() -> Self {
         AdfParser {
-            namelist: RefCell::new(Vec::new()),
-            dict: RefCell::new(HashMap::new()),
+            namelist: Rc::new(RefCell::new(Vec::new())),
+            dict: Rc::new(RefCell::new(HashMap::new())),
             formulae: RefCell::new(Vec::new()),
             formulaname: RefCell::new(Vec::new()),
         }
@@ -79,10 +88,7 @@ where
     }
 
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
-        |input| {
-            let (rem, _) = many1(alt((self.parse_statement(), self.parse_ac())))(input)?;
-            Ok((rem, ()))
-        }
+        |input| value((), many1(alt((self.parse_statement(), self.parse_ac()))))(input)
     }
 
     fn parse_statement(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
@@ -137,6 +143,7 @@ impl AdfParser<'_> {
 
     fn formula(input: &str) -> IResult<&str, Formula> {
         alt((
+            AdfParser::constant,
             AdfParser::binary_op,
             AdfParser::unary_op,
             AdfParser::atomic_term,
@@ -149,6 +156,23 @@ impl AdfParser<'_> {
             delimited(tag("("), AdfParser::formula, tag(")")),
         )(input)
         .map(|(input, result)| (input, Formula::Not(Box::new(result))))
+    }
+
+    fn constant(input: &str) -> IResult<&str, Formula> {
+        alt((
+            preceded(tag("c"), delimited(tag("("), tag("v"), tag(")"))),
+            preceded(tag("c"), delimited(tag("("), tag("f"), tag(")"))),
+        ))(input)
+        .map(|(input, result)| {
+            (
+                input,
+                match result {
+                    "v" => Formula::Top,
+                    "f" => Formula::Bot,
+                    _ => unreachable!(),
+                },
+            )
+        })
     }
 
     fn formula_pair(input: &str) -> IResult<&str, (Formula, Formula)> {
@@ -201,15 +225,24 @@ impl AdfParser<'_> {
     }
 
     pub fn dict_size(&self) -> usize {
-        self.dict.borrow().len()
+        //self.dict.borrow().len()
+        self.dict.as_ref().borrow().len()
     }
 
     pub fn dict_value(&self, value: &str) -> Option<usize> {
-        self.dict.borrow().get(value).copied()
+        self.dict.as_ref().borrow().get(value).copied()
     }
 
     pub fn ac_at(&self, idx: usize) -> Option<Formula> {
         self.formulae.borrow().get(idx).cloned()
+    }
+
+    pub(crate) fn dict_rc_refcell(&self) -> Rc<RefCell<HashMap<String, usize>>> {
+        Rc::clone(&self.dict)
+    }
+
+    pub(crate) fn namelist_rc_refcell(&self) -> Rc<RefCell<Vec<String>>> {
+        Rc::clone(&self.namelist)
     }
 }
 
@@ -271,12 +304,20 @@ mod test {
             format!("{:?}", result),
             "and(or(not(a),iff( iff left ,b)),xor(imp(c,d),e))"
         );
+
+        assert_eq!(
+            AdfParser::formula("and(c(v),c(f))").unwrap(),
+            (
+                "",
+                Formula::And(Box::new(Formula::Top), Box::new(Formula::Bot))
+            )
+        );
     }
 
     #[test]
     fn parse() {
         let mut parser = AdfParser::default();
-        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,a).";
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).";
 
         let (remain, _) = parser.parse()(input).unwrap();
         assert_eq!(remain, "");
@@ -286,5 +327,13 @@ mod test {
             format!("{:?}", parser.ac_at(1).unwrap()),
             format!("{:?}", Formula::Not(Box::new(Formula::Atom("a"))))
         );
+    }
+
+    #[test]
+    fn constant() {
+        assert_eq!(AdfParser::constant("c(v)").unwrap().1, Formula::Top);
+        assert_eq!(AdfParser::constant("c(f)").unwrap().1, Formula::Bot);
+        assert_eq!(format!("{:?}", Formula::Top), "Const(T)");
+        assert_eq!(format!("{:?}", Formula::Bot), "Const(B)");
     }
 }

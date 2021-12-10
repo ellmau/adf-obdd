@@ -15,7 +15,6 @@ use std::{
 };
 
 use crate::datatypes::{Term, Var};
-
 use crate::obdd::Bdd;
 
 struct Statement {
