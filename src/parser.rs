@@ -244,6 +244,18 @@ impl AdfParser<'_> {
     pub(crate) fn namelist_rc_refcell(&self) -> Rc<RefCell<Vec<String>>> {
         Rc::clone(&self.namelist)
     }
+
+    pub(crate) fn formula_count(&self) -> usize {
+        self.formulae.borrow().len()
+    }
+
+    pub(crate) fn formula_order(&self) -> Vec<usize> {
+        self.formulaname
+            .borrow()
+            .iter()
+            .map(|name| *self.dict.as_ref().borrow().get(name).unwrap())
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -327,6 +339,8 @@ mod test {
             format!("{:?}", parser.ac_at(1).unwrap()),
             format!("{:?}", Formula::Not(Box::new(Formula::Atom("a"))))
         );
+        assert_eq!(parser.formula_count(), 3);
+        assert_eq!(parser.formula_order(), vec![0, 2, 1]);
     }
 
     #[test]

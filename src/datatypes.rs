@@ -1,3 +1,3 @@
-pub mod bdd;
-mod adf;
+pub mod adf;
+mod bdd;
 pub use bdd::*;
