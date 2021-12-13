@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
 
-use super::super::parser::AdfParser;
 use crate::obdd::Bdd;
+use crate::parser::AdfParser;
 
 use super::{Term, Var};
 
