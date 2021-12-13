@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
 
 use crate::obdd::Bdd;
-use crate::parser::AdfParser;
+use crate::parser::{AdfParser, Formula};
 
 use super::{Term, Var};
 
@@ -39,22 +39,86 @@ pub struct Adf {
 }
 
 impl Adf {
-    fn from_parser(parser: &AdfParser) -> Self {
+    pub fn from_parser(parser: &AdfParser) -> Self {
         let mut result = Self {
             ordering: VarContainer::from_parser(
                 parser.namelist_rc_refcell(),
                 parser.dict_rc_refcell(),
             ),
             bdd: Bdd::new(),
-            ac: Vec::with_capacity(parser.formula_count()),
+            ac: Vec::new(),
         };
-        let ac_order: Vec<usize> = Vec::new();
-
         (0..parser.namelist_rc_refcell().borrow().len())
             .into_iter()
             .for_each(|value| {
                 result.bdd.variable(Var(value));
             });
+
+        parser.formula_order().iter().for_each(|pos| {
+            let result_term = result.term(&parser.ac_at(*pos).unwrap());
+            result.ac.push(result_term);
+        });
         result
+    }
+
+    fn term(&mut self, formula: &Formula) -> Term {
+        match formula {
+            Formula::Bot => Bdd::constant(false),
+            Formula::Top => Bdd::constant(true),
+            Formula::Atom(val) => {
+                let t1 = self.ordering.variable(val).unwrap();
+                self.bdd.variable(t1)
+            }
+            Formula::Not(val) => {
+                let t1 = self.term(val);
+                self.bdd.not(t1)
+            }
+            Formula::And(val1, val2) => {
+                let t1 = self.term(val1);
+                let t2 = self.term(val2);
+                self.bdd.and(t1, t2)
+            }
+            Formula::Or(val1, val2) => {
+                let t1 = self.term(val1);
+                let t2 = self.term(val2);
+                self.bdd.or(t1, t2)
+            }
+            Formula::Iff(val1, val2) => {
+                let t1 = self.term(val1);
+                let t2 = self.term(val2);
+                self.bdd.iff(t1, t2)
+            }
+            Formula::Xor(val1, val2) => {
+                let t1 = self.term(val1);
+                let t2 = self.term(val2);
+                self.bdd.xor(t1, t2)
+            }
+            Formula::Imp(val1, val2) => {
+                let t1 = self.term(val1);
+                let t2 = self.term(val2);
+                self.bdd.imp(t1, t2)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn from_parser() {
+        let mut parser = AdfParser::default();
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).s(e).s(d).ac(d,iff(imp(a,b),c)).ac(e,xor(d,e)).";
+
+        parser.parse()(input).unwrap();
+
+        let adf = Adf::from_parser(&parser);
+        assert_eq!(adf.ordering.names.as_ref().borrow()[0], "a");
+        assert_eq!(adf.ordering.names.as_ref().borrow()[1], "c");
+        assert_eq!(adf.ordering.names.as_ref().borrow()[2], "b");
+        assert_eq!(adf.ordering.names.as_ref().borrow()[3], "e");
+        assert_eq!(adf.ordering.names.as_ref().borrow()[4], "d");
+
+        assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(10), Term(15)]);
     }
 }

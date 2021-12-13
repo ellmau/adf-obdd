@@ -198,6 +198,9 @@ mod test {
         let v1 = bdd.variable(Var(0));
         let v2 = bdd.variable(Var(1));
 
+        assert_eq!(v1, Term(2));
+        assert_eq!(v2, Term(3));
+
         let t1 = bdd.and(v1, v2);
         let nt1 = bdd.not(t1);
         let ft = bdd.or(v1, nt1);

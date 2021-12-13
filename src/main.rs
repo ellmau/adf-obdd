@@ -7,6 +7,7 @@ use std::usize;
 pub mod adf;
 pub mod datatypes;
 pub mod obdd;
+pub mod parser;
 
 use adf::Adf;
 
