@@ -37,6 +37,8 @@
               pkgs.cargo-audit
               pkgs.cargo-license
               pkgs.cargo-tarpaulin
+              pkgs.cargo-kcov
+              pkgs.kcov
             ];
           };
       }

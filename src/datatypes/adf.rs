@@ -121,4 +121,9 @@ mod test {
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(10), Term(15)]);
     }
+    #[test]
+    fn init_varcontainer() {
+        let vc = VarContainer::default();
+        assert_eq!(vc.variable("foo"), None);
+    }
 }
