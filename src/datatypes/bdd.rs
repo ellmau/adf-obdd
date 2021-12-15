@@ -33,6 +33,14 @@ impl Term {
     pub fn value(self) -> usize {
         self.0
     }
+
+    pub fn is_truth_value(&self) -> bool {
+        self.0 <= Term::TOP.0
+    }
+
+    pub fn is_true(&self) -> bool {
+        *self == Self::TOP
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy)]

@@ -1,12 +1,12 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{alphanumeric1, multispace0},
     combinator::value,
-    multi::{many0, many1},
-    sequence::{delimited, preceded, separated_pair, terminated, tuple},
+    multi::many1,
+    sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
 };
 
@@ -48,10 +48,10 @@ impl std::fmt::Debug for Formula<'_> {
                 write!(f, "iff({:?},{:?})", f1, f2)?;
             }
             Formula::Bot => {
-                write!(f, "Const(B)");
+                write!(f, "Const(B)")?;
             }
             Formula::Top => {
-                write!(f, "Const(T)");
+                write!(f, "Const(T)")?;
             }
         }
         write!(f, "")
@@ -293,7 +293,7 @@ mod test {
 
     #[test]
     fn parse_statement() {
-        let mut parser: AdfParser = AdfParser::default();
+        let parser: AdfParser = AdfParser::default();
 
         let input = "s(a).    s(b). s(c).s(d).s(b).s(c).";
         //        many1(parser.parse_statement())(input).unwrap();
@@ -308,9 +308,8 @@ mod test {
 
     #[test]
     fn parse_formula() {
-        let mut parser = AdfParser::default();
         let input = "and(or(neg(a),iff(\" iff left \",b)),xor(imp(c,d),e))";
-        let (remain, result) = AdfParser::formula(input).unwrap();
+        let (_remain, result) = AdfParser::formula(input).unwrap();
 
         assert_eq!(
             format!("{:?}", result),
@@ -328,7 +327,7 @@ mod test {
 
     #[test]
     fn parse() {
-        let mut parser = AdfParser::default();
+        let parser = AdfParser::default();
         let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).";
 
         let (remain, _) = parser.parse()(input).unwrap();
