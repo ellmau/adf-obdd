@@ -1,3 +1,4 @@
+//! Represents an obdd
 use crate::datatypes::*;
 use std::{cmp::min, collections::HashMap, fmt::Display};
 

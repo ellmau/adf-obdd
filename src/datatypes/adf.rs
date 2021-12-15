@@ -1,3 +1,5 @@
+//! Repesentation of all needed ADF based datatypes
+
 use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use crate::obdd::Bdd;
@@ -36,6 +38,7 @@ impl VarContainer {
     }
 }
 
+/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
 pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,
@@ -43,6 +46,7 @@ pub struct Adf {
 }
 
 impl Adf {
+    /// Instantiates a new ADF, based on the parser-data
     pub fn from_parser(parser: &AdfParser) -> Self {
         let mut result = Self {
             ordering: VarContainer::from_parser(
@@ -105,6 +109,7 @@ impl Adf {
         }
     }
 
+    /// Computes the complete extension and returns it as a list
     pub fn complete(&mut self) -> Vec<Term> {
         let mut t_vals: usize =
             self.ac.iter().fold(
@@ -142,6 +147,7 @@ impl Adf {
         new_interpretation
     }
 
+    /// creates a [PrintableInterpretation] for output purposes
     pub fn print_interpretation<'a, 'b>(
         &'a self,
         interpretation: &'b Vec<Term>,
@@ -156,6 +162,7 @@ impl Adf {
     }
 }
 
+/// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
 pub struct PrintableInterpretation<'a> {
     interpretation: &'a Vec<Term>,
     ordering: &'a VarContainer,

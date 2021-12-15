@@ -1,3 +1,5 @@
+//! This module contains the Parser for ADFs
+//! It utilises the [nom-crate](https://crates.io/crates/nom)
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use nom::{
@@ -10,16 +12,26 @@ use nom::{
     IResult,
 };
 
+/// A representation of a formula, still using the strings from the input
 #[derive(Clone, PartialEq, Eq)]
 pub enum Formula<'a> {
+    /// c(v) in the input format
     Bot,
+    /// c(f) in the input format
     Top,
+    /// Some atomic variable in the input format
     Atom(&'a str),
+    /// Negation of a subformula
     Not(Box<Formula<'a>>),
+    /// Conjunction of two subformulae
     And(Box<Formula<'a>>, Box<Formula<'a>>),
+    /// Disjunction of two subformulae
     Or(Box<Formula<'a>>, Box<Formula<'a>>),
+    /// Implication of two subformulae
     Imp(Box<Formula<'a>>, Box<Formula<'a>>),
+    /// Exclusive-Or of two subformulae
     Xor(Box<Formula<'a>>, Box<Formula<'a>>),
+    /// If and only if connective between two formulae
     Iff(Box<Formula<'a>>, Box<Formula<'a>>),
 }
 
@@ -58,6 +70,9 @@ impl std::fmt::Debug for Formula<'_> {
     }
 }
 
+/// A parse structure to hold all the information given by the input file in one place
+/// Due to an internal representation with [std::cell::RefCell] and [std::rc::Rc] the values can be
+/// handed over to other structures without further storage needs.
 pub struct AdfParser<'a> {
     namelist: Rc<RefCell<Vec<String>>>,
     dict: Rc<RefCell<HashMap<String, usize>>>,
@@ -87,6 +102,15 @@ where
         }
     }
 
+    /// Parses a full input file and creates internal structures.
+    /// It can be provided to a [crate::datatypes::adf::Adf] to initialise a new ADF
+    /// Note that this method returns a closure (see the following Example for the correct usage).
+    /// # Example
+    /// ```
+    /// let parser = adf_bdd::parser::AdfParser::default();
+    /// parser.parse()("s(a).ac(a,c(v)).s(b).ac(b,a).s(c).ac(c,neg(b)).");
+    /// let adf = adf_bdd::datatypes::adf::Adf::from_parser(&parser);
+    /// ```
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
         |input| value((), many1(alt((self.parse_statement(), self.parse_ac()))))(input)
     }
@@ -224,15 +248,18 @@ impl AdfParser<'_> {
         ))(input)
     }
 
+    /// Allows insight of the number of parsed Statements
     pub fn dict_size(&self) -> usize {
         //self.dict.borrow().len()
         self.dict.as_ref().borrow().len()
     }
 
+    /// Returns the number-representation and position of a given variable/statement in string-representation
     pub fn dict_value(&self, value: &str) -> Option<usize> {
         self.dict.as_ref().borrow().get(value).copied()
     }
 
+    /// Returns the acceptance condition of a statement at the given positon
     pub fn ac_at(&self, idx: usize) -> Option<Formula> {
         self.formulae.borrow().get(idx).cloned()
     }
