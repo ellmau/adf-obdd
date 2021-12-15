@@ -1,4 +1,4 @@
-//! This module contains the Parser for ADFs
+//! A Parser for ADFs with all needed helper-methods.
 //! It utilises the [nom-crate](https://crates.io/crates/nom)
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -71,8 +71,10 @@ impl std::fmt::Debug for Formula<'_> {
 }
 
 /// A parse structure to hold all the information given by the input file in one place
-/// Due to an internal representation with [std::cell::RefCell] and [std::rc::Rc] the values can be
+/// Due to an internal representation with [RefCell][std::cell::RefCell] and [Rc][std::rc::Rc] the values can be
 /// handed over to other structures without further storage needs.
+///
+/// Note that the parser can be utilised by an [ADF][`crate::datatypes::adf::Adf`] to initialise it with minimal overhead.
 pub struct AdfParser<'a> {
     namelist: Rc<RefCell<Vec<String>>>,
     dict: Rc<RefCell<HashMap<String, usize>>>,
@@ -103,7 +105,6 @@ where
     }
 
     /// Parses a full input file and creates internal structures.
-    /// It can be provided to a [crate::datatypes::adf::Adf] to initialise a new ADF
     /// Note that this method returns a closure (see the following Example for the correct usage).
     /// # Example
     /// ```
