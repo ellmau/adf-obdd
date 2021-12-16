@@ -12,9 +12,9 @@ description = "Solver for ADFs grounded semantics by utilising OBDDs - ordered b
 
 [dependencies]
 clap = "2.33.*"
-log = "0.4"
+log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
+env_logger = "0.9"
 nom = "7.1.0"
 
 [dev-dependencies]
-env_logger = "*"
 test-env-log = "0.2.*"

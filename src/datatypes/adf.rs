@@ -150,7 +150,7 @@ impl Adf {
     /// creates a [PrintableInterpretation] for output purposes
     pub fn print_interpretation<'a, 'b>(
         &'a self,
-        interpretation: &'b Vec<Term>,
+        interpretation: &'b [Term],
     ) -> PrintableInterpretation<'b>
     where
         'a: 'b,
@@ -164,7 +164,7 @@ impl Adf {
 
 /// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
 pub struct PrintableInterpretation<'a> {
-    interpretation: &'a Vec<Term>,
+    interpretation: &'a [Term],
     ordering: &'a VarContainer,
 }
 
@@ -218,7 +218,7 @@ mod test {
     #[test]
     fn complete() {
         let parser = AdfParser::default();
-        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).s(e).ac(e,and(b,or(neg(b),c(f)))).s(f).ac(f,xor(a,e)).")
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
             .unwrap();
         let mut adf = Adf::from_parser(&parser);
         let result = adf.complete();
