@@ -113,6 +113,7 @@ where
     /// let adf = adf_bdd::adf::Adf::from_parser(&parser);
     /// ```
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
+	log::info!("[Start] parsing");
         |input| {
             value(
                 (),
