@@ -110,7 +110,7 @@ where
     /// ```
     /// let parser = adf_bdd::parser::AdfParser::default();
     /// parser.parse()("s(a).ac(a,c(v)).s(b).ac(b,a).s(c).ac(c,neg(b)).");
-    /// let adf = adf_bdd::datatypes::adf::Adf::from_parser(&parser);
+    /// let adf = adf_bdd::adf::Adf::from_parser(&parser);
     /// ```
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
         |input| value((), many1(alt((self.parse_statement(), self.parse_ac()))))(input)
