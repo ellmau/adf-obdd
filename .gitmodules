@@ -1,3 +1,0 @@
-[submodule "instances"]
-	path = tests/data
-	url = https://github.com/ellmau/adf-instances.git
