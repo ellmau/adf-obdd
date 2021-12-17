@@ -6,7 +6,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{alphanumeric1, multispace0},
-    combinator::value,
+    combinator::{all_consuming, value},
     multi::many1,
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
@@ -113,7 +113,12 @@ where
     /// let adf = adf_bdd::adf::Adf::from_parser(&parser);
     /// ```
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
-        |input| value((), many1(alt((self.parse_statement(), self.parse_ac()))))(input)
+        |input| {
+            value(
+                (),
+                all_consuming(many1(alt((self.parse_statement(), self.parse_ac())))),
+            )(input)
+        }
     }
 
     fn parse_statement(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
@@ -289,6 +294,8 @@ impl AdfParser<'_> {
 #[cfg(test)]
 mod test {
 
+    use clap::ErrorKind;
+
     use super::*;
 
     #[test]
@@ -368,6 +375,19 @@ mod test {
         );
         assert_eq!(parser.formula_count(), 3);
         assert_eq!(parser.formula_order(), vec![0, 2, 1]);
+    }
+
+    #[test]
+    fn non_consuming_parse() {
+        let parser = AdfParser::default();
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))). wee";
+
+        let x = parser.parse()(input);
+        assert!(x.is_err());
+        assert_eq!(
+            x.err().unwrap(),
+            nom::Err::Error(nom::error::Error::new("wee", nom::error::ErrorKind::Eof))
+        );
     }
 
     #[test]

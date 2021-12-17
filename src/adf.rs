@@ -6,7 +6,14 @@
 //!  - computing fixpoints
 //!  - computing the least fixpoint by using a shortcut
 
-use crate::{datatypes::{Term, Var, adf::{PrintableInterpretation, VarContainer}}, obdd::Bdd, parser::{AdfParser, Formula}};
+use crate::{
+    datatypes::{
+        adf::{PrintableInterpretation, VarContainer},
+        Term, Var,
+    },
+    obdd::Bdd,
+    parser::{AdfParser, Formula},
+};
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
 pub struct Adf {
     ordering: VarContainer,
@@ -124,7 +131,7 @@ impl Adf {
     where
         'a: 'b,
     {
-	PrintableInterpretation::new(interpretation, &self.ordering)
+        PrintableInterpretation::new(interpretation, &self.ordering)
     }
 }
 
@@ -147,7 +154,7 @@ mod test {
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(10), Term(15)]);
     }
-    
+
     #[test]
     fn complete() {
         let parser = AdfParser::default();

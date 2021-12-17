@@ -38,13 +38,9 @@ impl VarContainer {
     }
 
     pub fn names(&self) -> Rc<RefCell<Vec<String>>> {
-	Rc::clone(&self.names)
+        Rc::clone(&self.names)
     }
-
-
-    
 }
-
 
 /// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
 pub struct PrintableInterpretation<'a> {
@@ -53,8 +49,11 @@ pub struct PrintableInterpretation<'a> {
 }
 
 impl<'a> PrintableInterpretation<'a> {
-    pub(crate) fn new(interpretation: &'a [Term], ordering: &'a VarContainer) -> Self{
-	Self{interpretation, ordering}
+    pub(crate) fn new(interpretation: &'a [Term], ordering: &'a VarContainer) -> Self {
+        Self {
+            interpretation,
+            ordering,
+        }
     }
 }
 
