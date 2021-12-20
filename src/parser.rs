@@ -1,7 +1,6 @@
 //! A Parser for ADFs with all needed helper-methods.
 //! It utilises the [nom-crate](https://crates.io/crates/nom)
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
-
+use lexical_sort::{natural_lexical_cmp, StringSort};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
@@ -11,6 +10,7 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
 };
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
 
 /// A representation of a formula, still using the strings from the input
 #[derive(Clone, PartialEq, Eq)]
@@ -113,7 +113,7 @@ where
     /// let adf = adf_bdd::adf::Adf::from_parser(&parser);
     /// ```
     pub fn parse(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
-	log::info!("[Start] parsing");
+        log::info!("[Start] parsing");
         |input| {
             value(
                 (),
@@ -149,6 +149,35 @@ where
 }
 
 impl AdfParser<'_> {
+    /// after an update to the namelist, all indizes are updated
+    fn regenerate_indizes(&self) {
+        self.namelist
+            .as_ref()
+            .borrow()
+            .iter()
+            .enumerate()
+            .for_each(|(i, elem)| {
+                self.dict.as_ref().borrow_mut().insert(elem.clone(), i);
+            });
+    }
+
+    /// Sort the variables in lexicographical order
+    /// results which got used before might become corrupted
+    pub fn varsort_lexi(&self) -> &Self {
+        self.namelist.as_ref().borrow_mut().sort_unstable();
+        self.regenerate_indizes();
+        self
+    }
+
+    pub fn varsort_alphanum(&self) -> &Self {
+        self.namelist
+            .as_ref()
+            .borrow_mut()
+            .string_sort_unstable(natural_lexical_cmp);
+        self.regenerate_indizes();
+        self
+    }
+
     fn statement(input: &str) -> IResult<&str, &str> {
         preceded(tag("s"), delimited(tag("("), AdfParser::atomic, tag(")")))(input)
     }
@@ -397,5 +426,52 @@ mod test {
         assert_eq!(AdfParser::constant("c(f)").unwrap().1, Formula::Bot);
         assert_eq!(format!("{:?}", Formula::Top), "Const(T)");
         assert_eq!(format!("{:?}", Formula::Bot), "Const(B)");
+    }
+
+    #[test]
+    fn sort_updates() {
+        let parser = AdfParser::default();
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).";
+
+        parser.parse()(input).unwrap();
+        assert_eq!(parser.dict_value("a"), Some(0));
+        assert_eq!(parser.dict_value("b"), Some(2));
+        assert_eq!(parser.dict_value("c"), Some(1));
+
+        parser.varsort_lexi();
+
+        assert_eq!(parser.dict_value("a"), Some(0));
+        assert_eq!(parser.dict_value("b"), Some(1));
+        assert_eq!(parser.dict_value("c"), Some(2));
+
+        let parser = AdfParser::default();
+        let input = "s(a2).s(0).s(1).s(2).s(10).s(11).s(20).ac(0,c(v)).ac(1,c(v)).ac(2,c(v)).ac(10,c(v)).ac(20,c(v)).ac(11,c(v)).ac(a2,c(f)).";
+
+        parser.parse()(input).unwrap();
+        assert_eq!(parser.dict_value("a2"), Some(0));
+        assert_eq!(parser.dict_value("0"), Some(1));
+        assert_eq!(parser.dict_value("1"), Some(2));
+        assert_eq!(parser.dict_value("2"), Some(3));
+        assert_eq!(parser.dict_value("10"), Some(4));
+        assert_eq!(parser.dict_value("11"), Some(5));
+        assert_eq!(parser.dict_value("20"), Some(6));
+
+        parser.varsort_lexi();
+        assert_eq!(parser.dict_value("0"), Some(0));
+        assert_eq!(parser.dict_value("1"), Some(1));
+        assert_eq!(parser.dict_value("2"), Some(4));
+        assert_eq!(parser.dict_value("10"), Some(2));
+        assert_eq!(parser.dict_value("11"), Some(3));
+        assert_eq!(parser.dict_value("20"), Some(5));
+        assert_eq!(parser.dict_value("a2"), Some(6));
+
+        parser.varsort_alphanum();
+        assert_eq!(parser.dict_value("0"), Some(0));
+        assert_eq!(parser.dict_value("1"), Some(1));
+        assert_eq!(parser.dict_value("2"), Some(2));
+        assert_eq!(parser.dict_value("10"), Some(3));
+        assert_eq!(parser.dict_value("11"), Some(4));
+        assert_eq!(parser.dict_value("20"), Some(5));
+        assert_eq!(parser.dict_value("a2"), Some(6));
     }
 }
