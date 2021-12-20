@@ -2,9 +2,6 @@
 
 use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::obdd::Bdd;
-use crate::parser::{AdfParser, Formula};
-
 use super::{Term, Var};
 
 pub(crate) struct VarContainer {

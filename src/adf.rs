@@ -42,7 +42,7 @@ impl Adf {
             let result_term = result.term(&parser.ac_at(*pos).unwrap());
             result.ac.push(result_term);
         });
-	log::info!("[Success] instantiated");
+        log::info!("[Success] instantiated");
         result
     }
 
@@ -88,7 +88,7 @@ impl Adf {
 
     /// Computes the grounded extension and returns it as a list
     pub fn grounded(&mut self) -> Vec<Term> {
-	log::info!("[Start] grounded");
+        log::info!("[Start] grounded");
         let mut t_vals: usize =
             self.ac.iter().fold(
                 0,
@@ -122,7 +122,7 @@ impl Adf {
                 break;
             }
         }
-	log::info!("[Done] grounded");
+        log::info!("[Done] grounded");
         new_interpretation
     }
 

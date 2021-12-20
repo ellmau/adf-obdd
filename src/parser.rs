@@ -10,7 +10,7 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
 };
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// A representation of a formula, still using the strings from the input
 #[derive(Clone, PartialEq, Eq)]
@@ -161,14 +161,16 @@ impl AdfParser<'_> {
             });
     }
 
-    /// Sort the variables in lexicographical order
-    /// results which got used before might become corrupted
+    /// Sort the variables in lexicographical order.
+    /// Results which got used before might become corrupted.
     pub fn varsort_lexi(&self) -> &Self {
         self.namelist.as_ref().borrow_mut().sort_unstable();
         self.regenerate_indizes();
         self
     }
 
+    /// Sort the variables in alphanumerical order
+    /// Results which got used before might become corrupted.
     pub fn varsort_alphanum(&self) -> &Self {
         self.namelist
             .as_ref()

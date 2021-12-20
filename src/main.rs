@@ -12,13 +12,17 @@ use parser::AdfParser;
 
 fn main() {
     let matches = clap_app!(myapp =>
-    (version: crate_version!())
-    (author: crate_authors!())
-    (name: crate_name!())
-    (about: crate_description!())
-    //(@arg fast: -f --fast "fast algorithm instead of the direct fixpoint-computation")
-    (@arg verbose: -v +multiple "Sets log verbosity")
-    (@arg INPUT: +required "Input file")
+                (version: crate_version!())
+                (author: crate_authors!())
+                (name: crate_name!())
+                (about: crate_description!())
+                //(@arg fast: -f --fast "fast algorithm instead of the direct fixpoint-computation")
+                (@arg verbose: -v +multiple "Sets log verbosity")
+                (@arg INPUT: +required "Input file")
+                (@group sorting =>
+                 (@arg sort_lex: --lx "Sorts variables in a lexicographic manner")
+                 (@arg sort_alphan: --an "Sorts variables in an alphanumeric manner")
+                )
     )
     .get_matches_safe()
     .unwrap_or_else(|e| match e.kind {
@@ -61,6 +65,13 @@ fn main() {
     .expect("Error Reading File");
     let parser = AdfParser::default();
     parser.parse()(&input).unwrap();
+
+    if matches.is_present("sort_lex") {
+        parser.varsort_lexi();
+    }
+    if matches.is_present("sort_alphan") {
+        parser.varsort_alphanum();
+    }
 
     let mut adf = Adf::from_parser(&parser);
     let grounded = adf.grounded();
