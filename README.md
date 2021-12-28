@@ -17,3 +17,21 @@ The binary predicate ac relates each statement to one propositional formula in p
 - neg(x): classical negation
 - c(v): constant symbol "verum" - tautology/top
 - c(f): constant symbol "falsum" - inconsistency/bot
+
+# Development notes
+To run all the tests placed in the submodule you need to run
+```bash
+$> git submodule init
+```
+at the first time.
+Afterwards you need to update the content of the submodule to be on the currently used revision by
+```bash
+$> git submodule update
+```
+
+The tests can be started by using the test-framework of cargo, i.e.
+```bash
+$> cargo test
+```
+Note that some of the instances are quite big and it might take some time to finish all the tests.
+If you do not initialise the submodule, tests will "only" run on the other unit-tests and (possibly forthcoming) other integration tests.
