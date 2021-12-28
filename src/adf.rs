@@ -30,7 +30,7 @@ impl Adf {
                 parser.dict_rc_refcell(),
             ),
             bdd: Bdd::new(),
-            ac: Vec::new(),
+            ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
         };
         (0..parser.namelist_rc_refcell().borrow().len())
             .into_iter()
@@ -38,10 +38,14 @@ impl Adf {
                 result.bdd.variable(Var(value));
             });
 
-        parser.formula_order().iter().for_each(|pos| {
-            let result_term = result.term(&parser.ac_at(*pos).unwrap());
-            result.ac.push(result_term);
-        });
+        parser
+            .formula_order()
+            .iter()
+            .enumerate()
+            .for_each(|(insert_order, new_order)| {
+                let result_term = result.term(&parser.ac_at(insert_order).unwrap());
+                result.ac[*new_order] = result_term;
+            });
         log::info!("[Success] instantiated");
         result
     }
@@ -155,7 +159,7 @@ mod test {
         assert_eq!(adf.ordering.names().as_ref().borrow()[3], "e");
         assert_eq!(adf.ordering.names().as_ref().borrow()[4], "d");
 
-        assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(10), Term(15)]);
+        assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(15), Term(12)]);
     }
 
     #[test]
