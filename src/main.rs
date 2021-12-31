@@ -65,6 +65,7 @@ fn main() {
     .expect("Error Reading File");
     let parser = AdfParser::default();
     parser.parse()(&input).unwrap();
+    log::info!("[Done] parsing");
 
     if matches.is_present("sort_lex") {
         parser.varsort_lexi();

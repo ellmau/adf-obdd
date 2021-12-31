@@ -24,6 +24,7 @@ pub struct Adf {
 impl Adf {
     /// Instantiates a new ADF, based on the parser-data
     pub fn from_parser(parser: &AdfParser) -> Self {
+        log::info!("[Start] instantiating BDD");
         let mut result = Self {
             ordering: VarContainer::from_parser(
                 parser.namelist_rc_refcell(),
@@ -35,14 +36,22 @@ impl Adf {
         (0..parser.namelist_rc_refcell().borrow().len())
             .into_iter()
             .for_each(|value| {
+                log::trace!("adding variable {}", Var(value));
                 result.bdd.variable(Var(value));
             });
-
+        log::debug!("[Start] adding acs");
         parser
             .formula_order()
             .iter()
             .enumerate()
             .for_each(|(insert_order, new_order)| {
+                log::trace!(
+                    "Pos {}/{} formula {}, {:?}",
+                    insert_order + 1,
+                    parser.formula_count(),
+                    new_order,
+                    parser.ac_at(insert_order)
+                );
                 let result_term = result.term(&parser.ac_at(insert_order).unwrap());
                 result.ac[*new_order] = result_term;
             });
@@ -145,6 +154,7 @@ impl Adf {
 #[cfg(test)]
 mod test {
     use super::*;
+    use test_log::test;
     #[test]
     fn from_parser() {
         let parser = AdfParser::default();
@@ -160,6 +170,21 @@ mod test {
         assert_eq!(adf.ordering.names().as_ref().borrow()[4], "d");
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(15), Term(12)]);
+
+        let parser = AdfParser::default();
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).s(e).s(d).ac(d,iff(imp(a,b),c)).ac(e,xor(d,e)).";
+
+        parser.parse()(input).unwrap();
+        parser.varsort_alphanum();
+
+        let adf = Adf::from_parser(&parser);
+        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
+        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "b");
+        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "c");
+        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "d");
+        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "e");
+
+        assert_eq!(adf.ac, vec![Term(3), Term(7), Term(2), Term(11), Term(13)]);
     }
 
     #[test]
