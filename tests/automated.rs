@@ -2,7 +2,7 @@ use adf_bdd::{adf::Adf, parser::AdfParser};
 use test_generator::test_resources;
 use test_log::test;
 
-#[test_resources("res/adf-instances/instances/*.adf")]
+//#[test_resources("res/adf-instances/instances/*.adf")]
 fn compute_grounded(resource: &str) {
     let grounded = &[
         "res/adf-instances/grounded-interpretations/",
