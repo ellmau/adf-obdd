@@ -8,6 +8,7 @@ license = "GPL-3.0-only"
 exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
 
 description = "Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams"
+build = "build.rs"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,4 +22,3 @@ lexical-sort = "0.3.1"
 
 [dev-dependencies]
 test-log = "0.2.*"
-test-generator = "0.3.0"

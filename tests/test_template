@@ -1,0 +1,20 @@
+#[test]
+fn {name}() {{
+    let resource = "{path}";
+    log::debug!("resource: {{}}", resource);
+    let grounded = "{grounded}";
+    log::debug!("Grounded: {{}}", grounded);
+    let parser = AdfParser::default();
+    let expected_result = std::fs::read_to_string(grounded);
+    assert!(expected_result.is_ok());
+    let input = std::fs::read_to_string(resource).unwrap();
+    parser.parse()(&input).unwrap();
+    parser.varsort_alphanum();
+    let mut adf = Adf::from_parser(&parser);
+    let grounded = adf.grounded();
+    assert_eq!(
+        format!("{{}}", adf.print_interpretation(&grounded)),
+        expected_result.unwrap()
+    );
+}}
+
