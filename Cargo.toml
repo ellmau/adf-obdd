@@ -1,9 +1,11 @@
 [package]
 name = "adf_bdd"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
+repository = "https://github.com/ellmau/adf-obdd/"
 license = "GPL-3.0-only"
+exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
 
 description = "Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams"
 
@@ -12,8 +14,11 @@ description = "Solver for ADFs grounded semantics by utilising OBDDs - ordered b
 
 [dependencies]
 clap = "2.33.*"
-log = "0.4"
+log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
+env_logger = "0.9"
+nom = "7.1.0"
+lexical-sort = "0.3.1"
 
 [dev-dependencies]
-env_logger = "*"
-test-env-log = "0.2.*"
+test-log = "0.2.*"
+test-generator = "0.3.0"
