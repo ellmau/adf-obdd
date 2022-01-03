@@ -325,9 +325,6 @@ impl AdfParser<'_> {
 
 #[cfg(test)]
 mod test {
-
-    use clap::ErrorKind;
-
     use super::*;
 
     #[test]
