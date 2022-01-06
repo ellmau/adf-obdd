@@ -144,3 +144,32 @@ impl BddNode {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+    use test_log::test;
+
+    #[quickcheck]
+    fn deref_display_from(value: usize) -> bool {
+        // from
+        let term: Term = Term::from(value);
+        let var = Var::from(value);
+        // display
+        assert_eq!(format!("{}", term), format!("Term({})", value));
+        assert_eq!(format!("{}", var), format!("Var({})", value));
+        //deref
+        assert_eq!(value, *term);
+        true
+    }
+
+    #[quickcheck]
+    fn bdd_node(var: usize, lo: usize, hi: usize) -> bool {
+        let node = BddNode::new(Var::from(var), Term::from(lo), Term::from(hi));
+        assert_eq!(*node.var(), var);
+        assert_eq!(*node.lo(), lo);
+        assert_eq!(*node.hi(), hi);
+        true
+    }
+}
