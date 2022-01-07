@@ -76,6 +76,69 @@ impl Display for PrintableInterpretation<'_> {
     }
 }
 
+/// Provides an Iterator, which contains all two valued Interpretations, with respect to the given
+/// 3-valued interpretation.
+
+#[derive(Debug)]
+pub struct TwoValuedInterpretationsIterator {
+    indexes: Vec<usize>,
+    current: Option<Vec<Term>>,
+    started: bool,
+}
+
+impl TwoValuedInterpretationsIterator {
+    /// Creates a new iterable structure, which represents all two-valued interpretations wrt. the given 3-valued interpretation
+    pub fn new(term: &[Term]) -> Self {
+        let indexes = term
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, &v)| (!v.is_truth_value()).then(|| idx))
+            .rev()
+            .collect::<Vec<_>>();
+        let current = term
+            .iter()
+            .map(|&v| if !v.is_truth_value() { Term::BOT } else { v })
+            .collect::<Vec<_>>();
+
+        Self {
+            indexes,
+            started: false,
+            current: Some(current),
+        }
+    }
+}
+
+impl Iterator for TwoValuedInterpretationsIterator {
+    type Item = Vec<Term>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.started {
+            if let Some(current) = &self.current {
+                if let Some((idx, &at)) = self
+                    .indexes
+                    .iter()
+                    .enumerate()
+                    .find(|(_, &idx)| current[idx] == Term::BOT)
+                {
+                    let mut result = current.clone();
+                    result[at] = Term::TOP;
+                    for &at in self.indexes[0..idx].iter() {
+                        result[at] = Term::BOT;
+                    }
+                    log::trace!("{:?} -> {:?}", current, result);
+                    self.current = Some(result);
+                } else {
+                    self.current = None;
+                }
+            };
+        } else {
+            self.started = true;
+        }
+
+        self.current.clone()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -83,5 +146,36 @@ mod test {
     fn init_varcontainer() {
         let vc = VarContainer::default();
         assert_eq!(vc.variable("foo"), None);
+    }
+
+    #[test]
+    fn two_valued_interpretations() {
+        let testinterpretation = vec![Term::TOP, Term(22), Term::BOT, Term(12), Term::TOP];
+        let mut iter = TwoValuedInterpretationsIterator::new(&testinterpretation);
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::BOT, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::TOP, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::TOP, Term::BOT, Term::BOT, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::TOP, Term::BOT, Term::TOP, Term::TOP])
+        );
+        assert_eq!(iter.next(), None);
+
+        let testinterpretation = vec![Term(22), Term(12)];
+        let mut iter = TwoValuedInterpretationsIterator::new(&testinterpretation);
+        assert_eq!(iter.next(), Some(vec![Term::BOT, Term::BOT]));
+        assert_eq!(iter.next(), Some(vec![Term::BOT, Term::TOP]));
+        assert_eq!(iter.next(), Some(vec![Term::TOP, Term::BOT]));
+        assert_eq!(iter.next(), Some(vec![Term::TOP, Term::TOP]));
+        assert_eq!(iter.next(), None);
     }
 }

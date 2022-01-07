@@ -8,7 +8,7 @@
 
 use crate::{
     datatypes::{
-        adf::{PrintableInterpretation, VarContainer},
+        adf::{PrintableInterpretation, TwoValuedInterpretationsIterator, VarContainer},
         Term, Var,
     },
     obdd::Bdd,
@@ -101,19 +101,17 @@ impl Adf {
 
     /// Computes the grounded extension and returns it as a list
     pub fn grounded(&mut self) -> Vec<Term> {
+        let ac = &self.ac.clone();
+        self.grounded_internal(ac)
+    }
+
+    fn grounded_internal(&mut self, interpretation: &[Term]) -> Vec<Term> {
         log::info!("[Start] grounded");
-        let mut t_vals: usize =
-            self.ac.iter().fold(
-                0,
-                |acc, elem| {
-                    if elem.is_truth_value() {
-                        acc + 1
-                    } else {
-                        acc
-                    }
-                },
-            );
-        let mut new_interpretation = self.ac.clone();
+        let mut t_vals: usize = interpretation
+            .iter()
+            .filter(|elem| elem.is_truth_value())
+            .count();
+        let mut new_interpretation: Vec<Term> = interpretation.into();
         loop {
             let old_t_vals = t_vals;
             for ac in new_interpretation
@@ -137,6 +135,62 @@ impl Adf {
         }
         log::info!("[Done] grounded");
         new_interpretation
+    }
+
+    /// Computes the first `max_values` stable models
+    /// if max_values is 0, then all will be computed
+    pub fn stable(&mut self, max_values: usize) -> Vec<Vec<Term>> {
+        let grounded = self.grounded();
+        if max_values == 0 {
+            self.stable_iter(&grounded).collect()
+        } else {
+            self.stable_iter(&grounded)
+                .enumerate()
+                .take_while(|(idx, _elem)| *idx < max_values)
+                .map(|(_, elem)| elem)
+                .collect()
+        }
+    }
+
+    /// Computes the stable models
+    /// Returns an Iterator which contains all stable models
+    fn stable_iter<'a, 'b, 'c>(
+        &'a mut self,
+        grounded: &'b [Term],
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+        'b: 'c,
+    {
+        TwoValuedInterpretationsIterator::new(grounded)
+            .map(|interpretation| {
+                let mut interpr = self.ac.clone();
+                for ac in interpr.iter_mut() {
+                    *ac = interpretation
+                        .iter()
+                        .enumerate()
+                        .fold(*ac, |acc, (var, term)| {
+                            if term.is_truth_value() && !term.is_true() {
+                                self.bdd.restrict(acc, Var(var), false)
+                            } else {
+                                acc
+                            }
+                        });
+                }
+                let grounded_check = self.grounded_internal(&interpr);
+                log::debug!(
+                    "grounded candidate\n{:?}\n{:?}",
+                    interpretation,
+                    grounded_check
+                );
+                (interpretation, grounded_check)
+            })
+            .filter(|(int, grd)| {
+                int.iter()
+                    .zip(grd.iter())
+                    .all(|(it, gr)| it.compare_inf(gr))
+            })
+            .map(|(int, _grd)| int)
     }
 
     /// creates a [PrintableInterpretation] for output purposes
@@ -202,6 +256,26 @@ mod test {
         assert_eq!(
             format!("{}", adf.print_interpretation(&result)),
             "T(a) u(b) u(c) u(d) F(e) T(f) \n"
+        );
+    }
+
+    #[test]
+    fn stable() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        assert_eq!(
+            adf.stable(0),
+            vec![vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ]]
         );
     }
 }

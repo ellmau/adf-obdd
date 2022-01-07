@@ -49,6 +49,11 @@ impl Term {
     pub fn is_true(&self) -> bool {
         *self == Self::TOP
     }
+
+    /// Returns true, if the Terms have the same information-value
+    pub fn compare_inf(&self, other: &Self) -> bool {
+        self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
+    }
 }
 
 /// Representation of Variables
@@ -142,5 +147,22 @@ impl BddNode {
             lo: Term::TOP,
             hi: Term::TOP,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn cmp() {
+        assert!(!Term::BOT.compare_inf(&Term::TOP));
+        assert!(!Term::TOP.compare_inf(&Term::BOT));
+        assert!(!Term::TOP.compare_inf(&Term(22)));
+        assert!(!Term(22).compare_inf(&Term::BOT));
+        assert!(Term(22).compare_inf(&Term(12323)));
+        assert!(Term::TOP.compare_inf(&Term::TOP));
+        assert!(Term::BOT.compare_inf(&Term::BOT));
+        assert!(Term(22).compare_inf(&Term(22)));
     }
 }
