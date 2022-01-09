@@ -33,6 +33,7 @@ fn write_test(test_file: &mut File, file: &DirEntry) {
     let test_name = format!("{}", file.file_name().unwrap().to_string_lossy())
         .replace(".", "_")
         .replace("-", "_")
+        .replace("@", "at")
         .to_lowercase();
     let grounded_name = format!(
         "{}-grounded.txt",
