@@ -118,13 +118,16 @@ impl Adf {
                 .iter_mut()
                 .filter(|term| !term.is_truth_value())
             {
-                *ac = self.ac.iter().enumerate().fold(*ac, |acc, (var, term)| {
-                    if term.is_truth_value() {
-                        self.bdd.restrict(acc, Var(var), term.is_true())
-                    } else {
-                        acc
-                    }
-                });
+                *ac = interpretation
+                    .iter()
+                    .enumerate()
+                    .fold(*ac, |acc, (var, term)| {
+                        if term.is_truth_value() {
+                            self.bdd.restrict(acc, Var(var), term.is_true())
+                        } else {
+                            acc
+                        }
+                    });
                 if ac.is_truth_value() {
                     t_vals += 1;
                 }
@@ -277,5 +280,41 @@ mod test {
                 Term::TOP
             ]]
         );
+        assert_eq!(
+            adf.stable(10),
+            vec![vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ]]
+        );
+
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        assert_eq!(adf.stable(1), vec![vec![Term::BOT, Term::TOP]]);
+        assert_eq!(adf.stable(2), adf.stable(0));
+        assert_eq!(
+            adf.stable(0),
+            vec![vec![Term::BOT, Term::TOP], vec![Term::TOP, Term::BOT]]
+        );
+
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,b).ac(b,a).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        assert_eq!(adf.stable(0), vec![vec![Term::BOT, Term::BOT]]);
+
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let empty: Vec<Vec<Term>> = Vec::new();
+        assert_eq!(adf.stable(0), empty);
+        assert_eq!(adf.stable(99999), empty);
     }
 }
