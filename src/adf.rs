@@ -116,12 +116,13 @@ impl Adf {
             .count();
         let mut new_interpretation: Vec<Term> = interpretation.into();
         loop {
+            let mut curr_interpretation = new_interpretation.clone();
             let old_t_vals = t_vals;
             for ac in new_interpretation
                 .iter_mut()
                 .filter(|term| !term.is_truth_value())
             {
-                *ac = interpretation
+                *ac = curr_interpretation
                     .iter()
                     .enumerate()
                     .fold(*ac, |acc, (var, term)| {
@@ -135,6 +136,12 @@ impl Adf {
                     t_vals += 1;
                 }
             }
+            log::debug!(
+                "old-int: {:?}, {} constants",
+                curr_interpretation,
+                old_t_vals
+            );
+            log::debug!("new-int: {:?}, {} constants", new_interpretation, t_vals);
             if t_vals == old_t_vals {
                 break;
             }
@@ -272,7 +279,7 @@ mod test {
     }
 
     #[test]
-    fn complete() {
+    fn grounded() {
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
             .unwrap();
@@ -287,6 +294,15 @@ mod test {
             format!("{}", adf.print_interpretation(&result)),
             "T(a) u(b) u(c) u(d) F(e) T(f) \n"
         );
+
+        let parser = AdfParser::default();
+        parser.parse()(
+            "s(a).s(b).s(c).s(d).s(e).ac(a,c(v)).ac(b,a).ac(c,b).ac(d,neg(c)).ac(e,and(a,d)).",
+        )
+        .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        let result = adf.grounded();
+        assert_eq!(result, vec![Term(1), Term(1), Term(1), Term(0), Term(0)]);
     }
 
     #[test]
