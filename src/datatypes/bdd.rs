@@ -1,12 +1,13 @@
 //! To represent a BDD, a couple of datatypes is needed.
 //! This module consists of all internally and externally used datatypes, such as
 //! [Term], [Var], and [BddNode]
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref};
 
 /// Representation of a Term
 /// Each Term is represented in a number ([usize]) and relates to a
 /// Node in the decision diagram
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct Term(pub usize);
 
 impl Deref for Term {
@@ -59,7 +60,7 @@ impl Term {
 /// Representation of Variables
 /// Note that the algorithm only uses [usize] values to identify variables.
 /// The order of these values will be defining for the Variable order of the decision diagram.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct Var(pub usize);
 
 impl Deref for Var {
@@ -97,7 +98,7 @@ impl Var {
 ///
 /// Intuitively this is a binary tree structure, where the diagram is allowed to
 /// pool same values to the same Node.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct BddNode {
     var: Var,
     lo: Term,

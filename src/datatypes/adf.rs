@@ -1,9 +1,11 @@
 //! Repesentation of all needed ADF based datatypes
 
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use super::{Term, Var};
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct VarContainer {
     names: Rc<RefCell<Vec<String>>>,
     mapping: Rc<RefCell<HashMap<String, usize>>>,

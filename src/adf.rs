@@ -5,6 +5,7 @@
 //!  - computing interpretations
 //!  - computing fixpoints
 //!  - computing the least fixpoint by using a shortcut
+use serde::{Deserialize, Serialize};
 
 use crate::{
     datatypes::{
@@ -14,6 +15,8 @@ use crate::{
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
+
+#[derive(Serialize, Deserialize)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
 pub struct Adf {
     ordering: VarContainer,
@@ -242,6 +245,30 @@ mod test {
         assert_eq!(adf.ordering.names().as_ref().borrow()[4], "e");
 
         assert_eq!(adf.ac, vec![Term(3), Term(7), Term(2), Term(11), Term(13)]);
+    }
+
+    #[test]
+    fn serialize() {
+        let parser = AdfParser::default();
+        let input = "s(a).s(c).ac(a,b).ac(b,neg(a)).s(b).ac(c,and(c(v),or(c(f),a))).s(e).s(d).ac(d,iff(imp(a,b),c)).ac(e,xor(d,e)).";
+
+        parser.parse()(input).unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let grounded = adf.grounded();
+
+        let serialized = serde_json::to_string(&adf).unwrap();
+        log::debug!("Serialized to {}", serialized);
+        let result = r#"{"ordering":{"names":["a","c","b","e","d"],"mapping":{"b":2,"a":0,"e":3,"c":1,"d":4}},"bdd":{"nodes":[{"var":18446744073709551614,"lo":0,"hi":0},{"var":18446744073709551615,"lo":1,"hi":1},{"var":0,"lo":0,"hi":1},{"var":1,"lo":0,"hi":1},{"var":2,"lo":0,"hi":1},{"var":3,"lo":0,"hi":1},{"var":4,"lo":0,"hi":1},{"var":0,"lo":1,"hi":0},{"var":0,"lo":1,"hi":4},{"var":1,"lo":1,"hi":0},{"var":2,"lo":1,"hi":0},{"var":1,"lo":10,"hi":4},{"var":0,"lo":3,"hi":11},{"var":3,"lo":1,"hi":0},{"var":4,"lo":1,"hi":0},{"var":3,"lo":6,"hi":14}],"cache":[[{"var":3,"lo":1,"hi":0},13],[{"var":3,"lo":6,"hi":14},15],[{"var":4,"lo":0,"hi":1},6],[{"var":0,"lo":0,"hi":1},2],[{"var":4,"lo":1,"hi":0},14],[{"var":2,"lo":0,"hi":1},4],[{"var":1,"lo":0,"hi":1},3],[{"var":0,"lo":1,"hi":4},8],[{"var":3,"lo":0,"hi":1},5],[{"var":0,"lo":1,"hi":0},7],[{"var":2,"lo":1,"hi":0},10],[{"var":0,"lo":3,"hi":11},12],[{"var":1,"lo":1,"hi":0},9],[{"var":1,"lo":10,"hi":4},11]]},"ac":[4,2,7,15,12]}"#;
+        let mut deserialized: Adf = serde_json::from_str(&result).unwrap();
+        assert_eq!(adf.ac, deserialized.ac);
+        let grounded_import = deserialized.grounded();
+
+        assert_eq!(grounded, grounded_import);
+        assert_eq!(
+            format!("{}", adf.print_interpretation(&grounded)),
+            format!("{}", deserialized.print_interpretation(&grounded_import))
+        );
     }
 
     #[test]
