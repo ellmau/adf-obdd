@@ -46,21 +46,21 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .stderr(predicate::str::contains("code: Eof"));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("-vv");
+    cmd.arg(file.path()).arg("-vv").arg("--grd");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(7) F(4) u(8) u(3) F(5) u(9) u(10) u(1) u(6) u(2)",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("--lx").arg("-v");
+    cmd.arg(file.path()).arg("--lx").arg("-v").arg("--grd");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(10) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9)",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("--an");
+    cmd.arg(file.path()).arg("--an").arg("--grd").arg("--stm");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10)",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
     ));
     Ok(())
 }

@@ -32,6 +32,8 @@
 //! ac(d,d).
 //! ```
 #![deny(
+    missing_debug_implementations,
+    missing_copy_implementations,
     missing_copy_implementations,
     trivial_casts,
     trivial_numeric_casts,

@@ -23,6 +23,8 @@ fn main() {
                  (@arg sort_lex: --lx "Sorts variables in a lexicographic manner")
                  (@arg sort_alphan: --an "Sorts variables in an alphanumeric manner")
                 )
+                (@arg grounded: --grd "Compute the grounded model")
+                (@arg stable: --stm "Compute the stable models")
     )
     .get_matches_safe()
     .unwrap_or_else(|e| match e.kind {
@@ -75,7 +77,14 @@ fn main() {
     }
 
     let mut adf = Adf::from_parser(&parser);
-    let grounded = adf.grounded();
-
-    println!("{}", adf.print_interpretation(&grounded));
+    if matches.is_present("grounded") {
+        let grounded = adf.grounded();
+        println!("{}", adf.print_interpretation(&grounded));
+    }
+    if matches.is_present("stable") {
+        let stable = adf.stable(1);
+        for model in stable {
+            println!("{}", adf.print_interpretation(&model));
+        }
+    }
 }
