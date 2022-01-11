@@ -3,88 +3,121 @@ pub mod datatypes;
 pub mod obdd;
 pub mod parser;
 
-use std::str::FromStr;
+use std::{fs::File, path::PathBuf};
 
 use adf::Adf;
 
-use clap::{clap_app, crate_authors, crate_description, crate_name, crate_version};
+use clap::{crate_authors, crate_description, crate_name, crate_version};
 use parser::AdfParser;
 
-fn main() {
-    let matches = clap_app!(myapp =>
-                (version: crate_version!())
-                (author: crate_authors!())
-                (name: crate_name!())
-                (about: crate_description!())
-                //(@arg fast: -f --fast "fast algorithm instead of the direct fixpoint-computation")
-                (@arg verbose: -v +multiple "Sets log verbosity")
-                (@arg INPUT: +required "Input file")
-                (@group sorting =>
-                 (@arg sort_lex: --lx "Sorts variables in a lexicographic manner")
-                 (@arg sort_alphan: --an "Sorts variables in an alphanumeric manner")
-                )
-                (@arg grounded: --grd "Compute the grounded model")
-                (@arg stable: --stm "Compute the stable models")
-    )
-    .get_matches_safe()
-    .unwrap_or_else(|e| match e.kind {
-        clap::ErrorKind::HelpDisplayed => {
-            e.exit();
-        }
-        clap::ErrorKind::VersionDisplayed => {
-            e.exit();
-        }
-        _ => {
-            eprintln!("{} Version {{{}}}", crate_name!(), crate_version!());
-            e.exit();
-        }
-    });
-    let filter_level = match matches.occurrences_of("verbose") {
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
-        3 => log::LevelFilter::Trace,
-        _ => {
-            match std::env::vars().find_map(|(var, val)| {
-                if var.eq("RUST_LOG") {
-                    Some(log::LevelFilter::from_str(val.as_str()))
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = crate_name!(), about = crate_description!(), author = crate_authors!(), version = crate_version!())]
+struct App {
+    /// Input filename
+    #[structopt(parse(from_os_str))]
+    input: PathBuf,
+    /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
+    #[structopt(long = "rust_log", env)]
+    rust_log: Option<String>,
+    /// Sets log verbosity (multiple times means more verbose)
+    #[structopt(short, parse(from_occurrences), group = "verbosity")]
+    verbose: u8,
+    /// Sets log verbosity to only errors
+    #[structopt(short, group = "verbosity")]
+    quiet: bool,
+    /// Sorts variables in an lexicographic manner
+    #[structopt(long = "lx", group = "sorting")]
+    sort_lex: bool,
+    /// Sorts variables in an alphanumeric manner
+    #[structopt(long = "an", group = "sorting")]
+    sort_alphan: bool,
+    /// Compute the grounded model
+    #[structopt(long = "grd")]
+    grounded: bool,
+    /// Compute the stable models
+    #[structopt(long = "stm")]
+    stable: bool,
+    /// Import an adf- bdd state instead of an adf
+    #[structopt(long)]
+    import: bool,
+    /// Export the adf-bdd state after parsing and BDD instantiation to the given filename
+    #[structopt(long)]
+    export: Option<PathBuf>,
+}
+
+impl App {
+    fn run(&self) {
+        let filter_level = match self.verbose {
+            1 => log::LevelFilter::Info,
+            2 => log::LevelFilter::Debug,
+            3 => log::LevelFilter::Trace,
+            _ => {
+                if self.quiet {
+                    log::LevelFilter::Error
+                } else if let Some(rust_log) = self.rust_log.clone() {
+                    match rust_log.as_str() {
+                        "error" => log::LevelFilter::Error,
+                        "info" => log::LevelFilter::Info,
+                        "debug" => log::LevelFilter::Debug,
+                        "trace" => log::LevelFilter::Trace,
+                        _ => log::LevelFilter::Warn,
+                    }
                 } else {
-                    None
+                    log::LevelFilter::Warn
                 }
-            }) {
-                Some(v) => v.unwrap_or(log::LevelFilter::Error),
-                None => log::LevelFilter::Error,
+            }
+        };
+        env_logger::builder().filter_level(filter_level).init();
+        log::info!("Version: {}", crate_version!());
+        let input = std::fs::read_to_string(self.input.clone()).expect("Error Reading File");
+        let mut adf = if self.import {
+            serde_json::from_str(&input).unwrap()
+        } else {
+            let parser = AdfParser::default();
+            parser.parse()(&input).unwrap();
+            log::info!("[Done] parsing");
+            if self.sort_lex {
+                parser.varsort_lexi();
+            }
+            if self.sort_alphan {
+                parser.varsort_alphanum();
+            }
+            Adf::from_parser(&parser)
+        };
+        if let Some(export) = &self.export {
+            if export.exists() {
+                log::error!(
+                    "Cannot write JSON file <{}>, as it already exists",
+                    export.to_string_lossy()
+                );
+            } else {
+                let export_file = match File::create(&export) {
+                    Err(reason) => {
+                        panic!("couldn't create {}: {}", export.to_string_lossy(), reason)
+                    }
+                    Ok(file) => file,
+                };
+                serde_json::to_writer(export_file, &adf).unwrap_or_else(|_| {
+                    panic!("Writing JSON file {} failed", export.to_string_lossy())
+                });
             }
         }
-    };
-    env_logger::builder().filter_level(filter_level).init();
-    log::info!("Version: {}", crate_version!());
-
-    let input = std::fs::read_to_string(
-        matches
-            .value_of("INPUT")
-            .expect("Input Filename should be given"),
-    )
-    .expect("Error Reading File");
-    let parser = AdfParser::default();
-    parser.parse()(&input).unwrap();
-    log::info!("[Done] parsing");
-
-    if matches.is_present("sort_lex") {
-        parser.varsort_lexi();
-    }
-    if matches.is_present("sort_alphan") {
-        parser.varsort_alphanum();
-    }
-
-    let mut adf = Adf::from_parser(&parser);
-    if matches.is_present("grounded") {
-        let grounded = adf.grounded();
-        println!("{}", adf.print_interpretation(&grounded));
-    }
-    if matches.is_present("stable") {
-        let stable = adf.stable(1);
-        for model in stable {
-            println!("{}", adf.print_interpretation(&model));
+        if self.grounded {
+            let grounded = adf.grounded();
+            println!("{}", adf.print_interpretation(&grounded));
+        }
+        if self.stable {
+            let stable = adf.stable(0);
+            for model in stable {
+                println!("{}", adf.print_interpretation(&model));
+            }
         }
     }
+}
+
+fn main() {
+    let app = App::from_args();
+    app.run();
 }

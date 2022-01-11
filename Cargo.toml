@@ -15,6 +15,7 @@ build = "build.rs"
 
 [dependencies]
 clap = "2.33.*"
+structopt = "0.3.25"
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 env_logger = "0.9"
 nom = "7.1.0"

@@ -5,7 +5,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use super::{Term, Var};
 
-#[derive(Serialize, Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VarContainer {
     names: Rc<RefCell<Vec<String>>>,
     mapping: Rc<RefCell<HashMap<String, usize>>>,
