@@ -52,6 +52,12 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path()).arg("-q").arg("--grd");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(7) F(4) u(8) u(3) F(5) u(9) u(10) u(1) u(6) u(2)",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
     cmd.arg(file.path()).arg("--lx").arg("-v").arg("--grd");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(10) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9)",
@@ -59,6 +65,64 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
 
     cmd = Command::cargo_bin("adf_bdd")?;
     cmd.arg(file.path()).arg("--an").arg("--grd").arg("--stm");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.env_clear();
+    cmd.arg(file.path()).arg("--an").arg("--grd");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--rust_log")
+        .arg("trace");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--rust_log")
+        .arg("warn");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    let tempdir = assert_fs::TempDir::new()?;
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--export")
+        .arg(tempdir.path().with_file_name("test.json"));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--export")
+        .arg(tempdir.path().with_file_name("test.json"));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(tempdir.path().with_file_name("test.json"))
+        .arg("--an")
+        .arg("--grd")
+        .arg("--import");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
     ));
