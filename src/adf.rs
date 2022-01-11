@@ -16,7 +16,7 @@ use crate::{
     parser::{AdfParser, Formula},
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
 pub struct Adf {
     ordering: VarContainer,
@@ -116,7 +116,7 @@ impl Adf {
             .count();
         let mut new_interpretation: Vec<Term> = interpretation.into();
         loop {
-            let mut curr_interpretation = new_interpretation.clone();
+            let curr_interpretation = new_interpretation.clone();
             let old_t_vals = t_vals;
             for ac in new_interpretation
                 .iter_mut()

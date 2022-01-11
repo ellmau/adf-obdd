@@ -75,6 +75,7 @@ impl std::fmt::Debug for Formula<'_> {
 /// handed over to other structures without further storage needs.
 ///
 /// Note that the parser can be utilised by an [ADF][`crate::datatypes::adf::Adf`] to initialise it with minimal overhead.
+#[derive(Debug)]
 pub struct AdfParser<'a> {
     namelist: Rc<RefCell<Vec<String>>>,
     dict: Rc<RefCell<HashMap<String, usize>>>,
@@ -97,6 +98,7 @@ impl<'a, 'b> AdfParser<'b>
 where
     'a: 'b,
 {
+    #[allow(dead_code)]
     fn parse_statements(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
         move |input| {
             let (rem, _) = many1(self.parse_statement())(input)?;

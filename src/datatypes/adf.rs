@@ -5,7 +5,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use super::{Term, Var};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize,Debug)]
 pub(crate) struct VarContainer {
     names: Rc<RefCell<Vec<String>>>,
     mapping: Rc<RefCell<HashMap<String, usize>>>,
@@ -42,6 +42,7 @@ impl VarContainer {
 }
 
 /// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
+#[derive(Debug)]
 pub struct PrintableInterpretation<'a> {
     interpretation: &'a [Term],
     ordering: &'a VarContainer,
