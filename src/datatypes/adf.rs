@@ -142,9 +142,98 @@ impl Iterator for TwoValuedInterpretationsIterator {
     }
 }
 
+/// Provides an Iterator, which contains all three valued Interpretations, with respect to the given
+/// 3-valued interpretation.
+
+#[derive(Debug)]
+pub struct ThreeValuedInterpretationsIterator {
+    original: Vec<Term>,
+    indexes: Vec<usize>,
+    current: Option<Vec<usize>>,
+    started: bool,
+    last_iteration: bool,
+}
+
+impl ThreeValuedInterpretationsIterator {
+    /// Creates a new iterable structure, which represents all three-valued interpretations wrt. the given 3-valued interpretation
+    pub fn new(term: &[Term]) -> Self {
+        let indexes = term
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, &v)| (!v.is_truth_value()).then(|| idx))
+            .rev()
+            .collect::<Vec<_>>();
+        let current = vec![2; indexes.len()];
+
+        Self {
+            indexes,
+            started: false,
+            current: Some(current),
+            original: term.into(),
+            last_iteration: false,
+        }
+    }
+
+    fn decrement(&mut self) {
+        if let Some(ref mut current) = self.current {
+            if let Some((pos, val)) = current.iter().enumerate().find(|(idx, val)| **val > 0) {
+                if pos > 0 && *val == 2 {
+                    for elem in &mut current[0..pos] {
+                        *elem = 2;
+                    }
+                }
+                current[pos] -= 1;
+                if self.last_iteration {
+                    if current.iter().all(|val| *val == 0) {
+                        self.current = None;
+                    }
+                }
+            } else if !self.last_iteration {
+                let len = current.len();
+                if len <= 1 {
+                    self.current = None;
+                } else {
+                    for elem in &mut current[0..len - 1] {
+                        *elem = 2;
+                    }
+                }
+                self.last_iteration = true;
+            }
+        }
+    }
+}
+
+impl Iterator for ThreeValuedInterpretationsIterator {
+    type Item = Vec<Term>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.started {
+            if let Some(current) = &self.current {
+                self.decrement();
+            }
+        } else {
+            self.started = true;
+        }
+        if let Some(current) = &self.current {
+            let mut result = self.original.clone();
+            for (idx, val) in current.iter().enumerate() {
+                result[self.indexes[idx]] = match val {
+                    0 => Term::BOT,
+                    1 => Term::TOP,
+                    _ => self.original[self.indexes[idx]],
+                }
+            }
+            return Some(result);
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use test_log::test;
+
     #[test]
     fn init_varcontainer() {
         let vc = VarContainer::default();
@@ -180,5 +269,84 @@ mod test {
         assert_eq!(iter.next(), Some(vec![Term::TOP, Term::BOT]));
         assert_eq!(iter.next(), Some(vec![Term::TOP, Term::TOP]));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn three_valued_interpretations() {
+        let testinterpretation = vec![Term::TOP, Term(22), Term::BOT, Term(12), Term::TOP];
+        let mut iter = ThreeValuedInterpretationsIterator::new(&testinterpretation);
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term(22), Term::BOT, Term(12), Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term(22), Term::BOT, Term::TOP, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term(22), Term::BOT, Term::BOT, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::TOP, Term::BOT, Term(12), Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::TOP, Term::BOT, Term::TOP, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::TOP, Term::BOT, Term::BOT, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::BOT, Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term(12), Term::TOP])
+        );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::TOP, Term::TOP])
+        );
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn tvi_decrement() {
+        let testinterpretation = vec![Term::TOP, Term(22), Term::BOT, Term(12), Term::TOP];
+        let mut iter = ThreeValuedInterpretationsIterator::new(&testinterpretation);
+        assert_eq!(iter.current, Some(vec![2, 2]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![1, 2]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![0, 2]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![2, 1]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![1, 1]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![0, 1]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![0, 0]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![2, 0]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![1, 0]));
+        iter.decrement();
+        assert_eq!(iter.current, None);
+
+        let testinterpretation = vec![Term::TOP, Term(22), Term::BOT, Term::TOP, Term::TOP];
+        let mut iter = ThreeValuedInterpretationsIterator::new(&testinterpretation);
+
+        assert_eq!(iter.current, Some(vec![2]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![1]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![0]));
+        iter.decrement();
+        assert_eq!(iter.current, None);
     }
 }

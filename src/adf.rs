@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     datatypes::{
-        adf::{PrintableInterpretation, TwoValuedInterpretationsIterator, VarContainer},
+        adf::{
+            PrintableInterpretation, ThreeValuedInterpretationsIterator,
+            TwoValuedInterpretationsIterator, VarContainer,
+        },
         Term, Var,
     },
     obdd::Bdd,
@@ -206,6 +209,49 @@ impl Adf {
             .map(|(int, _grd)| int)
     }
 
+    /// Computes the first `max_values` stable models
+    /// if max_values is 0, then all will be computed
+    pub fn complete(&mut self, max_values: usize) -> Vec<Vec<Term>> {
+        let grounded = self.grounded();
+        if max_values == 0 {
+            self.complete_iter(&grounded).collect()
+        } else {
+            self.complete_iter(&grounded)
+                .enumerate()
+                .take_while(|(idx, _elem)| *idx < max_values)
+                .map(|(_, elem)| elem)
+                .collect()
+        }
+    }
+
+    /// Computes the complete models
+    /// Returns an Iterator which contains all complete models
+    fn complete_iter<'a, 'b, 'c>(
+        &'a mut self,
+        grounded: &'b [Term],
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+        'b: 'c,
+    {
+        ThreeValuedInterpretationsIterator::new(grounded).filter(|interpretation| {
+            interpretation.iter().all(|ac| {
+                ac.compare_inf(
+                    &interpretation
+                        .iter()
+                        .enumerate()
+                        .fold(*ac, |acc, (var, term)| {
+                            if term.is_truth_value() {
+                                self.bdd.restrict(acc, Var(var), term.is_true())
+                            } else {
+                                acc
+                            }
+                        }),
+                )
+            })
+        })
+    }
+
     /// creates a [PrintableInterpretation] for output purposes
     pub fn print_interpretation<'a, 'b>(
         &'a self,
@@ -359,5 +405,37 @@ mod test {
         let empty: Vec<Vec<Term>> = Vec::new();
         assert_eq!(adf.stable(0), empty);
         assert_eq!(adf.stable(99999), empty);
+    }
+
+    #[test]
+    fn complete() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        assert_eq!(
+            adf.complete(1),
+            vec![vec![Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)]]
+        );
+
+        assert_eq!(
+            adf.complete(0),
+            vec![
+                vec![Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(3), Term(1), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(3), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(1), Term(9), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(1), Term(1), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(1), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(3), Term(0), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(1), Term(1), Term(1), Term(0), Term(1)],
+                vec![Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(1), Term(0), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(0), Term(0), Term(0), Term(0), Term(1)],
+                vec![Term(1), Term(0), Term(1), Term(1), Term(0), Term(1)],
+                vec![Term(1), Term(0), Term(1), Term(0), Term(0), Term(1)]
+            ]
+        );
     }
 }

@@ -39,6 +39,9 @@ struct App {
     /// Compute the stable models
     #[structopt(long = "stm")]
     stable: bool,
+    /// Compute the complete models
+    #[structopt(long = "com")]
+    complete: bool,
     /// Import an adf- bdd state instead of an adf
     #[structopt(long)]
     import: bool,
@@ -106,12 +109,18 @@ impl App {
         }
         if self.grounded {
             let grounded = adf.grounded();
-            println!("{}", adf.print_interpretation(&grounded));
+            print!("{}", adf.print_interpretation(&grounded));
+        }
+        if self.complete {
+            let complete = adf.complete(0);
+            for model in complete {
+                print!("{}", adf.print_interpretation(&model));
+            }
         }
         if self.stable {
             let stable = adf.stable(0);
             for model in stable {
-                println!("{}", adf.print_interpretation(&model));
+                print!("{}", adf.print_interpretation(&model));
             }
         }
     }

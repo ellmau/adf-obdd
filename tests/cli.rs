@@ -66,14 +66,14 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
     cmd = Command::cargo_bin("adf_bdd")?;
     cmd.arg(file.path()).arg("--an").arg("--grd").arg("--stm");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
     cmd.env_clear();
     cmd.arg(file.path()).arg("--an").arg("--grd");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
@@ -83,7 +83,7 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--rust_log")
         .arg("trace");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
@@ -93,7 +93,7 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--rust_log")
         .arg("warn");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     let tempdir = assert_fs::TempDir::new()?;
@@ -105,7 +105,7 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--export")
         .arg(tempdir.path().with_file_name("test.json"));
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
@@ -115,7 +115,7 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--export")
         .arg(tempdir.path().with_file_name("test.json"));
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
@@ -124,7 +124,17 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--grd")
         .arg("--import");
     cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n\n",
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
+    ));
+
+    cmd = Command::cargo_bin("adf_bdd")?;
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--com")
+        .arg("--rust_log")
+        .arg("warn");
+    cmd.assert().success().stdout(predicate::str::contains(
+        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
     Ok(())
 }
