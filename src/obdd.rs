@@ -1,4 +1,5 @@
 //! Represents an obdd
+pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
 use std::{cmp::min, collections::HashMap, fmt::Display};
@@ -14,7 +15,7 @@ impl Display for Bdd {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, " ")?;
         for (idx, elem) in self.nodes.iter().enumerate() {
-            writeln!(f, "{}   {}", idx, *elem)?;
+            writeln!(f, "{} {}", idx, *elem)?;
         }
         Ok(())
     }
@@ -227,34 +228,18 @@ mod test {
         let x = bdd.restrict(end, Var(1), false);
         assert_eq!(x, Term(2));
     }
-}
 
-/// vectorize maps with non-standard keys
-pub mod vectorize {
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::iter::FromIterator;
+    #[test]
+    fn display() {
+        let mut bdd = Bdd::new();
 
-    /// Serialise into a Vector from a Map
-    pub fn serialize<'a, T, K, V, S>(target: T, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-        T: IntoIterator<Item = (&'a K, &'a V)>,
-        K: Serialize + 'a,
-        V: Serialize + 'a,
-    {
-        let container: Vec<_> = target.into_iter().collect();
-        serde::Serialize::serialize(&container, ser)
-    }
+        let v1 = bdd.variable(Var(0));
+        let v2 = bdd.variable(Var(1));
+        let v3 = bdd.variable(Var(2));
 
-    /// Deserialize from a Vector to a Map
-    pub fn deserialize<'de, T, K, V, D>(des: D) -> Result<T, D::Error>
-    where
-        D: Deserializer<'de>,
-        T: FromIterator<(K, V)>,
-        K: Deserialize<'de>,
-        V: Deserialize<'de>,
-    {
-        let container: Vec<_> = serde::Deserialize::deserialize(des)?;
-        Ok(T::from_iter(container.into_iter()))
+        let a1 = bdd.and(v1, v2);
+        let a2 = bdd.or(a1, v3);
+
+        assert_eq!(format!("{}", bdd), " \n0 BddNode: Var(18446744073709551614), lo: Term(0), hi: Term(0)\n1 BddNode: Var(18446744073709551615), lo: Term(1), hi: Term(1)\n2 BddNode: Var(0), lo: Term(0), hi: Term(1)\n3 BddNode: Var(1), lo: Term(0), hi: Term(1)\n4 BddNode: Var(2), lo: Term(0), hi: Term(1)\n5 BddNode: Var(0), lo: Term(0), hi: Term(3)\n6 BddNode: Var(1), lo: Term(4), hi: Term(1)\n7 BddNode: Var(0), lo: Term(4), hi: Term(6)\n");
     }
 }
