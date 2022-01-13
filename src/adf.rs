@@ -234,20 +234,20 @@ impl Adf {
         'a: 'c,
         'b: 'c,
     {
-        ThreeValuedInterpretationsIterator::new(grounded).filter(|interpretation| {
-            interpretation.iter().all(|ac| {
-                ac.compare_inf(
-                    &interpretation
-                        .iter()
-                        .enumerate()
-                        .fold(*ac, |acc, (var, term)| {
-                            if term.is_truth_value() {
-                                self.bdd.restrict(acc, Var(var), term.is_true())
-                            } else {
-                                acc
-                            }
-                        }),
-                )
+        let ac = self.ac.clone();
+        ThreeValuedInterpretationsIterator::new(grounded).filter(move |interpretation| {
+            interpretation.iter().enumerate().all(|(ac_idx, it)| {
+                log::trace!("idx [{}], term: {}", ac_idx, it);
+                it.compare_inf(&interpretation.iter().enumerate().fold(
+                    ac[ac_idx],
+                    |acc, (var, term)| {
+                        if term.is_truth_value() {
+                            self.bdd.restrict(acc, Var(var), term.is_true())
+                        } else {
+                            acc
+                        }
+                    },
+                ))
             })
         })
     }
@@ -421,21 +421,30 @@ mod test {
 
         assert_eq!(
             adf.complete(0),
-            vec![
-                vec![Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(3), Term(1), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(3), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(1), Term(9), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(1), Term(1), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(1), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(3), Term(0), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(1), Term(1), Term(1), Term(0), Term(1)],
-                vec![Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(1), Term(0), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(0), Term(0), Term(0), Term(0), Term(1)],
-                vec![Term(1), Term(0), Term(1), Term(1), Term(0), Term(1)],
-                vec![Term(1), Term(0), Term(1), Term(0), Term(0), Term(1)]
+            [
+                [Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)],
+                [Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)],
+                [Term(1), Term(0), Term(0), Term(1), Term(0), Term(1)]
             ]
         );
+    }
+
+    #[test]
+    fn complete2() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        assert_eq!(
+            adf.complete(0),
+            [
+                [Term(1), Term(3), Term(3), Term(7)],
+                [Term(1), Term(1), Term(1), Term(0)],
+                [Term(1), Term(0), Term(0), Term(1)]
+            ]
+        );
+        for model in adf.complete(0) {
+            println!("{}", adf.print_interpretation(&model));
+        }
     }
 }
