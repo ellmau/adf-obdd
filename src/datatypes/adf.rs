@@ -176,29 +176,51 @@ impl ThreeValuedInterpretationsIterator {
 
     fn decrement(&mut self) {
         if let Some(ref mut current) = self.current {
-            if let Some((pos, val)) = current.iter().enumerate().find(|(idx, val)| **val > 0) {
-                if pos > 0 && *val == 2 {
-                    for elem in &mut current[0..pos] {
-                        *elem = 2;
-                    }
-                }
-                current[pos] -= 1;
-                if self.last_iteration {
-                    if current.iter().all(|val| *val == 0) {
-                        self.current = None;
-                    }
-                }
-            } else if !self.last_iteration {
-                let len = current.len();
-                if len <= 1 {
-                    self.current = None;
-                } else {
-                    for elem in &mut current[0..len - 1] {
-                        *elem = 2;
-                    }
-                }
-                self.last_iteration = true;
+            if !ThreeValuedInterpretationsIterator::decrement_vec(current) {
+                self.current = None;
             }
+            // if let Some((pos, val)) = current.iter().enumerate().find(|(idx, val)| **val > 0) {
+            //     if pos > 0 && *val == 2 {
+            //         for elem in &mut current[0..pos] {
+            //             *elem = 2;
+            //         }
+            //     }
+            //     current[pos] -= 1;
+            //     if self.last_iteration {
+            //         if current.iter().all(|val| *val == 0) {
+            //             self.current = None;
+            //         }
+            //     }
+            // } else if !self.last_iteration {
+            //     let len = current.len();
+            //     if len <= 1 {
+            //         self.current = None;
+            //     } else {
+            //         for elem in &mut current[0..len - 1] {
+            //             *elem = 2;
+            //         }
+            //     }
+            //     self.last_iteration = true;
+            //}
+        }
+    }
+
+    fn decrement_vec(vector: &mut Vec<usize>) -> bool {
+        let mut cur_pos = None;
+        for (idx, value) in vector.iter_mut().enumerate() {
+            if *value > 0 {
+                *value -= 1;
+                cur_pos = Some(idx);
+                break;
+            }
+        }
+        if let Some(cur) = cur_pos {
+            for value in vector[0..cur].iter_mut() {
+                *value = 2;
+            }
+            true
+        } else {
+            false
         }
     }
 }
@@ -301,17 +323,53 @@ mod test {
         );
         assert_eq!(
             iter.next(),
-            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::BOT, Term::TOP])
-        );
-        assert_eq!(
-            iter.next(),
             Some(vec![Term::TOP, Term::BOT, Term::BOT, Term(12), Term::TOP])
         );
         assert_eq!(
             iter.next(),
             Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::TOP, Term::TOP])
         );
+        assert_eq!(
+            iter.next(),
+            Some(vec![Term::TOP, Term::BOT, Term::BOT, Term::BOT, Term::TOP])
+        );
         assert_eq!(iter.next(), None);
+
+        let testinterpretation = vec![Term(1), Term(3), Term(3), Term(7)];
+        let mut iter: Vec<Vec<Term>> =
+            ThreeValuedInterpretationsIterator::new(&testinterpretation).collect();
+        assert_eq!(
+            iter,
+            [
+                [Term(1), Term(3), Term(3), Term(7)],
+                [Term(1), Term(3), Term(3), Term(1)],
+                [Term(1), Term(3), Term(3), Term(0)],
+                [Term(1), Term(3), Term(1), Term(7)],
+                [Term(1), Term(3), Term(1), Term(1)],
+                [Term(1), Term(3), Term(1), Term(0)],
+                [Term(1), Term(3), Term(0), Term(7)],
+                [Term(1), Term(3), Term(0), Term(1)],
+                [Term(1), Term(3), Term(0), Term(0)],
+                [Term(1), Term(1), Term(3), Term(7)],
+                [Term(1), Term(1), Term(3), Term(1)],
+                [Term(1), Term(1), Term(3), Term(0)],
+                [Term(1), Term(1), Term(1), Term(7)],
+                [Term(1), Term(1), Term(1), Term(1)],
+                [Term(1), Term(1), Term(1), Term(0)],
+                [Term(1), Term(1), Term(0), Term(7)],
+                [Term(1), Term(1), Term(0), Term(1)],
+                [Term(1), Term(1), Term(0), Term(0)],
+                [Term(1), Term(0), Term(3), Term(7)],
+                [Term(1), Term(0), Term(3), Term(1)],
+                [Term(1), Term(0), Term(3), Term(0)],
+                [Term(1), Term(0), Term(1), Term(7)],
+                [Term(1), Term(0), Term(1), Term(1)],
+                [Term(1), Term(0), Term(1), Term(0)],
+                [Term(1), Term(0), Term(0), Term(7)],
+                [Term(1), Term(0), Term(0), Term(1)],
+                [Term(1), Term(0), Term(0), Term(0)]
+            ]
+        );
     }
 
     #[test]
@@ -330,11 +388,11 @@ mod test {
         iter.decrement();
         assert_eq!(iter.current, Some(vec![0, 1]));
         iter.decrement();
-        assert_eq!(iter.current, Some(vec![0, 0]));
-        iter.decrement();
         assert_eq!(iter.current, Some(vec![2, 0]));
         iter.decrement();
         assert_eq!(iter.current, Some(vec![1, 0]));
+        iter.decrement();
+        assert_eq!(iter.current, Some(vec![0, 0]));
         iter.decrement();
         assert_eq!(iter.current, None);
 
