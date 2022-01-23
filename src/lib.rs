@@ -48,6 +48,7 @@
 )]
 
 pub mod adf;
+pub mod adfbiodivine;
 pub mod datatypes;
 pub mod obdd;
 pub mod parser;

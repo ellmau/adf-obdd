@@ -6,6 +6,7 @@ pub mod parser;
 use std::{fs::File, path::PathBuf};
 
 use adf::Adf;
+use adf_bdd::adfbiodivine::Adf as BdAdf;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version};
 use parser::AdfParser;
@@ -21,6 +22,9 @@ struct App {
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
     #[structopt(long = "rust_log", env)]
     rust_log: Option<String>,
+    /// choose the bdd implementation
+    #[structopt(default_value = "homemade")]
+    implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
     #[structopt(short, parse(from_occurrences), group = "verbosity")]
     verbose: u8,
@@ -75,52 +79,72 @@ impl App {
         env_logger::builder().filter_level(filter_level).init();
         log::info!("Version: {}", crate_version!());
         let input = std::fs::read_to_string(self.input.clone()).expect("Error Reading File");
-        let mut adf = if self.import {
-            serde_json::from_str(&input).unwrap()
-        } else {
-            let parser = AdfParser::default();
-            parser.parse()(&input).unwrap();
-            log::info!("[Done] parsing");
-            if self.sort_lex {
-                parser.varsort_lexi();
+        match self.implementation.as_str() {
+            "biodivine" => {
+                let parser = adf_bdd::parser::AdfParser::default();
+                parser.parse()(&input).unwrap();
+                log::info!("[Done] parsing");
+                if self.sort_lex {
+                    parser.varsort_lexi();
+                }
+                if self.sort_alphan {
+                    parser.varsort_alphanum();
+                }
+                let mut adf = BdAdf::from_parser(&parser);
+                if self.grounded {
+                    let grounded = adf.grounded();
+                    print!("{}", adf.print_interpretation(&grounded));
+                }
             }
-            if self.sort_alphan {
-                parser.varsort_alphanum();
-            }
-            Adf::from_parser(&parser)
-        };
-        if let Some(export) = &self.export {
-            if export.exists() {
-                log::error!(
-                    "Cannot write JSON file <{}>, as it already exists",
-                    export.to_string_lossy()
-                );
-            } else {
-                let export_file = match File::create(&export) {
-                    Err(reason) => {
-                        panic!("couldn't create {}: {}", export.to_string_lossy(), reason)
+            _ => {
+                let mut adf = if self.import {
+                    serde_json::from_str(&input).unwrap()
+                } else {
+                    let parser = AdfParser::default();
+                    parser.parse()(&input).unwrap();
+                    log::info!("[Done] parsing");
+                    if self.sort_lex {
+                        parser.varsort_lexi();
                     }
-                    Ok(file) => file,
+                    if self.sort_alphan {
+                        parser.varsort_alphanum();
+                    }
+                    Adf::from_parser(&parser)
                 };
-                serde_json::to_writer(export_file, &adf).unwrap_or_else(|_| {
-                    panic!("Writing JSON file {} failed", export.to_string_lossy())
-                });
-            }
-        }
-        if self.grounded {
-            let grounded = adf.grounded();
-            print!("{}", adf.print_interpretation(&grounded));
-        }
-        if self.complete {
-            let complete = adf.complete(0);
-            for model in complete {
-                print!("{}", adf.print_interpretation(&model));
-            }
-        }
-        if self.stable {
-            let stable = adf.stable(0);
-            for model in stable {
-                print!("{}", adf.print_interpretation(&model));
+                if let Some(export) = &self.export {
+                    if export.exists() {
+                        log::error!(
+                            "Cannot write JSON file <{}>, as it already exists",
+                            export.to_string_lossy()
+                        );
+                    } else {
+                        let export_file = match File::create(&export) {
+                            Err(reason) => {
+                                panic!("couldn't create {}: {}", export.to_string_lossy(), reason)
+                            }
+                            Ok(file) => file,
+                        };
+                        serde_json::to_writer(export_file, &adf).unwrap_or_else(|_| {
+                            panic!("Writing JSON file {} failed", export.to_string_lossy())
+                        });
+                    }
+                }
+                if self.grounded {
+                    let grounded = adf.grounded();
+                    print!("{}", adf.print_interpretation(&grounded));
+                }
+                if self.complete {
+                    let complete = adf.complete(0);
+                    for model in complete {
+                        print!("{}", adf.print_interpretation(&model));
+                    }
+                }
+                if self.stable {
+                    let stable = adf.stable(0);
+                    for model in stable {
+                        print!("{}", adf.print_interpretation(&model));
+                    }
+                }
             }
         }
     }

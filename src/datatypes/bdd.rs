@@ -23,6 +23,18 @@ impl From<usize> for Term {
     }
 }
 
+impl From<&biodivine_lib_bdd::Bdd> for Term {
+    fn from(val: &biodivine_lib_bdd::Bdd) -> Self {
+        if val.is_true() {
+            Term::TOP
+        } else if val.is_false() {
+            Term::BOT
+        } else {
+            Term::UND
+        }
+    }
+}
+
 impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Term({})", self.0)
@@ -34,6 +46,8 @@ impl Term {
     pub const BOT: Term = Term(0);
     /// Represents the truth-value top, i.e. true
     pub const TOP: Term = Term(1);
+    /// Represents the truth-value undecided, i.e. sat, but not valid
+    pub const UND: Term = Term(2);
 
     /// Get the value of the Term, i.e. the corresponding [usize]
     pub fn value(self) -> usize {

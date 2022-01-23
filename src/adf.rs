@@ -1,10 +1,8 @@
 //! This module describes the abstract dialectical framework
 //!
-//! It handles
-//!  - parsing of statements and acceptance functions
 //!  - computing interpretations
 //!  - computing fixpoints
-//!  - computing the least fixpoint by using a shortcut
+
 use serde::{Deserialize, Serialize};
 
 use crate::{

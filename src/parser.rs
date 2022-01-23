@@ -12,6 +12,8 @@ use nom::{
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use crate::datatypes::adf::VarContainer;
+
 /// A representation of a formula, still using the strings from the input
 #[derive(Clone, PartialEq, Eq)]
 pub enum Formula<'a> {
@@ -33,6 +35,55 @@ pub enum Formula<'a> {
     Xor(Box<Formula<'a>>, Box<Formula<'a>>),
     /// If and only if connective between two formulae
     Iff(Box<Formula<'a>>, Box<Formula<'a>>),
+}
+
+impl Formula<'_> {
+    pub(crate) fn to_boolean_expr(
+        &self,
+    ) -> biodivine_lib_bdd::boolean_expression::BooleanExpression {
+        match self {
+            Formula::Top => biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
+            Formula::Bot => biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(false),
+            Formula::Atom(name) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(name.to_string())
+            }
+            Formula::Not(subformula) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Not(Box::new(
+                    subformula.to_boolean_expr(),
+                ))
+            }
+            Formula::And(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::And(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Or(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Or(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Iff(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Iff(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Imp(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Imp(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Xor(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Xor(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for Formula<'_> {
