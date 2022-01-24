@@ -113,24 +113,22 @@ impl Adf {
                     ac.to_boolean_expression(&bdd_variables),
                     ac.is_truth_value()
                 );
-                //*ac = ac.select(&var_list);
-                let part_val = BddPartialValuation::from_values(&var_list);
-
-                var_list.iter().for_each(|(var, val)| {
-                    log::trace!(
-                        "current ac: {}, variable {} set to {}",
-                        ac.to_boolean_expression(&bdd_variables),
-                        var,
-                        val
-                    );
-                    *ac = ac.var_select(*var, *val);
-                    log::trace!(
-                        "changed to  ac: {}, variable {} set to {}",
-                        ac.to_boolean_expression(&bdd_variables),
-                        var,
-                        val
-                    );
-                });
+                *ac = ac.restrict(&var_list);
+                // var_list.iter().for_each(|(var, val)| {
+                //     log::trace!(
+                //         "current ac: {}, variable {} set to {}",
+                //         ac.to_boolean_expression(&bdd_variables),
+                //         var,
+                //         val
+                //     );
+                //     *ac = ac.var_select(*var, *val);
+                //     log::trace!(
+                //         "changed to  ac: {}, variable {} set to {}",
+                //         ac.to_boolean_expression(&bdd_variables),
+                //         var,
+                //         val
+                //     );
+                // });
                 if ac.is_truth_value() {
                     truth_extention = true;
                 }
@@ -159,7 +157,9 @@ impl Adf {
     }
 }
 
+/// Provides Adf-Specific operations on truth valuations
 pub trait AdfOperations {
+    /// Returns `true` if the BDD is either valid or unsatisfiable
     fn is_truth_value(&self) -> bool;
 }
 
@@ -168,6 +168,29 @@ impl AdfOperations for Bdd {
         self.is_false() || self.is_true()
     }
 }
+
+/// Implementations of the restrict-operations on BDDs
+pub trait BddRestrict {
+    /// Provides an implementation of the restrict-operation on BDDs for one variable
+    fn var_restrict(&self, variable: biodivine_lib_bdd::BddVariable, value: bool) -> Self;
+    /// Provides an implementation of the restrict-operation on a set of variables
+    fn restrict(&self, variables: &[(biodivine_lib_bdd::BddVariable, bool)]) -> Self;
+}
+
+impl BddRestrict for Bdd {
+    fn var_restrict(&self, variable: biodivine_lib_bdd::BddVariable, value: bool) -> Bdd {
+        self.var_select(variable, value).var_project(variable)
+    }
+
+    fn restrict(&self, variables: &[(biodivine_lib_bdd::BddVariable, bool)]) -> Bdd {
+        let mut variablelist: Vec<biodivine_lib_bdd::BddVariable> = Vec::new();
+        variables
+            .iter()
+            .for_each(|(var, _val)| variablelist.push(*var));
+        self.select(variables).project(&variablelist)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -183,8 +206,10 @@ mod test {
         let mut xor = adf.ac[5].clone();
 
         assert!(xor
-            .var_select(adf.vars[4], false)
-            .var_select(adf.vars[0], true)
+            .var_restrict(adf.vars[4], false)
+            .var_restrict(adf.vars[0], true)
+            .var_restrict(adf.vars[1], true)
+            .var_restrict(adf.vars[2], false)
             .is_true());
         let result = adf.grounded();
 
