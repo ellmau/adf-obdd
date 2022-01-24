@@ -3,20 +3,18 @@
 //!  - computing interpretations
 //!  - computing fixpoints
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     datatypes::{
         adf::{
             PrintableInterpretation, ThreeValuedInterpretationsIterator,
             TwoValuedInterpretationsIterator, VarContainer,
         },
-        Term, Var,
+        Term,
     },
-    parser::{AdfParser, Formula},
+    parser::AdfParser,
 };
 
-use biodivine_lib_bdd::{Bdd, BddPartialValuation};
+use biodivine_lib_bdd::Bdd;
 
 //#[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
@@ -76,15 +74,18 @@ impl Adf {
     }
     /// Computes the grounded extension and returns it as a list
     pub fn grounded(&mut self) -> Vec<Term> {
+        log::info!("[Start] grounded");
         let ac = &self.ac.clone();
-        self.grounded_internal(ac)
+        let result = self
+            .grounded_internal(ac)
             .iter()
             .map(|elem| elem.into())
-            .collect()
+            .collect();
+        log::info!("[Done] grounded");
+        result
     }
 
     fn grounded_internal(&mut self, interpretation: &[Bdd]) -> Vec<Bdd> {
-        log::info!("[Start] grounded");
         let mut new_interpretation: Vec<Bdd> = interpretation.into();
         loop {
             let mut truth_extention: bool = false;
@@ -92,7 +93,7 @@ impl Adf {
                 .vars
                 .iter()
                 .enumerate()
-                .filter(|(idx, elem)| new_interpretation[*idx].is_truth_value())
+                .filter(|(idx, _elem)| new_interpretation[*idx].is_truth_value())
                 .map(|(idx, elem)| (*elem, new_interpretation[idx].is_true()))
                 .collect();
 
@@ -103,46 +104,15 @@ impl Adf {
                 .filter(|elem| !elem.is_truth_value())
             {
                 log::trace!("checking ac: {}", ac);
-                let list = self.ordering.names().as_ref().borrow().clone();
-                let slice_vec: Vec<&str> = list.iter().map(<_>::as_ref).collect();
-                let mut bdd_var_builder = biodivine_lib_bdd::BddVariableSetBuilder::new();
-                bdd_var_builder.make_variables(&slice_vec);
-                let bdd_variables = bdd_var_builder.build();
-                log::trace!(
-                    "new ac: {}, value {}",
-                    ac.to_boolean_expression(&bdd_variables),
-                    ac.is_truth_value()
-                );
                 *ac = ac.restrict(&var_list);
-                // var_list.iter().for_each(|(var, val)| {
-                //     log::trace!(
-                //         "current ac: {}, variable {} set to {}",
-                //         ac.to_boolean_expression(&bdd_variables),
-                //         var,
-                //         val
-                //     );
-                //     *ac = ac.var_select(*var, *val);
-                //     log::trace!(
-                //         "changed to  ac: {}, variable {} set to {}",
-                //         ac.to_boolean_expression(&bdd_variables),
-                //         var,
-                //         val
-                //     );
-                // });
                 if ac.is_truth_value() {
                     truth_extention = true;
                 }
-                log::trace!(
-                    "new ac: {}, value {}",
-                    ac.to_boolean_expression(&bdd_variables),
-                    ac.is_truth_value()
-                );
             }
             if !truth_extention {
                 break;
             }
         }
-        log::info!("[Done] grounded");
         new_interpretation
     }
     /// creates a [PrintableInterpretation] for output purposes
@@ -161,11 +131,18 @@ impl Adf {
 pub trait AdfOperations {
     /// Returns `true` if the BDD is either valid or unsatisfiable
     fn is_truth_value(&self) -> bool;
+
+    /// Compares whether the information between two given BDDs are the same
+    fn cmp_information(&self, other: &Self) -> bool;
 }
 
 impl AdfOperations for Bdd {
     fn is_truth_value(&self) -> bool {
         self.is_false() || self.is_true()
+    }
+
+    fn cmp_information(&self, other: &Self) -> bool {
+        self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 }
 
@@ -191,6 +168,20 @@ impl BddRestrict for Bdd {
     }
 }
 
+impl ThreeValuedInterpretationsIterator {
+    fn from_bdd(bdd: &[Bdd]) -> Self {
+        let terms = bdd.iter().map(|value| value.into()).collect::<Vec<_>>();
+        Self::new(&terms)
+    }
+}
+
+impl TwoValuedInterpretationsIterator {
+    fn from_bdd(bdd: &[Bdd]) -> Self {
+        let terms = bdd.iter().map(|value| value.into()).collect::<Vec<_>>();
+        Self::new(&terms)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -203,7 +194,7 @@ mod test {
             .unwrap();
         let mut adf = Adf::from_parser(&parser);
 
-        let mut xor = adf.ac[5].clone();
+        let xor = adf.ac[5].clone();
 
         assert!(xor
             .var_restrict(adf.vars[4], false)

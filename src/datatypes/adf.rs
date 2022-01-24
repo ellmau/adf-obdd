@@ -1,9 +1,8 @@
 //! Repesentation of all needed ADF based datatypes
 
-use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
-
 use super::{Term, Var};
+use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, ops::Deref, rc::Rc};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VarContainer {
@@ -179,29 +178,6 @@ impl ThreeValuedInterpretationsIterator {
             if !ThreeValuedInterpretationsIterator::decrement_vec(current) {
                 self.current = None;
             }
-            // if let Some((pos, val)) = current.iter().enumerate().find(|(idx, val)| **val > 0) {
-            //     if pos > 0 && *val == 2 {
-            //         for elem in &mut current[0..pos] {
-            //             *elem = 2;
-            //         }
-            //     }
-            //     current[pos] -= 1;
-            //     if self.last_iteration {
-            //         if current.iter().all(|val| *val == 0) {
-            //             self.current = None;
-            //         }
-            //     }
-            // } else if !self.last_iteration {
-            //     let len = current.len();
-            //     if len <= 1 {
-            //         self.current = None;
-            //     } else {
-            //         for elem in &mut current[0..len - 1] {
-            //             *elem = 2;
-            //         }
-            //     }
-            //     self.last_iteration = true;
-            //}
         }
     }
 
@@ -230,7 +206,7 @@ impl Iterator for ThreeValuedInterpretationsIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.started {
-            if let Some(current) = &self.current {
+            if self.current.is_some() {
                 self.decrement();
             }
         } else {
@@ -336,7 +312,7 @@ mod test {
         assert_eq!(iter.next(), None);
 
         let testinterpretation = vec![Term(1), Term(3), Term(3), Term(7)];
-        let mut iter: Vec<Vec<Term>> =
+        let iter: Vec<Vec<Term>> =
             ThreeValuedInterpretationsIterator::new(&testinterpretation).collect();
         assert_eq!(
             iter,

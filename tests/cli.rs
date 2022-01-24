@@ -46,32 +46,54 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .stderr(predicate::str::contains("code: Eof"));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("-vv").arg("--grd");
+    cmd.arg(file.path())
+        .arg("-vv")
+        .arg("--grd")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(7) F(4) u(8) u(3) F(5) u(9) u(10) u(1) u(6) u(2)",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("-q").arg("--grd");
+    cmd.arg(file.path())
+        .arg("-q")
+        .arg("--grd")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(7) F(4) u(8) u(3) F(5) u(9) u(10) u(1) u(6) u(2)",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("--lx").arg("-v").arg("--grd");
+    cmd.arg(file.path())
+        .arg("--lx")
+        .arg("-v")
+        .arg("--grd")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(10) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9)",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
-    cmd.arg(file.path()).arg("--an").arg("--grd").arg("--stm");
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--stm")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;
     cmd.env_clear();
-    cmd.arg(file.path()).arg("--an").arg("--grd");
+    cmd.arg(file.path())
+        .arg("--an")
+        .arg("--grd")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
@@ -81,7 +103,9 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--an")
         .arg("--grd")
         .arg("--rust_log")
-        .arg("trace");
+        .arg("trace")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
@@ -91,7 +115,9 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--an")
         .arg("--grd")
         .arg("--rust_log")
-        .arg("warn");
+        .arg("warn")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
@@ -102,6 +128,8 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg(file.path())
         .arg("--an")
         .arg("--grd")
+        .arg("--lib")
+        .arg("naive")
         .arg("--export")
         .arg(tempdir.path().with_file_name("test.json"));
     cmd.assert().success().stdout(predicate::str::contains(
@@ -112,6 +140,8 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg(file.path())
         .arg("--an")
         .arg("--grd")
+        .arg("--lib")
+        .arg("naive")
         .arg("--export")
         .arg(tempdir.path().with_file_name("test.json"));
     cmd.assert().success().stdout(predicate::str::contains(
@@ -122,7 +152,9 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg(tempdir.path().with_file_name("test.json"))
         .arg("--an")
         .arg("--grd")
-        .arg("--import");
+        .arg("--import")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
@@ -132,7 +164,9 @@ fn runs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--an")
         .arg("--com")
         .arg("--rust_log")
-        .arg("warn");
+        .arg("warn")
+        .arg("--lib")
+        .arg("naive");
     cmd.assert().success().stdout(predicate::str::contains(
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));

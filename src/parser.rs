@@ -12,8 +12,6 @@ use nom::{
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::datatypes::adf::VarContainer;
-
 /// A representation of a formula, still using the strings from the input
 #[derive(Clone, PartialEq, Eq)]
 pub enum Formula<'a> {

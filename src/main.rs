@@ -22,8 +22,8 @@ struct App {
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
     #[structopt(long = "rust_log", env)]
     rust_log: Option<String>,
-    /// choose the bdd implementation
-    #[structopt(default_value = "homemade")]
+    /// choose the bdd implementation of either 'biodivine' or 'naive'
+    #[structopt(long = "lib", default_value = "biodivine")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
     #[structopt(short, parse(from_occurrences), group = "verbosity")]
