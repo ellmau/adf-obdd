@@ -115,7 +115,7 @@ impl Bdd {
             self.node(minvar, bot_ite, top_ite)
         }
     }
-    fn node(&mut self, var: Var, lo: Term, hi: Term) -> Term {
+    pub fn node(&mut self, var: Var, lo: Term, hi: Term) -> Term {
         if lo == hi {
             lo
         } else {

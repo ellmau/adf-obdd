@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref};
 
+use crate::adfbiodivine::AdfOperations;
+
 /// Representation of a Term
 /// Each Term is represented in a number ([usize]) and relates to a
 /// Node in the decision diagram
@@ -67,6 +69,11 @@ impl Term {
 
     /// Returns true, if the Terms have the same information-value
     pub fn compare_inf(&self, other: &Self) -> bool {
+        self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
+    }
+
+    /// Returns true, if the Term and the BDD have the same information-value
+    pub fn cmp_information(&self, other: &biodivine_lib_bdd::Bdd) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 }

@@ -1,15 +1,10 @@
-pub mod adf;
-pub mod datatypes;
-pub mod obdd;
-pub mod parser;
-
 use std::{fs::File, path::PathBuf};
 
-use adf::Adf;
+use adf_bdd::adf::Adf;
 use adf_bdd::adfbiodivine::Adf as BdAdf;
 
+use adf_bdd::parser::AdfParser;
 use clap::{crate_authors, crate_description, crate_name, crate_version};
-use parser::AdfParser;
 
 use structopt::StructOpt;
 
@@ -90,10 +85,22 @@ impl App {
                 if self.sort_alphan {
                     parser.varsort_alphanum();
                 }
-                let mut adf = BdAdf::from_parser(&parser);
+                let adf = BdAdf::from_parser(&parser);
                 if self.grounded {
                     let grounded = adf.grounded();
                     print!("{}", adf.print_interpretation(&grounded));
+                }
+
+                if self.complete {
+                    for model in adf.complete() {
+                        print!("{}", adf.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable {
+                    for model in adf.stable() {
+                        print!("{}", adf.print_interpretation(&model));
+                    }
                 }
             }
             _ => {

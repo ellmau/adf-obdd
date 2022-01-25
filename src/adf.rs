@@ -105,12 +105,14 @@ impl Adf {
 
     /// Computes the grounded extension and returns it as a list
     pub fn grounded(&mut self) -> Vec<Term> {
+        log::info!("[Start] grounded");
         let ac = &self.ac.clone();
-        self.grounded_internal(ac)
+        let result = self.grounded_internal(ac);
+        log::info!("[Done] grounded");
+        result
     }
 
     fn grounded_internal(&mut self, interpretation: &[Term]) -> Vec<Term> {
-        log::info!("[Start] grounded");
         let mut t_vals: usize = interpretation
             .iter()
             .filter(|elem| elem.is_truth_value())
@@ -147,7 +149,6 @@ impl Adf {
                 break;
             }
         }
-        log::info!("[Done] grounded");
         new_interpretation
     }
 

@@ -2,7 +2,7 @@
 
 use super::{Term, Var};
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, fmt::Display, ops::Deref, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VarContainer {
@@ -27,6 +27,13 @@ impl VarContainer {
         VarContainer { names, mapping }
     }
 
+    pub fn copy(from: &Self) -> Self {
+        VarContainer {
+            names: from.names.clone(),
+            mapping: from.mapping.clone(),
+        }
+    }
+
     pub fn variable(&self, name: &str) -> Option<Var> {
         self.mapping.borrow().get(name).map(|val| Var(*val))
     }
@@ -35,6 +42,7 @@ impl VarContainer {
         self.names.borrow().get(var.value()).cloned()
     }
 
+    #[allow(dead_code)]
     pub fn names(&self) -> Rc<RefCell<Vec<String>>> {
         Rc::clone(&self.names)
     }
