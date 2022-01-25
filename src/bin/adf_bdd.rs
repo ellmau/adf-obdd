@@ -141,15 +141,15 @@ impl App {
                     print!("{}", adf.print_interpretation(&grounded));
                 }
                 if self.complete {
-                    let complete = adf.complete(0);
-                    for model in complete {
-                        print!("{}", adf.print_interpretation(&model));
+                    let printer = adf.print_dictionary();
+                    for model in adf.complete() {
+                        print!("{}", printer.print_interpretation(&model));
                     }
                 }
                 if self.stable {
-                    let stable = adf.stable(0);
-                    for model in stable {
-                        print!("{}", adf.print_interpretation(&model));
+                    let printer = adf.print_dictionary();
+                    for model in adf.stable() {
+                        print!("{}", printer.print_interpretation(&model));
                     }
                 }
             }

@@ -52,4 +52,6 @@ pub mod adfbiodivine;
 pub mod datatypes;
 pub mod obdd;
 pub mod parser;
+#[cfg(test)]
+mod test;
 //pub mod obdd2;

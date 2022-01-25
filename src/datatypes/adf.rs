@@ -47,6 +47,29 @@ impl VarContainer {
         Rc::clone(&self.names)
     }
 }
+/// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations
+#[derive(Debug)]
+pub struct PrintDictionary {
+    ordering: VarContainer,
+}
+
+impl PrintDictionary {
+    pub(crate) fn new(order: &VarContainer) -> Self {
+        Self {
+            ordering: VarContainer::copy(order),
+        }
+    }
+    /// creates a [PrintableInterpretation] for output purposes
+    pub fn print_interpretation<'a, 'b>(
+        &'a self,
+        interpretation: &'b [Term],
+    ) -> PrintableInterpretation<'b>
+    where
+        'a: 'b,
+    {
+        PrintableInterpretation::new(interpretation, &self.ordering)
+    }
+}
 
 /// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
 #[derive(Debug)]

@@ -72,6 +72,14 @@ impl Adf {
         log::info!("[Success] instantiated");
         result
     }
+
+    pub(crate) fn var_container(&self) -> &VarContainer {
+        &self.ordering
+    }
+
+    pub(crate) fn ac(&self) -> &[Bdd] {
+        &self.ac
+    }
     /// Computes the grounded extension and returns it as a list
     pub fn grounded(&self) -> Vec<Term> {
         log::info!("[Start] grounded");

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     datatypes::{
         adf::{
-            PrintableInterpretation, ThreeValuedInterpretationsIterator,
+            PrintDictionary, PrintableInterpretation, ThreeValuedInterpretationsIterator,
             TwoValuedInterpretationsIterator, VarContainer,
         },
         Term, Var,
@@ -60,6 +60,58 @@ impl Adf {
                 result.ac[*new_order] = result_term;
             });
         log::info!("[Success] instantiated");
+        result
+    }
+
+    pub(crate) fn from_biodivine(bio_adf: &super::adfbiodivine::Adf) -> Self {
+        let mut result = Self {
+            ordering: VarContainer::copy(bio_adf.var_container()),
+            bdd: Bdd::new(),
+            ac: vec![Term(0); bio_adf.var_container().names().as_ref().borrow().len()],
+        };
+        result
+            .ac
+            .iter_mut()
+            .zip(bio_adf.ac().iter())
+            .for_each(|(new_ac, bdd_ac)| {
+                if bdd_ac.is_true() {
+                    *new_ac = Bdd::constant(true);
+                } else if bdd_ac.is_false() {
+                    *new_ac = Bdd::constant(false);
+                } else {
+                    // compound formula
+                    let mut term_vec: Vec<Term> = Vec::new();
+                    for (idx, tuple) in bdd_ac
+                        .to_string()
+                        .split('|')
+                        .filter(|tuple| !tuple.is_empty())
+                        .enumerate()
+                    {
+                        let node_elements = tuple.split(',').collect::<Vec<&str>>();
+                        if idx == 0 {
+                            term_vec.push(Bdd::constant(false));
+                        } else if idx == 1 {
+                            term_vec.push(Bdd::constant(true));
+                        } else {
+                            let new_term = result.bdd.node(
+                                Var(node_elements[0]
+                                    .parse::<usize>()
+                                    .expect("Var should be number")),
+                                term_vec[node_elements[1]
+                                    .parse::<usize>()
+                                    .expect("Termpos should be a valid number")],
+                                term_vec[node_elements[2]
+                                    .parse::<usize>()
+                                    .expect("Termpos should be a valid number")],
+                            );
+                            term_vec.push(new_term);
+                        }
+                        *new_ac = *term_vec
+                            .last()
+                            .expect("There should be one element in the vector");
+                    }
+                }
+            });
         result
     }
 
@@ -152,32 +204,14 @@ impl Adf {
         new_interpretation
     }
 
-    /// Computes the first `max_values` stable models
-    /// if max_values is 0, then all will be computed
-    pub fn stable(&mut self, max_values: usize) -> Vec<Vec<Term>> {
-        let grounded = self.grounded();
-        if max_values == 0 {
-            self.stable_iter(&grounded).collect()
-        } else {
-            self.stable_iter(&grounded)
-                .enumerate()
-                .take_while(|(idx, _elem)| *idx < max_values)
-                .map(|(_, elem)| elem)
-                .collect()
-        }
-    }
-
     /// Computes the stable models
     /// Returns an Iterator which contains all stable models
-    fn stable_iter<'a, 'b, 'c>(
-        &'a mut self,
-        grounded: &'b [Term],
-    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    pub fn stable<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
     where
         'a: 'c,
-        'b: 'c,
     {
-        TwoValuedInterpretationsIterator::new(grounded)
+        let grounded = self.grounded();
+        TwoValuedInterpretationsIterator::new(&grounded)
             .map(|interpretation| {
                 let mut interpr = self.ac.clone();
                 for ac in interpr.iter_mut() {
@@ -208,33 +242,15 @@ impl Adf {
             .map(|(int, _grd)| int)
     }
 
-    /// Computes the first `max_values` stable models
-    /// if max_values is 0, then all will be computed
-    pub fn complete(&mut self, max_values: usize) -> Vec<Vec<Term>> {
-        let grounded = self.grounded();
-        if max_values == 0 {
-            self.complete_iter(&grounded).collect()
-        } else {
-            self.complete_iter(&grounded)
-                .enumerate()
-                .take_while(|(idx, _elem)| *idx < max_values)
-                .map(|(_, elem)| elem)
-                .collect()
-        }
-    }
-
     /// Computes the complete models
     /// Returns an Iterator which contains all complete models
-    fn complete_iter<'a, 'b, 'c>(
-        &'a mut self,
-        grounded: &'b [Term],
-    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    pub fn complete<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
     where
         'a: 'c,
-        'b: 'c,
     {
+        let grounded = self.grounded();
         let ac = self.ac.clone();
-        ThreeValuedInterpretationsIterator::new(grounded).filter(move |interpretation| {
+        ThreeValuedInterpretationsIterator::new(&grounded).filter(move |interpretation| {
             interpretation.iter().enumerate().all(|(ac_idx, it)| {
                 log::trace!("idx [{}], term: {}", ac_idx, it);
                 it.compare_inf(&interpretation.iter().enumerate().fold(
@@ -260,6 +276,11 @@ impl Adf {
         'a: 'b,
     {
         PrintableInterpretation::new(interpretation, &self.ordering)
+    }
+
+    /// creates a [PrintDictionary] for output purposes
+    pub fn print_dictionary(&self) -> PrintDictionary {
+        PrintDictionary::new(&self.ordering)
     }
 }
 
@@ -357,53 +378,42 @@ mod test {
             .unwrap();
         let mut adf = Adf::from_parser(&parser);
 
+        let mut stable = adf.stable();
         assert_eq!(
-            adf.stable(0),
-            vec![vec![
+            stable.next(),
+            Some(vec![
                 Term::TOP,
                 Term::BOT,
                 Term::BOT,
                 Term::TOP,
                 Term::BOT,
                 Term::TOP
-            ]]
+            ])
         );
-        assert_eq!(
-            adf.stable(10),
-            vec![vec![
-                Term::TOP,
-                Term::BOT,
-                Term::BOT,
-                Term::TOP,
-                Term::BOT,
-                Term::TOP
-            ]]
-        );
+        assert_eq!(stable.next(), None);
 
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
         let mut adf = Adf::from_parser(&parser);
+        let mut stable = adf.stable();
 
-        assert_eq!(adf.stable(1), vec![vec![Term::BOT, Term::TOP]]);
-        assert_eq!(adf.stable(2), adf.stable(0));
-        assert_eq!(
-            adf.stable(0),
-            vec![vec![Term::BOT, Term::TOP], vec![Term::TOP, Term::BOT]]
-        );
+        assert_eq!(stable.next(), Some(vec![Term::BOT, Term::TOP]));
+        assert_eq!(stable.next(), Some(vec![Term::TOP, Term::BOT]));
+        assert_eq!(stable.next(), None);
 
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,b).ac(b,a).").unwrap();
         let mut adf = Adf::from_parser(&parser);
 
-        assert_eq!(adf.stable(0), vec![vec![Term::BOT, Term::BOT]]);
+        assert_eq!(
+            adf.stable().collect::<Vec<_>>(),
+            vec![vec![Term::BOT, Term::BOT]]
+        );
 
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
         let mut adf = Adf::from_parser(&parser);
-
-        let empty: Vec<Vec<Term>> = Vec::new();
-        assert_eq!(adf.stable(0), empty);
-        assert_eq!(adf.stable(99999), empty);
+        assert_eq!(adf.stable().next(), None);
     }
 
     #[test]
@@ -414,12 +424,12 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
 
         assert_eq!(
-            adf.complete(1),
-            vec![vec![Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)]]
+            adf.complete().next(),
+            Some(vec![Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)])
         );
 
         assert_eq!(
-            adf.complete(0),
+            adf.complete().collect::<Vec<_>>(),
             [
                 [Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)],
                 [Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)],
@@ -435,15 +445,16 @@ mod test {
             .unwrap();
         let mut adf = Adf::from_parser(&parser);
         assert_eq!(
-            adf.complete(0),
+            adf.complete().collect::<Vec<_>>(),
             [
                 [Term(1), Term(3), Term(3), Term(7)],
                 [Term(1), Term(1), Term(1), Term(0)],
                 [Term(1), Term(0), Term(0), Term(1)]
             ]
         );
-        for model in adf.complete(0) {
-            println!("{}", adf.print_interpretation(&model));
+        let printer = adf.print_dictionary();
+        for model in adf.complete() {
+            println!("{}", printer.print_interpretation(&model));
         }
     }
 }
