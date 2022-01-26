@@ -123,7 +123,7 @@ impl std::fmt::Debug for Formula<'_> {
 /// Due to an internal representation with [RefCell][std::cell::RefCell] and [Rc][std::rc::Rc] the values can be
 /// handed over to other structures without further storage needs.
 ///
-/// Note that the parser can be utilised by an [ADF][`crate::datatypes::adf::Adf`] to initialise it with minimal overhead.
+/// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
 pub struct AdfParser<'a> {
     namelist: Rc<RefCell<Vec<String>>>,

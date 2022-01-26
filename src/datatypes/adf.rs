@@ -71,7 +71,7 @@ impl PrintDictionary {
     }
 }
 
-/// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
+/// A struct to print a representation, it will be instantiated by [Adf][crate::adf::Adf] by calling the method [print_interpretation][`crate::adf::Adf::print_interpretation`].
 #[derive(Debug)]
 pub struct PrintableInterpretation<'a> {
     interpretation: &'a [Term],

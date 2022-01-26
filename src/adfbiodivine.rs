@@ -1,7 +1,9 @@
 //! This module describes the abstract dialectical framework
-//!
-//!  - computing interpretations
-//!  - computing fixpoints
+//! utilising the biodivine-lib-bdd (see <https://github.com/sybila/biodivine-lib-bdd>) BDD implementation to compute the
+//!  - grounded
+//!  - stable
+//!  - complete
+//! semantics of ADFs.
 
 use std::cell::RefCell;
 
@@ -18,20 +20,12 @@ use crate::{
 
 use biodivine_lib_bdd::Bdd;
 
-//#[derive(Serialize, Deserialize, Debug)]
-/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
-// pub struct Adf {
-//     ordering: VarContainer,
-//     bdd: Bdd,
-//     ac: Vec<Term>,
-// }
 #[derive(Debug)]
-/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation - TODO
+/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine)
 pub struct Adf {
     ordering: VarContainer,
     ac: Vec<Bdd>,
     vars: Vec<biodivine_lib_bdd::BddVariable>,
-    naive: RefCell<crate::adf::Adf>,
 }
 
 impl Adf {
@@ -53,7 +47,6 @@ impl Adf {
                 parser.namelist_rc_refcell().as_ref().borrow().len()
             ],
             vars: bdd_variables.variables(),
-            naive: RefCell::new(crate::adf::Adf::default()),
         };
         log::trace!("variable order: {:?}", result.vars);
         log::debug!("[Start] adding acs");
