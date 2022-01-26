@@ -5,12 +5,10 @@
 //!  - complete
 //! semantics of ADFs.
 
-use std::cell::RefCell;
-
 use crate::{
     datatypes::{
         adf::{
-            PrintableInterpretation, ThreeValuedInterpretationsIterator,
+            PrintDictionary, PrintableInterpretation, ThreeValuedInterpretationsIterator,
             TwoValuedInterpretationsIterator, VarContainer,
         },
         Term,
@@ -210,6 +208,11 @@ impl Adf {
         'a: 'b,
     {
         PrintableInterpretation::new(interpretation, &self.ordering)
+    }
+
+    /// creates a [PrintDictionary] for output purposes
+    pub fn print_dictionary(&self) -> PrintDictionary {
+        PrintDictionary::new(&self.ordering)
     }
 }
 
@@ -447,6 +450,14 @@ mod test {
         let adf = Adf::from_parser(&parser);
 
         assert_eq!(adf.stable().next(), Some(vec![Term::BOT, Term::BOT]));
+
+        for model in adf.stable() {
+            let printer = adf.print_dictionary();
+            assert_eq!(
+                format!("{}", adf.print_interpretation(&model)),
+                format!("{}", printer.print_interpretation(&model))
+            );
+        }
 
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
