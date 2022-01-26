@@ -3,6 +3,8 @@
 //!  - computing interpretations
 //!  - computing fixpoints
 
+use std::cell::RefCell;
+
 use crate::{
     datatypes::{
         adf::{
@@ -29,6 +31,7 @@ pub struct Adf {
     ordering: VarContainer,
     ac: Vec<Bdd>,
     vars: Vec<biodivine_lib_bdd::BddVariable>,
+    naive: RefCell<crate::adf::Adf>,
 }
 
 impl Adf {
@@ -50,6 +53,7 @@ impl Adf {
                 parser.namelist_rc_refcell().as_ref().borrow().len()
             ],
             vars: bdd_variables.variables(),
+            naive: RefCell::new(crate::adf::Adf::default()),
         };
         log::trace!("variable order: {:?}", result.vars);
         log::debug!("[Start] adding acs");
@@ -114,7 +118,7 @@ impl Adf {
             .collect::<Vec<(biodivine_lib_bdd::BddVariable, bool)>>()
     }
 
-    fn grounded_internal(&self, interpretation: &[Bdd]) -> Vec<Bdd> {
+    pub(crate) fn grounded_internal(&self, interpretation: &[Bdd]) -> Vec<Bdd> {
         let mut new_interpretation: Vec<Bdd> = interpretation.into();
         loop {
             let mut truth_extention: bool = false;
@@ -163,6 +167,13 @@ impl Adf {
         )
     }
 
+    /// shifts the representation and allows to use the naive approach
+    pub fn hybrid_step(&self) -> crate::adf::Adf {
+        crate::adf::Adf::from_biodivine_vector(
+            self.var_container(),
+            &self.grounded_internal(self.ac()),
+        )
+    }
     /// Computes the stable models
     /// Returns an Iterator which contains all the stable models
     pub fn stable<'a, 'b>(&'a self) -> impl Iterator<Item = Vec<Term>> + 'b
@@ -274,7 +285,7 @@ mod test {
     #[test]
     fn biodivine_internals() {
         let mut builder = BddVariableSetBuilder::new();
-        let [a, b, c] = builder.make(&["a", "b", "c"]);
+        let [_a, _b, _c] = builder.make(&["a", "b", "c"]);
         let variables: BddVariableSet = builder.build();
 
         let a = variables.eval_expression_string("a");

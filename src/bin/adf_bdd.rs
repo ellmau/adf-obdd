@@ -17,7 +17,7 @@ struct App {
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
     #[structopt(long = "rust_log", env)]
     rust_log: Option<String>,
-    /// choose the bdd implementation of either 'biodivine' or 'naive'
+    /// choose the bdd implementation of either 'biodivine', 'naive', or hybrid
     #[structopt(long = "lib", default_value = "biodivine")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
@@ -75,6 +75,36 @@ impl App {
         log::info!("Version: {}", crate_version!());
         let input = std::fs::read_to_string(self.input.clone()).expect("Error Reading File");
         match self.implementation.as_str() {
+            "hybrid" => {
+                let parser = adf_bdd::parser::AdfParser::default();
+                parser.parse()(&input).unwrap();
+                log::info!("[Done] parsing");
+                if self.sort_lex {
+                    parser.varsort_lexi();
+                }
+                if self.sort_alphan {
+                    parser.varsort_alphanum();
+                }
+                let adf = BdAdf::from_parser(&parser);
+                if self.grounded {
+                    let grounded = adf.grounded();
+                    print!("{}", adf.print_interpretation(&grounded));
+                }
+
+                let mut naive_adf = adf.hybrid_step();
+                let printer = naive_adf.print_dictionary();
+                if self.complete {
+                    for model in naive_adf.complete() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable {
+                    for model in naive_adf.stable() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+            }
             "biodivine" => {
                 let parser = adf_bdd::parser::AdfParser::default();
                 parser.parse()(&input).unwrap();

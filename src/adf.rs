@@ -25,6 +25,16 @@ pub struct Adf {
     ac: Vec<Term>,
 }
 
+impl Default for Adf {
+    fn default() -> Self {
+        Self {
+            ordering: VarContainer::default(),
+            bdd: Bdd::new(),
+            ac: Vec::new(),
+        }
+    }
+}
+
 impl Adf {
     /// Instantiates a new ADF, based on the parser-data
     pub fn from_parser(parser: &AdfParser) -> Self {
@@ -63,16 +73,19 @@ impl Adf {
         result
     }
 
-    pub(crate) fn from_biodivine(bio_adf: &super::adfbiodivine::Adf) -> Self {
+    pub(crate) fn from_biodivine_vector(
+        ordering: &VarContainer,
+        bio_ac: &[biodivine_lib_bdd::Bdd],
+    ) -> Self {
         let mut result = Self {
-            ordering: VarContainer::copy(bio_adf.var_container()),
+            ordering: VarContainer::copy(ordering),
             bdd: Bdd::new(),
-            ac: vec![Term(0); bio_adf.var_container().names().as_ref().borrow().len()],
+            ac: vec![Term(0); bio_ac.len()],
         };
         result
             .ac
             .iter_mut()
-            .zip(bio_adf.ac().iter())
+            .zip(bio_ac.iter())
             .for_each(|(new_ac, bdd_ac)| {
                 if bdd_ac.is_true() {
                     *new_ac = Bdd::constant(true);
@@ -113,6 +126,11 @@ impl Adf {
                 }
             });
         result
+    }
+
+    /// Instantiates a new ADF, based on a biodivine adf
+    pub fn from_biodivine(bio_adf: &super::adfbiodivine::Adf) -> Self {
+        Self::from_biodivine_vector(bio_adf.var_container(), bio_adf.ac())
     }
 
     fn term(&mut self, formula: &Formula) -> Term {
