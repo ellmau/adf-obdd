@@ -8,7 +8,7 @@ An abstract dialectical framework (ADF) consists of abstract statements. Each st
 An ordered binary decision diagram is a normalised representation of binary functions, where satisfiability- and validity checks can be done relatively cheap.
 
 ## Usage
-```zsh
+```
 USAGE:
     adf_bdd [FLAGS] [OPTIONS] <input>
 
