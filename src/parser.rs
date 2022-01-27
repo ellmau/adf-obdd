@@ -35,6 +35,55 @@ pub enum Formula<'a> {
     Iff(Box<Formula<'a>>, Box<Formula<'a>>),
 }
 
+impl Formula<'_> {
+    pub(crate) fn to_boolean_expr(
+        &self,
+    ) -> biodivine_lib_bdd::boolean_expression::BooleanExpression {
+        match self {
+            Formula::Top => biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
+            Formula::Bot => biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(false),
+            Formula::Atom(name) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(name.to_string())
+            }
+            Formula::Not(subformula) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Not(Box::new(
+                    subformula.to_boolean_expr(),
+                ))
+            }
+            Formula::And(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::And(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Or(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Or(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Iff(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Iff(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Imp(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Imp(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+            Formula::Xor(sub_a, sub_b) => {
+                biodivine_lib_bdd::boolean_expression::BooleanExpression::Xor(
+                    Box::new(sub_a.to_boolean_expr()),
+                    Box::new(sub_b.to_boolean_expr()),
+                )
+            }
+        }
+    }
+}
+
 impl std::fmt::Debug for Formula<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -74,7 +123,7 @@ impl std::fmt::Debug for Formula<'_> {
 /// Due to an internal representation with [RefCell][std::cell::RefCell] and [Rc][std::rc::Rc] the values can be
 /// handed over to other structures without further storage needs.
 ///
-/// Note that the parser can be utilised by an [ADF][`crate::datatypes::adf::Adf`] to initialise it with minimal overhead.
+/// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
 pub struct AdfParser<'a> {
     namelist: Rc<RefCell<Vec<String>>>,

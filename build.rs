@@ -58,7 +58,7 @@ fn write_header(test_file: &mut File) {
     write!(
         test_file,
         r#"
-use adf_bdd::adf::Adf;
+use adf_bdd::adfbiodivine::Adf;
 use adf_bdd::parser::AdfParser;
 use test_log::test;
 "#

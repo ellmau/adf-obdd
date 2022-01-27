@@ -1,9 +1,8 @@
 //! Repesentation of all needed ADF based datatypes
 
+use super::{Term, Var};
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
-
-use super::{Term, Var};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VarContainer {
@@ -28,6 +27,13 @@ impl VarContainer {
         VarContainer { names, mapping }
     }
 
+    pub fn copy(from: &Self) -> Self {
+        VarContainer {
+            names: from.names.clone(),
+            mapping: from.mapping.clone(),
+        }
+    }
+
     pub fn variable(&self, name: &str) -> Option<Var> {
         self.mapping.borrow().get(name).map(|val| Var(*val))
     }
@@ -36,12 +42,36 @@ impl VarContainer {
         self.names.borrow().get(var.value()).cloned()
     }
 
+    #[allow(dead_code)]
     pub fn names(&self) -> Rc<RefCell<Vec<String>>> {
         Rc::clone(&self.names)
     }
 }
+/// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations
+#[derive(Debug)]
+pub struct PrintDictionary {
+    ordering: VarContainer,
+}
 
-/// A struct to print a representation, it will be instantiated by [Adf] by calling the method [`Adf::print_interpretation`].
+impl PrintDictionary {
+    pub(crate) fn new(order: &VarContainer) -> Self {
+        Self {
+            ordering: VarContainer::copy(order),
+        }
+    }
+    /// creates a [PrintableInterpretation] for output purposes
+    pub fn print_interpretation<'a, 'b>(
+        &'a self,
+        interpretation: &'b [Term],
+    ) -> PrintableInterpretation<'b>
+    where
+        'a: 'b,
+    {
+        PrintableInterpretation::new(interpretation, &self.ordering)
+    }
+}
+
+/// A struct to print a representation, it will be instantiated by [Adf][crate::adf::Adf] by calling the method [print_interpretation][`crate::adf::Adf::print_interpretation`].
 #[derive(Debug)]
 pub struct PrintableInterpretation<'a> {
     interpretation: &'a [Term],
@@ -179,29 +209,6 @@ impl ThreeValuedInterpretationsIterator {
             if !ThreeValuedInterpretationsIterator::decrement_vec(current) {
                 self.current = None;
             }
-            // if let Some((pos, val)) = current.iter().enumerate().find(|(idx, val)| **val > 0) {
-            //     if pos > 0 && *val == 2 {
-            //         for elem in &mut current[0..pos] {
-            //             *elem = 2;
-            //         }
-            //     }
-            //     current[pos] -= 1;
-            //     if self.last_iteration {
-            //         if current.iter().all(|val| *val == 0) {
-            //             self.current = None;
-            //         }
-            //     }
-            // } else if !self.last_iteration {
-            //     let len = current.len();
-            //     if len <= 1 {
-            //         self.current = None;
-            //     } else {
-            //         for elem in &mut current[0..len - 1] {
-            //             *elem = 2;
-            //         }
-            //     }
-            //     self.last_iteration = true;
-            //}
         }
     }
 
@@ -230,7 +237,7 @@ impl Iterator for ThreeValuedInterpretationsIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.started {
-            if let Some(current) = &self.current {
+            if self.current.is_some() {
                 self.decrement();
             }
         } else {
@@ -336,7 +343,7 @@ mod test {
         assert_eq!(iter.next(), None);
 
         let testinterpretation = vec![Term(1), Term(3), Term(3), Term(7)];
-        let mut iter: Vec<Vec<Term>> =
+        let iter: Vec<Vec<Term>> =
             ThreeValuedInterpretationsIterator::new(&testinterpretation).collect();
         assert_eq!(
             iter,

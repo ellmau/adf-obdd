@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref};
 
+use crate::adfbiodivine::AdfOperations;
+
 /// Representation of a Term
 /// Each Term is represented in a number ([usize]) and relates to a
 /// Node in the decision diagram
@@ -23,6 +25,18 @@ impl From<usize> for Term {
     }
 }
 
+impl From<&biodivine_lib_bdd::Bdd> for Term {
+    fn from(val: &biodivine_lib_bdd::Bdd) -> Self {
+        if val.is_true() {
+            Term::TOP
+        } else if val.is_false() {
+            Term::BOT
+        } else {
+            Term::UND
+        }
+    }
+}
+
 impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Term({})", self.0)
@@ -34,6 +48,8 @@ impl Term {
     pub const BOT: Term = Term(0);
     /// Represents the truth-value top, i.e. true
     pub const TOP: Term = Term(1);
+    /// Represents the truth-value undecided, i.e. sat, but not valid
+    pub const UND: Term = Term(2);
 
     /// Get the value of the Term, i.e. the corresponding [usize]
     pub fn value(self) -> usize {
@@ -53,6 +69,11 @@ impl Term {
 
     /// Returns true, if the Terms have the same information-value
     pub fn compare_inf(&self, other: &Self) -> bool {
+        self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
+    }
+
+    /// Returns true, if the Term and the BDD have the same information-value
+    pub fn cmp_information(&self, other: &biodivine_lib_bdd::Bdd) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 }
