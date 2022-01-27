@@ -9,7 +9,7 @@
 //! Due to this uniform representation reductions on subformulae which are shared by two or more statements only need to be computed once and is already cached in the data structure for further applications.
 //!
 //! # Usage
-//! ```
+//! ```plain
 //! USAGE:
 //!     adf_bdd [FLAGS] [OPTIONS] <input>
 //!
