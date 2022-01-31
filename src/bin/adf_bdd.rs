@@ -38,6 +38,9 @@ struct App {
     /// Compute the stable models
     #[structopt(long = "stm")]
     stable: bool,
+    /// Compute the stable models with a pre-filter
+    #[structopt(long = "stmpre")]
+    stable_pre: bool,
     /// Compute the complete models
     #[structopt(long = "com")]
     complete: bool,
@@ -101,6 +104,12 @@ impl App {
 
                 if self.stable {
                     for model in naive_adf.stable() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_pre {
+                    for model in naive_adf.stable_with_prefilter() {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }
