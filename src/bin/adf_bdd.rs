@@ -38,9 +38,12 @@ struct App {
     /// Compute the stable models
     #[structopt(long = "stm")]
     stable: bool,
-    /// Compute the stable models with a pre-filter
+    /// Compute the stable models with a pre-filter (only hybrid lib-mode)
     #[structopt(long = "stmpre")]
     stable_pre: bool,
+    /// Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
+    #[structopt(long = "stmrew")]
+    stable_rew: bool,
     /// Compute the complete models
     #[structopt(long = "com")]
     complete: bool,
@@ -88,7 +91,11 @@ impl App {
                 if self.sort_alphan {
                     parser.varsort_alphanum();
                 }
-                let adf = BdAdf::from_parser(&parser);
+                let adf = if !self.stable_rew {
+                    BdAdf::from_parser(&parser)
+                } else {
+                    BdAdf::from_parser_with_stm_rewrite(&parser)
+                };
                 if self.grounded {
                     let grounded = adf.grounded();
                     print!("{}", adf.print_interpretation(&grounded));
@@ -113,6 +120,12 @@ impl App {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }
+
+                if self.stable_rew {
+                    for model in naive_adf.stable_bdd_representation(&adf) {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
             }
             "biodivine" => {
                 let parser = adf_bdd::parser::AdfParser::default();
@@ -124,7 +137,11 @@ impl App {
                 if self.sort_alphan {
                     parser.varsort_alphanum();
                 }
-                let adf = BdAdf::from_parser(&parser);
+                let adf = if !self.stable_rew {
+                    BdAdf::from_parser(&parser)
+                } else {
+                    BdAdf::from_parser_with_stm_rewrite(&parser)
+                };
                 if self.grounded {
                     let grounded = adf.grounded();
                     print!("{}", adf.print_interpretation(&grounded));
@@ -138,6 +155,12 @@ impl App {
 
                 if self.stable {
                     for model in adf.stable() {
+                        print!("{}", adf.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_rew {
+                    for model in adf.stable_bdd_representation() {
                         print!("{}", adf.print_interpretation(&model));
                     }
                 }

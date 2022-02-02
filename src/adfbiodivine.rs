@@ -16,14 +16,19 @@ use crate::{
     parser::AdfParser,
 };
 
-use biodivine_lib_bdd::Bdd;
+use biodivine_lib_bdd::{boolean_expression::BooleanExpression, Bdd, BddVariableSet};
+use derivative::Derivative;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine)
 pub struct Adf {
     ordering: VarContainer,
     ac: Vec<Bdd>,
     vars: Vec<biodivine_lib_bdd::BddVariable>,
+    #[derivative(Debug = "ignore")]
+    varset: BddVariableSet,
+    rewrite: Option<Bdd>, // stable rewrite
 }
 
 impl Adf {
@@ -45,6 +50,8 @@ impl Adf {
                 parser.namelist_rc_refcell().as_ref().borrow().len()
             ],
             vars: bdd_variables.variables(),
+            varset: bdd_variables,
+            rewrite: None,
         };
         log::trace!("variable order: {:?}", result.vars);
         log::debug!("[Start] adding acs");
@@ -60,12 +67,48 @@ impl Adf {
                     new_order,
                     parser.ac_at(insert_order)
                 );
-                result.ac[*new_order] = bdd_variables
+                result.ac[*new_order] = result
+                    .varset
                     .eval_expression(&parser.ac_at(insert_order).unwrap().to_boolean_expr());
                 log::trace!("instantiated {}", result.ac[*new_order]);
             });
         log::info!("[Success] instantiated");
         result
+    }
+
+    /// Instantiates a new ADF and prepares a rewriting for the stable model computation based on the parser-data
+    pub fn from_parser_with_stm_rewrite(parser: &AdfParser) -> Self {
+        let mut result = Self::from_parser(parser);
+        log::debug!("[Start] rewriting");
+        result.stm_rewriting(parser);
+        log::debug!("[Done] rewriting");
+        result
+    }
+
+    pub(crate) fn stm_rewriting(&mut self, parser: &AdfParser) {
+        let expr = parser.formula_order().iter().enumerate().fold(
+            biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
+            |acc, (insert_order, new_order)| {
+                BooleanExpression::And(
+                    Box::new(acc),
+                    Box::new(BooleanExpression::Iff(
+                        Box::new(BooleanExpression::Variable(
+                            self.ordering
+                                .name(crate::datatypes::Var(*new_order))
+                                .expect("Variable should exist"),
+                        )),
+                        Box::new(parser.ac_at(insert_order).unwrap().to_boolean_expr()),
+                    )),
+                )
+            },
+        );
+        log::trace!("{:?}", expr);
+        self.rewrite = Some(self.varset.eval_expression(&expr));
+    }
+
+    /// returns `true` if the stable rewriting for this adf exists
+    pub fn has_stm_rewriting(&self) -> bool {
+        self.rewrite.is_some()
     }
 
     pub(crate) fn var_container(&self) -> &VarContainer {
@@ -190,11 +233,85 @@ impl Adf {
                     .iter()
                     .map(|ac| ac.restrict(&reduction_list))
                     .collect::<Vec<_>>();
-                let complete = self.grounded_internal(&reduct);
+                let grounded = self.grounded_internal(&reduct);
                 terms
                     .iter()
-                    .zip(complete.iter())
+                    .zip(grounded.iter())
                     .all(|(left, right)| left.cmp_information(right))
+            },
+        )
+    }
+
+    /// Computes the stable models
+    /// This variant returns all stable models and utilises a rewrite of the adf as one big conjunction of equalities (iff)
+    pub fn stable_bdd_representation(&self) -> Vec<Vec<Term>> {
+        let smc = self.stable_model_candidates();
+        log::debug!("[Start] checking for stability");
+        smc.into_iter()
+            .filter(|terms| {
+                let reduction_list = self
+                    .vars
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, elem)| {
+                        if terms[idx].is_truth_value() && !terms[idx].is_true() {
+                            Some((*elem, false))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<(biodivine_lib_bdd::BddVariable, bool)>>();
+                let reduct = self
+                    .ac
+                    .iter()
+                    .map(|ac| ac.restrict(&reduction_list))
+                    .collect::<Vec<_>>();
+                let grounded = self.grounded_internal(&reduct);
+                terms
+                    .iter()
+                    .zip(grounded.iter())
+                    .all(|(left, right)| left.cmp_information(right))
+            })
+            .collect::<Vec<Vec<Term>>>()
+    }
+
+    pub(crate) fn stable_model_candidates(&self) -> Vec<Vec<Term>> {
+        let sr = self.rewrite.as_ref().unwrap(); // TODO: add checks if rewrite is really instantiated, otherwise call self.stable_representation
+        log::debug!("[Start] construct stable model candidates");
+        sr.sat_valuations()
+            .map(|valuation| {
+                self.vars
+                    .iter()
+                    .map(|var| {
+                        if valuation.value(*var) {
+                            Term::TOP
+                        } else {
+                            Term::BOT
+                        }
+                    })
+                    .collect::<Vec<Term>>()
+            })
+            .collect::<Vec<Vec<Term>>>()
+    }
+
+    fn stable_representation(&self) -> Bdd {
+        log::debug!("[Start] stable representation rewriting");
+        self.ac.iter().enumerate().fold(
+            self.varset.eval_expression(
+                &biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
+            ),
+            |acc, (idx, formula)| {
+                acc.and(
+                    &formula.iff(
+                        &self.varset.eval_expression(
+                            &biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(
+                                self.ordering
+                                    .name(crate::datatypes::Var(idx))
+                                    .expect("Variable should exist"),
+                            ),
+                        ),
+                    ),
+                )
             },
         )
     }
@@ -463,5 +580,20 @@ mod test {
         parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
         let adf = Adf::from_parser(&parser);
         assert_eq!(adf.stable().next(), None);
+    }
+
+    #[test]
+    fn stable_version2() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let adf = Adf::from_parser_with_stm_rewrite(&parser);
+
+        let mut stable_naive: Vec<Vec<Term>> = adf.stable().collect();
+        let mut stable_v2 = adf.stable_bdd_representation();
+        stable_naive.sort();
+        stable_v2.sort();
+
+        assert_eq!(stable_naive, stable_v2);
     }
 }

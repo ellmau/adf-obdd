@@ -147,3 +147,23 @@ fn adf_biodivine_cmp_2() {
     assert_eq!(str1, str2);
     assert_eq!(str1, str3);
 }
+
+#[test]
+fn stable_variants_cmp() {
+    let parser = AdfParser::default();
+    parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+        .unwrap();
+    let adf = Adf::from_parser_with_stm_rewrite(&parser);
+    let mut naive_adf = NaiveAdf::from_biodivine(&adf);
+
+    let mut stable_naive: Vec<Vec<Term>> = adf.stable().collect();
+    let mut stable_v2 = adf.stable_bdd_representation();
+    let mut stable_v2_hybrid = naive_adf.stable_bdd_representation(&adf);
+
+    stable_naive.sort();
+    stable_v2.sort();
+    stable_v2_hybrid.sort();
+
+    assert_eq!(stable_naive, stable_v2);
+    assert_eq!(stable_v2, stable_v2_hybrid);
+}

@@ -261,6 +261,36 @@ impl Adf {
     }
 
     /// Computes the stable models
+    /// Returns a vector with all stable models, using a single-formula representation in biodivine to enumerate the possible models
+    /// Note that the biodivine adf needs to be the one which instantiated the adf (if applicable)
+    pub fn stable_bdd_representation(
+        &mut self,
+        biodivine: &crate::adfbiodivine::Adf,
+    ) -> Vec<Vec<Term>> {
+        biodivine
+            .stable_model_candidates()
+            .into_iter()
+            .filter(|terms| {
+                let mut interpr = self.ac.clone();
+                for ac in interpr.iter_mut() {
+                    *ac = terms.iter().enumerate().fold(*ac, |acc, (var, term)| {
+                        if term.is_truth_value() && !term.is_true() {
+                            self.bdd.restrict(acc, Var(var), false)
+                        } else {
+                            acc
+                        }
+                    });
+                }
+                let grounded_check = self.grounded_internal(&interpr);
+                terms
+                    .iter()
+                    .zip(grounded_check.iter())
+                    .all(|(left, right)| left.compare_inf(right))
+            })
+            .collect::<Vec<Vec<Term>>>()
+    }
+
+    /// Computes the stable models
     /// Returns an Iterator which contains all stable models
     pub fn stable_with_prefilter<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
     where
