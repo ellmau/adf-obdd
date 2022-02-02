@@ -44,6 +44,9 @@ struct App {
     /// Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
     #[structopt(long = "stmrew")]
     stable_rew: bool,
+    /// Compute the stable models with a single-formula rewriting on internal representation(only hybrid lib-mode)
+    #[structopt(long = "stmrew2")]
+    stable_rew2: bool,
     /// Compute the complete models
     #[structopt(long = "com")]
     complete: bool,
@@ -121,7 +124,7 @@ impl App {
                     }
                 }
 
-                if self.stable_rew {
+                if self.stable_rew || self.stable_rew2 {
                     for model in naive_adf.stable_bdd_representation(&adf) {
                         print!("{}", printer.print_interpretation(&model));
                     }
@@ -159,7 +162,7 @@ impl App {
                     }
                 }
 
-                if self.stable_rew {
+                if self.stable_rew || self.stable_rew2 {
                     for model in adf.stable_bdd_representation() {
                         print!("{}", adf.print_interpretation(&model));
                     }

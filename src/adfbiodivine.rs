@@ -276,7 +276,14 @@ impl Adf {
     }
 
     pub(crate) fn stable_model_candidates(&self) -> Vec<Vec<Term>> {
-        let sr = self.rewrite.as_ref().unwrap(); // TODO: add checks if rewrite is really instantiated, otherwise call self.stable_representation
+        let internal_rewriting: Bdd;
+        let sr: &Bdd;
+        if self.has_stm_rewriting() {
+            sr = self.rewrite.as_ref().unwrap();
+        } else {
+            internal_rewriting = self.stable_representation();
+            sr = &internal_rewriting;
+        }
         log::debug!("[Start] construct stable model candidates");
         sr.sat_valuations()
             .map(|valuation| {
@@ -587,13 +594,17 @@ mod test {
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
             .unwrap();
-        let adf = Adf::from_parser_with_stm_rewrite(&parser);
+        let adf = Adf::from_parser(&parser);
 
         let mut stable_naive: Vec<Vec<Term>> = adf.stable().collect();
         let mut stable_v2 = adf.stable_bdd_representation();
+        let adf2 = Adf::from_parser_with_stm_rewrite(&parser);
+        let mut stable_v3 = adf2.stable_bdd_representation();
         stable_naive.sort();
         stable_v2.sort();
+        stable_v3.sort();
 
         assert_eq!(stable_naive, stable_v2);
+        assert_eq!(stable_v2, stable_v3);
     }
 }

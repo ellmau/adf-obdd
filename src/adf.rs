@@ -558,4 +558,8 @@ mod test {
             println!("{}", printer.print_interpretation(&model));
         }
     }
+    #[test]
+    fn adf_default() {
+        let adf = Adf::default();
+    }
 }

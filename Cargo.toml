@@ -14,6 +14,17 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
 name="adf_bdd"
+[lib]
+name="adf_bdd"
+path = "src/lib.rs"
+test = true
+doctest = true         # Documentation examples are tested by default.
+bench = true           # Is benchmarked by default.
+doc = true             # Is documented by default.
+harness = true         # Use libtest harness.
+edition = "2021"       # The edition of the target.
+crate-type = ["lib"]   # The crate types to generate.
+
 [dependencies]
 clap = "2.33.*"
 structopt = "0.3.25"

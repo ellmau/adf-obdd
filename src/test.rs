@@ -156,14 +156,17 @@ fn stable_variants_cmp() {
     let adf = Adf::from_parser_with_stm_rewrite(&parser);
     let mut naive_adf = NaiveAdf::from_biodivine(&adf);
 
-    let mut stable_naive: Vec<Vec<Term>> = adf.stable().collect();
+    let mut stable_naive: Vec<Vec<Term>> = naive_adf.stable().collect();
+    let mut stable_pre: Vec<Vec<Term>> = naive_adf.stable_with_prefilter().collect();
     let mut stable_v2 = adf.stable_bdd_representation();
     let mut stable_v2_hybrid = naive_adf.stable_bdd_representation(&adf);
 
     stable_naive.sort();
+    stable_pre.sort();
     stable_v2.sort();
     stable_v2_hybrid.sort();
 
     assert_eq!(stable_naive, stable_v2);
     assert_eq!(stable_v2, stable_v2_hybrid);
+    assert_eq!(stable_pre, stable_v2);
 }
