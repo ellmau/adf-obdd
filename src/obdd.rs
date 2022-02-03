@@ -131,6 +131,39 @@ impl Bdd {
             }
         }
     }
+
+    /// Computes the number of counter-models and models for a given BDD-tree
+    pub fn models(&self, term: Term) -> (usize, usize) {
+        self.modelcount(term).0
+    }
+
+    /// Computes the number of counter-models, models, and variables for a given BDD-tree
+    fn modelcount(&self, term: Term) -> ((usize, usize), usize) {
+        if term == Term::TOP {
+            ((0, 1), (0))
+        } else if term == Term::BOT {
+            ((1, 0), (0))
+        } else {
+            let node = &self.nodes[term.0];
+            let mut lo_exp = 0u32;
+            let mut hi_exp = 0u32;
+            let ((lo_counter, lo_model), lodepth) = self.modelcount(node.lo());
+            let ((hi_counter, hi_model), hidepth) = self.modelcount(node.hi());
+            if lodepth > hidepth {
+                hi_exp = (lodepth - hidepth) as u32;
+            } else {
+                lo_exp = (hidepth - lodepth) as u32;
+            }
+            let pot = 2usize;
+            (
+                (
+                    lo_counter * pot.pow(lo_exp) + hi_counter * pot.pow(hi_exp),
+                    lo_model * pot.pow(lo_exp) + hi_model * pot.pow(hi_exp),
+                ),
+                std::cmp::max(lodepth, hidepth) + 1,
+            )
+        }
+    }
 }
 
 #[cfg(test)]
@@ -241,5 +274,35 @@ mod test {
         let _a2 = bdd.or(a1, v3);
 
         assert_eq!(format!("{}", bdd), " \n0 BddNode: Var(18446744073709551614), lo: Term(0), hi: Term(0)\n1 BddNode: Var(18446744073709551615), lo: Term(1), hi: Term(1)\n2 BddNode: Var(0), lo: Term(0), hi: Term(1)\n3 BddNode: Var(1), lo: Term(0), hi: Term(1)\n4 BddNode: Var(2), lo: Term(0), hi: Term(1)\n5 BddNode: Var(0), lo: Term(0), hi: Term(3)\n6 BddNode: Var(1), lo: Term(4), hi: Term(1)\n7 BddNode: Var(0), lo: Term(4), hi: Term(6)\n");
+    }
+
+    #[test]
+    fn counting() {
+        let mut bdd = Bdd::new();
+
+        let v1 = bdd.variable(Var(0));
+        let v2 = bdd.variable(Var(1));
+        let v3 = bdd.variable(Var(2));
+
+        let formula1 = bdd.and(v1, v2);
+        let formula2 = bdd.or(v1, v2);
+        let formula3 = bdd.xor(v1, v2);
+        let formula4 = bdd.and(v3, formula2);
+
+        assert_eq!(bdd.models(v1), (1, 1));
+        assert_eq!(bdd.models(formula1), (3, 1));
+        assert_eq!(bdd.models(formula2), (1, 3));
+        assert_eq!(bdd.models(formula3), (2, 2));
+        assert_eq!(bdd.models(formula4), (5, 3));
+        assert_eq!(bdd.models(Term::TOP), (0, 1));
+        assert_eq!(bdd.models(Term::BOT), (1, 0));
+
+        assert_eq!(bdd.modelcount(v1), ((1, 1), 1));
+        assert_eq!(bdd.modelcount(formula1), ((3, 1), 2));
+        assert_eq!(bdd.modelcount(formula2), ((1, 3), 2));
+        assert_eq!(bdd.modelcount(formula3), ((2, 2), 2));
+        assert_eq!(bdd.modelcount(formula4), ((5, 3), 3));
+        assert_eq!(bdd.modelcount(Term::TOP), ((0, 1), 0));
+        assert_eq!(bdd.modelcount(Term::BOT), ((1, 0), 0));
     }
 }
