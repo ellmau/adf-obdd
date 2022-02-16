@@ -260,6 +260,89 @@ impl Adf {
             .map(|(int, _grd)| int)
     }
 
+    /// Computes the stable models
+    /// Returns a vector with all stable models, using a single-formula representation in biodivine to enumerate the possible models
+    /// Note that the biodivine adf needs to be the one which instantiated the adf (if applicable)
+    pub fn stable_bdd_representation(
+        &mut self,
+        biodivine: &crate::adfbiodivine::Adf,
+    ) -> Vec<Vec<Term>> {
+        biodivine
+            .stable_model_candidates()
+            .into_iter()
+            .filter(|terms| {
+                let mut interpr = self.ac.clone();
+                for ac in interpr.iter_mut() {
+                    *ac = terms.iter().enumerate().fold(*ac, |acc, (var, term)| {
+                        if term.is_truth_value() && !term.is_true() {
+                            self.bdd.restrict(acc, Var(var), false)
+                        } else {
+                            acc
+                        }
+                    });
+                }
+                let grounded_check = self.grounded_internal(&interpr);
+                terms
+                    .iter()
+                    .zip(grounded_check.iter())
+                    .all(|(left, right)| left.compare_inf(right))
+            })
+            .collect::<Vec<Vec<Term>>>()
+    }
+
+    /// Computes the stable models
+    /// Returns an Iterator which contains all stable models
+    pub fn stable_with_prefilter<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+    {
+        let grounded = self.grounded();
+        TwoValuedInterpretationsIterator::new(&grounded)
+            .map(|interpretation| {
+                if interpretation.iter().enumerate().all(|(ac_idx, it)| {
+                    it.compare_inf(&interpretation.iter().enumerate().fold(
+                        self.ac[ac_idx],
+                        |acc, (var, term)| {
+                            if term.is_truth_value() {
+                                self.bdd.restrict(acc, Var(var), term.is_true())
+                            } else {
+                                acc
+                            }
+                        },
+                    ))
+                }) {
+                    let mut interpr = self.ac.clone();
+                    for ac in interpr.iter_mut() {
+                        *ac = interpretation
+                            .iter()
+                            .enumerate()
+                            .fold(*ac, |acc, (var, term)| {
+                                if term.is_truth_value() && !term.is_true() {
+                                    self.bdd.restrict(acc, Var(var), false)
+                                } else {
+                                    acc
+                                }
+                            });
+                    }
+                    let grounded_check = self.grounded_internal(&interpr);
+                    log::debug!(
+                        "grounded candidate\n{:?}\n{:?}",
+                        interpretation,
+                        grounded_check
+                    );
+                    (interpretation, grounded_check)
+                } else {
+                    (vec![Term::BOT], vec![Term::TOP])
+                }
+            })
+            .filter(|(int, grd)| {
+                int.iter()
+                    .zip(grd.iter())
+                    .all(|(it, gr)| it.compare_inf(gr))
+            })
+            .map(|(int, _grd)| int)
+    }
+
     /// Computes the complete models
     /// Returns an Iterator which contains all complete models
     pub fn complete<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
@@ -474,5 +557,9 @@ mod test {
         for model in adf.complete() {
             println!("{}", printer.print_interpretation(&model));
         }
+    }
+    #[test]
+    fn adf_default() {
+        let _adf = Adf::default();
     }
 }

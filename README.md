@@ -21,6 +21,10 @@ FLAGS:
         --an         Sorts variables in an alphanumeric manner
         --lx         Sorts variables in an lexicographic manner
         --stm        Compute the stable models
+        --stmpre     Compute the stable models with a pre-filter (only hybrid lib-mode)
+        --stmrew     Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
+        --stmrew2    Compute the stable models with a single-formula rewriting on internal representation(only hybrid
+                     lib-mode)
     -V, --version    Prints version information
     -v               Sets log verbosity (multiple times means more verbose)
 

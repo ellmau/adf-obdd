@@ -119,7 +119,8 @@ impl std::fmt::Debug for Formula<'_> {
     }
 }
 
-/// A parse structure to hold all the information given by the input file in one place
+/// A parse structure to hold all the information given by the input file in one place.
+///
 /// Due to an internal representation with [RefCell][std::cell::RefCell] and [Rc][std::rc::Rc] the values can be
 /// handed over to other structures without further storage needs.
 ///
@@ -220,7 +221,7 @@ impl AdfParser<'_> {
         self
     }
 
-    /// Sort the variables in alphanumerical order
+    /// Sort the variables in alphanumerical order.
     /// Results which got used before might become corrupted.
     pub fn varsort_alphanum(&self) -> &Self {
         self.namelist

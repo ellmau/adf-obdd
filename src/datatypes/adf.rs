@@ -181,7 +181,6 @@ pub struct ThreeValuedInterpretationsIterator {
     indexes: Vec<usize>,
     current: Option<Vec<usize>>,
     started: bool,
-    last_iteration: bool,
 }
 
 impl ThreeValuedInterpretationsIterator {
@@ -200,7 +199,6 @@ impl ThreeValuedInterpretationsIterator {
             started: false,
             current: Some(current),
             original: term.into(),
-            last_iteration: false,
         }
     }
 
