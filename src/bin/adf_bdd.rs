@@ -100,7 +100,7 @@ impl App {
                     BdAdf::from_parser_with_stm_rewrite(&parser)
                 };
                 if self.grounded {
-                    let grounded = adf.grounded();
+                    let grounded = adf.hybrid_step_opt(false).grounded();
                     print!("{}", adf.print_interpretation(&grounded));
                 }
 

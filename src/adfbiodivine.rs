@@ -201,13 +201,27 @@ impl Adf {
         )
     }
 
-    /// shifts the representation and allows to use the naive approach
+    /// Shifts the representation and allows to use the naive approach.
+    ///
+    /// The grounded interpretation is computed by the biodivine library first.
     pub fn hybrid_step(&self) -> crate::adf::Adf {
         crate::adf::Adf::from_biodivine_vector(
             self.var_container(),
             &self.grounded_internal(self.ac()),
         )
     }
+
+    /// Shifts the representation and allows to use the naive approach.
+    ///
+    /// `bio_grounded` will compute the grounded, based on biodivine, first.
+    pub fn hybrid_step_opt(&self, bio_grounded: bool) -> crate::adf::Adf {
+        if bio_grounded {
+            self.hybrid_step()
+        } else {
+            crate::adf::Adf::from_biodivine_vector(self.var_container(), self.ac())
+        }
+    }
+
     /// Computes the stable models
     /// Returns an Iterator which contains all the stable models
     pub fn stable<'a, 'b>(&'a self) -> impl Iterator<Item = Vec<Term>> + 'b
@@ -470,6 +484,26 @@ mod test {
             result,
             vec![Term::TOP, Term::TOP, Term::TOP, Term::BOT, Term::BOT]
         );
+    }
+
+    #[test]
+    fn grounded_eq_naive() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let adf = Adf::from_parser(&parser);
+
+        let adf_grd = adf.grounded();
+        let adf_hybrid_true = adf.hybrid_step_opt(true).grounded();
+        let adf_hybrid_false = adf.hybrid_step_opt(false).grounded();
+        adf_grd
+            .iter()
+            .zip(adf_hybrid_false.iter())
+            .zip(adf_hybrid_true.iter())
+            .for_each(|((a, b), c)| {
+                assert!(a.compare_inf(b));
+                assert!(b.compare_inf(c));
+            });
     }
 
     #[test]

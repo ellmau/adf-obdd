@@ -560,6 +560,6 @@ mod test {
     }
     #[test]
     fn adf_default() {
-        let adf = Adf::default();
+        let _adf = Adf::default();
     }
 }
