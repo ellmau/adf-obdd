@@ -47,6 +47,9 @@ struct App {
     /// Export the adf-bdd state after parsing and BDD instantiation to the given filename
     #[structopt(long)]
     export: Option<PathBuf>,
+    /// Set if the (counter-)models shall be computed and printed, possible values are 'naive' and 'memoization' (only works in hybrid and naive mode)
+    #[structopt(long)]
+    counter: Option<String>,
 }
 
 impl App {
@@ -106,6 +109,9 @@ impl App {
                 }
             }
             "biodivine" => {
+                if self.counter.is_some() {
+                    log::error!("Modelcounting not supported in biodivine mode");
+                }
                 let parser = adf_bdd::parser::AdfParser::default();
                 parser.parse()(&input).unwrap();
                 log::info!("[Done] parsing");
