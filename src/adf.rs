@@ -11,7 +11,7 @@ use crate::{
             PrintDictionary, PrintableInterpretation, ThreeValuedInterpretationsIterator,
             TwoValuedInterpretationsIterator, VarContainer,
         },
-        Term, Var,
+        ModelCounts, Term, Var,
     },
     obdd::Bdd,
     parser::{AdfParser, Formula},
@@ -285,6 +285,16 @@ impl Adf {
         })
     }
 
+    /// Returns a [Vector][std::vec::Vec] of [ModelCounts][crate::datatypes::ModelCounts] for each acceptance condition.
+    ///
+    /// `memoization` controls whether memoization is utilised or not.
+    pub fn formulacounts(&self, memoization: bool) -> Vec<ModelCounts> {
+        self.ac
+            .iter()
+            .map(|ac| self.bdd.models(*ac, memoization))
+            .collect()
+    }
+
     /// creates a [PrintableInterpretation] for output purposes
     pub fn print_interpretation<'a, 'b>(
         &'a self,
@@ -350,7 +360,7 @@ mod test {
 
         let serialized = serde_json::to_string(&adf).unwrap();
         log::debug!("Serialized to {}", serialized);
-        let result = r#"{"ordering":{"names":["a","c","b","e","d"],"mapping":{"b":2,"a":0,"e":3,"c":1,"d":4}},"bdd":{"nodes":[{"var":18446744073709551614,"lo":0,"hi":0},{"var":18446744073709551615,"lo":1,"hi":1},{"var":0,"lo":0,"hi":1},{"var":1,"lo":0,"hi":1},{"var":2,"lo":0,"hi":1},{"var":3,"lo":0,"hi":1},{"var":4,"lo":0,"hi":1},{"var":0,"lo":1,"hi":0},{"var":0,"lo":1,"hi":4},{"var":1,"lo":1,"hi":0},{"var":2,"lo":1,"hi":0},{"var":1,"lo":10,"hi":4},{"var":0,"lo":3,"hi":11},{"var":3,"lo":1,"hi":0},{"var":4,"lo":1,"hi":0},{"var":3,"lo":6,"hi":14}],"cache":[[{"var":3,"lo":1,"hi":0},13],[{"var":3,"lo":6,"hi":14},15],[{"var":4,"lo":0,"hi":1},6],[{"var":0,"lo":0,"hi":1},2],[{"var":4,"lo":1,"hi":0},14],[{"var":2,"lo":0,"hi":1},4],[{"var":1,"lo":0,"hi":1},3],[{"var":0,"lo":1,"hi":4},8],[{"var":3,"lo":0,"hi":1},5],[{"var":0,"lo":1,"hi":0},7],[{"var":2,"lo":1,"hi":0},10],[{"var":0,"lo":3,"hi":11},12],[{"var":1,"lo":1,"hi":0},9],[{"var":1,"lo":10,"hi":4},11]]},"ac":[4,2,7,15,12]}"#;
+        let result = r#"{"ordering":{"names":["a","c","b","e","d"],"mapping":{"b":2,"a":0,"c":1,"e":3,"d":4}},"bdd":{"nodes":[{"var":18446744073709551614,"lo":0,"hi":0},{"var":18446744073709551615,"lo":1,"hi":1},{"var":0,"lo":0,"hi":1},{"var":1,"lo":0,"hi":1},{"var":2,"lo":0,"hi":1},{"var":3,"lo":0,"hi":1},{"var":4,"lo":0,"hi":1},{"var":0,"lo":1,"hi":0},{"var":0,"lo":1,"hi":4},{"var":1,"lo":1,"hi":0},{"var":2,"lo":1,"hi":0},{"var":1,"lo":10,"hi":4},{"var":0,"lo":3,"hi":11},{"var":3,"lo":1,"hi":0},{"var":4,"lo":1,"hi":0},{"var":3,"lo":6,"hi":14}],"cache":[[{"var":1,"lo":0,"hi":1},3],[{"var":3,"lo":6,"hi":14},15],[{"var":2,"lo":0,"hi":1},4],[{"var":0,"lo":1,"hi":0},7],[{"var":0,"lo":3,"hi":11},12],[{"var":3,"lo":1,"hi":0},13],[{"var":4,"lo":1,"hi":0},14],[{"var":0,"lo":0,"hi":1},2],[{"var":3,"lo":0,"hi":1},5],[{"var":0,"lo":1,"hi":4},8],[{"var":4,"lo":0,"hi":1},6],[{"var":1,"lo":1,"hi":0},9],[{"var":2,"lo":1,"hi":0},10],[{"var":1,"lo":10,"hi":4},11]],"count_cache":{}},"ac":[4,2,7,15,12]}"#;
         let mut deserialized: Adf = serde_json::from_str(&result).unwrap();
         assert_eq!(adf.ac, deserialized.ac);
         let grounded_import = deserialized.grounded();
@@ -474,5 +484,15 @@ mod test {
         for model in adf.complete() {
             println!("{}", printer.print_interpretation(&model));
         }
+    }
+
+    #[test]
+    fn formulacounts() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).")
+            .unwrap();
+        let adf = Adf::from_parser(&parser);
+
+        assert_eq!(adf.formulacounts(false), adf.formulacounts(true));
     }
 }

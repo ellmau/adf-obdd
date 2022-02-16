@@ -2,13 +2,14 @@
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
-use std::{cmp::min, collections::HashMap, fmt::Display};
+use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
     #[serde(with = "vectorize")]
     cache: HashMap<BddNode, Term>,
+    count_cache: RefCell<HashMap<Term, CountNode>>,
 }
 
 impl Display for Bdd {
@@ -26,6 +27,7 @@ impl Bdd {
         Self {
             nodes: vec![BddNode::bot_node(), BddNode::top_node()],
             cache: HashMap::new(),
+            count_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -133,22 +135,26 @@ impl Bdd {
     }
 
     /// Computes the number of counter-models and models for a given BDD-tree
-    pub fn models(&self, term: Term) -> (usize, usize) {
-        self.modelcount(term).0
+    pub fn models(&self, term: Term, memoization: bool) -> ModelCounts {
+        if memoization {
+            self.modelcount_memoization(term).0
+        } else {
+            self.modelcount_naive(term).0
+        }
     }
 
     /// Computes the number of counter-models, models, and variables for a given BDD-tree
-    fn modelcount(&self, term: Term) -> ((usize, usize), usize) {
+    fn modelcount_naive(&self, term: Term) -> CountNode {
         if term == Term::TOP {
-            ((0, 1), (0))
+            ((0, 1), 0)
         } else if term == Term::BOT {
-            ((1, 0), (0))
+            ((1, 0), 0)
         } else {
             let node = &self.nodes[term.0];
             let mut lo_exp = 0u32;
             let mut hi_exp = 0u32;
-            let ((lo_counter, lo_model), lodepth) = self.modelcount(node.lo());
-            let ((hi_counter, hi_model), hidepth) = self.modelcount(node.hi());
+            let ((lo_counter, lo_model), lodepth) = self.modelcount_naive(node.lo());
+            let ((hi_counter, hi_model), hidepth) = self.modelcount_naive(node.hi());
             if lodepth > hidepth {
                 hi_exp = (lodepth - hidepth) as u32;
             } else {
@@ -162,6 +168,39 @@ impl Bdd {
                 ),
                 std::cmp::max(lodepth, hidepth) + 1,
             )
+        }
+    }
+
+    fn modelcount_memoization(&self, term: Term) -> CountNode {
+        if term == Term::TOP {
+            ((0, 1), 0)
+        } else if term == Term::BOT {
+            ((1, 0), 0)
+        } else {
+            if let Some(result) = self.count_cache.borrow().get(&term) {
+                return *result;
+            }
+            let result = {
+                let node = &self.nodes[term.0];
+                let mut lo_exp = 0u32;
+                let mut hi_exp = 0u32;
+                let ((lo_counter, lo_model), lodepth) = self.modelcount_memoization(node.lo());
+                let ((hi_counter, hi_model), hidepth) = self.modelcount_memoization(node.hi());
+                if lodepth > hidepth {
+                    hi_exp = (lodepth - hidepth) as u32;
+                } else {
+                    lo_exp = (hidepth - lodepth) as u32;
+                }
+                (
+                    (
+                        lo_counter * 2usize.pow(lo_exp) + hi_counter * 2usize.pow(hi_exp),
+                        lo_model * 2usize.pow(lo_exp) + hi_model * 2usize.pow(hi_exp),
+                    ),
+                    std::cmp::max(lodepth, hidepth) + 1,
+                )
+            };
+            self.count_cache.borrow_mut().insert(term, result);
+            result
         }
     }
 }
@@ -289,20 +328,47 @@ mod test {
         let formula3 = bdd.xor(v1, v2);
         let formula4 = bdd.and(v3, formula2);
 
-        assert_eq!(bdd.models(v1), (1, 1));
-        assert_eq!(bdd.models(formula1), (3, 1));
-        assert_eq!(bdd.models(formula2), (1, 3));
-        assert_eq!(bdd.models(formula3), (2, 2));
-        assert_eq!(bdd.models(formula4), (5, 3));
-        assert_eq!(bdd.models(Term::TOP), (0, 1));
-        assert_eq!(bdd.models(Term::BOT), (1, 0));
+        assert_eq!(bdd.models(v1, false), (1, 1));
+        assert_eq!(bdd.models(formula1, false), (3, 1));
+        assert_eq!(bdd.models(formula2, false), (1, 3));
+        assert_eq!(bdd.models(formula3, false), (2, 2));
+        assert_eq!(bdd.models(formula4, false), (5, 3));
+        assert_eq!(bdd.models(Term::TOP, false), (0, 1));
+        assert_eq!(bdd.models(Term::BOT, false), (1, 0));
 
-        assert_eq!(bdd.modelcount(v1), ((1, 1), 1));
-        assert_eq!(bdd.modelcount(formula1), ((3, 1), 2));
-        assert_eq!(bdd.modelcount(formula2), ((1, 3), 2));
-        assert_eq!(bdd.modelcount(formula3), ((2, 2), 2));
-        assert_eq!(bdd.modelcount(formula4), ((5, 3), 3));
-        assert_eq!(bdd.modelcount(Term::TOP), ((0, 1), 0));
-        assert_eq!(bdd.modelcount(Term::BOT), ((1, 0), 0));
+        assert_eq!(bdd.modelcount_naive(v1), ((1, 1), 1));
+        assert_eq!(bdd.modelcount_naive(formula1), ((3, 1), 2));
+        assert_eq!(bdd.modelcount_naive(formula2), ((1, 3), 2));
+        assert_eq!(bdd.modelcount_naive(formula3), ((2, 2), 2));
+        assert_eq!(bdd.modelcount_naive(formula4), ((5, 3), 3));
+        assert_eq!(bdd.modelcount_naive(Term::TOP), ((0, 1), 0));
+        assert_eq!(bdd.modelcount_naive(Term::BOT), ((1, 0), 0));
+
+        assert_eq!(
+            bdd.modelcount_naive(formula4),
+            bdd.modelcount_memoization(formula4)
+        );
+
+        assert_eq!(bdd.modelcount_naive(v1), bdd.modelcount_memoization(v1));
+        assert_eq!(
+            bdd.modelcount_naive(formula1),
+            bdd.modelcount_memoization(formula1)
+        );
+        assert_eq!(
+            bdd.modelcount_naive(formula2),
+            bdd.modelcount_memoization(formula2)
+        );
+        assert_eq!(
+            bdd.modelcount_naive(formula3),
+            bdd.modelcount_memoization(formula3)
+        );
+        assert_eq!(
+            bdd.modelcount_naive(Term::TOP),
+            bdd.modelcount_memoization(Term::TOP)
+        );
+        assert_eq!(
+            bdd.modelcount_naive(Term::BOT),
+            bdd.modelcount_memoization(Term::BOT)
+        );
     }
 }
