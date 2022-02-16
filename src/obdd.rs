@@ -160,11 +160,10 @@ impl Bdd {
             } else {
                 lo_exp = (hidepth - lodepth) as u32;
             }
-            let pot = 2usize;
             (
                 (
-                    lo_counter * pot.pow(lo_exp) + hi_counter * pot.pow(hi_exp),
-                    lo_model * pot.pow(lo_exp) + hi_model * pot.pow(hi_exp),
+                    lo_counter * 2usize.pow(lo_exp) + hi_counter * 2usize.pow(hi_exp),
+                    lo_model * 2usize.pow(lo_exp) + hi_model * 2usize.pow(hi_exp),
                 ),
                 std::cmp::max(lodepth, hidepth) + 1,
             )
