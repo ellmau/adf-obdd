@@ -121,13 +121,14 @@ impl App {
                     Some(_) => {}
                     None => {}
                 }
-
+                log::info!("[Start] translate into naive representation");
+                let mut naive_adf = adf.hybrid_step();
+                log::info!("[Done] translate into naive representation");
                 if self.grounded {
-                    let grounded = adf.hybrid_step_opt(false).grounded();
-                    print!("{}", adf.print_interpretation(&grounded));
+                    let grounded = naive_adf.grounded();
+                    print!("{}", naive_adf.print_interpretation(&grounded));
                 }
 
-                let mut naive_adf = adf.hybrid_step();
                 let printer = naive_adf.print_dictionary();
                 if self.complete {
                     for model in naive_adf.complete() {
@@ -197,7 +198,17 @@ impl App {
             }
             _ => {
                 let mut adf = if self.import {
-                    serde_json::from_str(&input).unwrap()
+                    #[cfg(not(feature = "adhoccounting"))]
+                    {
+                        serde_json::from_str(&input).unwrap()
+                    }
+                    #[cfg(feature = "adhoccounting")]
+                    {
+                        let result: Adf = serde_json::from_str(&input).unwrap();
+                        log::debug!("test");
+                        result.fix_import();
+                        result
+                    }
                 } else {
                     let parser = AdfParser::default();
                     parser.parse()(&input).unwrap();

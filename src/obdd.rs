@@ -9,6 +9,7 @@ pub(crate) struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
     #[serde(with = "vectorize")]
     cache: HashMap<BddNode, Term>,
+    #[serde(skip, default = "Bdd::default_count_cache")]
     count_cache: RefCell<HashMap<Term, CountNode>>,
 }
 
@@ -24,11 +25,35 @@ impl Display for Bdd {
 
 impl Bdd {
     pub fn new() -> Self {
-        Self {
-            nodes: vec![BddNode::bot_node(), BddNode::top_node()],
-            cache: HashMap::new(),
-            count_cache: RefCell::new(HashMap::new()),
+        #[cfg(not(feature = "adhoccounting"))]
+        {
+            Self {
+                nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                cache: HashMap::new(),
+                count_cache: RefCell::new(HashMap::new()),
+            }
         }
+        #[cfg(feature = "adhoccounting")]
+        {
+            let result = Self {
+                nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                cache: HashMap::new(),
+                count_cache: RefCell::new(HashMap::new()),
+            };
+            result
+                .count_cache
+                .borrow_mut()
+                .insert(Term::TOP, ((0, 1), 0));
+            result
+                .count_cache
+                .borrow_mut()
+                .insert(Term::BOT, ((1, 0), 0));
+            result
+        }
+    }
+
+    fn default_count_cache() -> RefCell<HashMap<Term, CountNode>> {
+        RefCell::new(HashMap::new())
     }
 
     pub fn variable(&mut self, var: Var) -> Term {
@@ -128,6 +153,33 @@ impl Bdd {
                     let new_term = Term(self.nodes.len());
                     self.nodes.push(node);
                     self.cache.insert(node, new_term);
+                    #[cfg(feature = "adhoccounting")]
+                    {
+                        log::debug!("newterm: {} as {:?}", new_term, node);
+                        let mut count_cache = self.count_cache.borrow_mut();
+                        let ((lo_cmodel, lo_model), lodepth) =
+                            *count_cache.get(&lo).expect("Cache corrupted");
+                        let ((hi_cmodel, hi_model), hidepth) =
+                            *count_cache.get(&hi).expect("Cache corrupted");
+                        log::debug!("lo (cm: {}, mo: {}, dp: {})", lo_cmodel, lo_model, lodepth);
+                        log::debug!("hi (cm: {}, mo: {}, dp: {})", hi_cmodel, hi_model, hidepth);
+                        let (lo_exp, hi_exp) = if lodepth > hidepth {
+                            (1, 2usize.pow((lodepth - hidepth) as u32))
+                        } else {
+                            (2usize.pow((hidepth - lodepth) as u32), 1)
+                        };
+                        log::debug!("lo_exp {}, hi_exp {}", lo_exp, hi_exp);
+                        count_cache.insert(
+                            new_term,
+                            (
+                                (
+                                    lo_cmodel * lo_exp + hi_cmodel * hi_exp,
+                                    lo_model * lo_exp + hi_model * hi_exp,
+                                ),
+                                std::cmp::max(lodepth, hidepth) + 1,
+                            ),
+                        );
+                    }
                     new_term
                 }
             }
@@ -135,14 +187,20 @@ impl Bdd {
     }
 
     /// Computes the number of counter-models and models for a given BDD-tree
-    pub fn models(&self, term: Term, memoization: bool) -> ModelCounts {
-        if memoization {
+    pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
+        #[cfg(feature = "adhoccounting")]
+        {
+            return self.count_cache.borrow().get(&term).unwrap().0;
+        }
+        #[cfg(not(feature = "adhoccounting"))]
+        if _memoization {
             self.modelcount_memoization(term).0
         } else {
             self.modelcount_naive(term).0
         }
     }
 
+    #[allow(dead_code)] // dead code due to more efficient ad-hoc building, still used for a couple of tests
     /// Computes the number of counter-models, models, and variables for a given BDD-tree
     fn modelcount_naive(&self, term: Term) -> CountNode {
         if term == Term::TOP {
@@ -200,6 +258,16 @@ impl Bdd {
             };
             self.count_cache.borrow_mut().insert(term, result);
             result
+        }
+    }
+
+    #[cfg(feature = "adhoccounting")]
+    pub fn fix_import(&self) {
+        self.count_cache.borrow_mut().insert(Term::TOP, ((0, 1), 0));
+        self.count_cache.borrow_mut().insert(Term::BOT, ((1, 0), 0));
+        for i in 0..self.nodes.len() {
+            log::debug!("fixing Term({})", i);
+            self.modelcount_memoization(Term(i));
         }
     }
 }
@@ -328,12 +396,27 @@ mod test {
         let formula4 = bdd.and(v3, formula2);
 
         assert_eq!(bdd.models(v1, false), (1, 1));
+        let mut x = bdd.count_cache.get_mut().iter().collect::<Vec<_>>();
+        x.sort();
+        log::debug!("{:?}", formula1);
+        for x in bdd.nodes.iter().enumerate() {
+            log::debug!("{:?}", x);
+        }
+        log::debug!("{:?}", x);
         assert_eq!(bdd.models(formula1, false), (3, 1));
         assert_eq!(bdd.models(formula2, false), (1, 3));
         assert_eq!(bdd.models(formula3, false), (2, 2));
         assert_eq!(bdd.models(formula4, false), (5, 3));
         assert_eq!(bdd.models(Term::TOP, false), (0, 1));
         assert_eq!(bdd.models(Term::BOT, false), (1, 0));
+
+        assert_eq!(bdd.models(v1, true), (1, 1));
+        assert_eq!(bdd.models(formula1, true), (3, 1));
+        assert_eq!(bdd.models(formula2, true), (1, 3));
+        assert_eq!(bdd.models(formula3, true), (2, 2));
+        assert_eq!(bdd.models(formula4, true), (5, 3));
+        assert_eq!(bdd.models(Term::TOP, true), (0, 1));
+        assert_eq!(bdd.models(Term::BOT, true), (1, 0));
 
         assert_eq!(bdd.modelcount_naive(v1), ((1, 1), 1));
         assert_eq!(bdd.modelcount_naive(formula1), ((3, 1), 2));
