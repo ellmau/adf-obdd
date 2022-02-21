@@ -56,6 +56,9 @@ struct App {
     /// Export the adf-bdd state after parsing and BDD instantiation to the given filename
     #[structopt(long)]
     export: Option<PathBuf>,
+    /// Set if the (counter-)models shall be computed and printed, possible values are 'nai' and 'mem' for naive and memoization repectively (only works in hybrid and naive mode)
+    #[structopt(long)]
+    counter: Option<String>,
 }
 
 impl App {
@@ -99,12 +102,33 @@ impl App {
                 } else {
                     BdAdf::from_parser_with_stm_rewrite(&parser)
                 };
+
+                match self.counter.as_deref() {
+                    Some("nai") => {
+                        let naive_adf = adf.hybrid_step_opt(false);
+                        for ac_counts in naive_adf.formulacounts(false) {
+                            print!("{:?} ", ac_counts);
+                        }
+                        println!();
+                    }
+                    Some("mem") => {
+                        let naive_adf = adf.hybrid_step_opt(false);
+                        for ac_counts in naive_adf.formulacounts(true) {
+                            print!("{:?}", ac_counts);
+                        }
+                        println!();
+                    }
+                    Some(_) => {}
+                    None => {}
+                }
+                log::info!("[Start] translate into naive representation");
+                let mut naive_adf = adf.hybrid_step();
+                log::info!("[Done] translate into naive representation");
                 if self.grounded {
-                    let grounded = adf.hybrid_step_opt(false).grounded();
-                    print!("{}", adf.print_interpretation(&grounded));
+                    let grounded = naive_adf.grounded();
+                    print!("{}", naive_adf.print_interpretation(&grounded));
                 }
 
-                let mut naive_adf = adf.hybrid_step();
                 let printer = naive_adf.print_dictionary();
                 if self.complete {
                     for model in naive_adf.complete() {
@@ -131,6 +155,9 @@ impl App {
                 }
             }
             "biodivine" => {
+                if self.counter.is_some() {
+                    log::error!("Modelcounting not supported in biodivine mode");
+                }
                 let parser = adf_bdd::parser::AdfParser::default();
                 parser.parse()(&input).unwrap();
                 log::info!("[Done] parsing");
@@ -145,6 +172,7 @@ impl App {
                 } else {
                     BdAdf::from_parser_with_stm_rewrite(&parser)
                 };
+
                 if self.grounded {
                     let grounded = adf.grounded();
                     print!("{}", adf.print_interpretation(&grounded));
@@ -170,7 +198,17 @@ impl App {
             }
             _ => {
                 let mut adf = if self.import {
-                    serde_json::from_str(&input).unwrap()
+                    #[cfg(not(feature = "adhoccounting"))]
+                    {
+                        serde_json::from_str(&input).unwrap()
+                    }
+                    #[cfg(feature = "adhoccounting")]
+                    {
+                        let result: Adf = serde_json::from_str(&input).unwrap();
+                        log::debug!("test");
+                        result.fix_import();
+                        result
+                    }
                 } else {
                     let parser = AdfParser::default();
                     parser.parse()(&input).unwrap();
@@ -201,6 +239,24 @@ impl App {
                         });
                     }
                 }
+
+                match self.counter.as_deref() {
+                    Some("nai") => {
+                        for ac_counts in adf.formulacounts(false) {
+                            print!("{:?} ", ac_counts);
+                        }
+                        println!();
+                    }
+                    Some("mem") => {
+                        for ac_counts in adf.formulacounts(true) {
+                            print!("{:?}", ac_counts);
+                        }
+                        println!();
+                    }
+                    Some(_) => {}
+                    None => {}
+                }
+
                 if self.grounded {
                     let grounded = adf.grounded();
                     print!("{}", adf.print_interpretation(&grounded));

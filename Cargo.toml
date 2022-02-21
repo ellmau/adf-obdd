@@ -44,3 +44,8 @@ quickcheck_macros = "1"
 assert_cmd = "2.0"
 predicates = "2.1"
 assert_fs = "1.0"
+
+[features]
+default = ["adhoccounting"]   
+adhoccounting = []    # count models ad-hoc - disable if counting is not needed
+importexport = []
