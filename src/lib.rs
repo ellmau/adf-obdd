@@ -14,41 +14,9 @@ It is possible to either stay with the biodivine library or switch back to the v
 The variant implemented in this library offers reuse of already done reductions and memoisation techniques, which are not offered by biodivine.
 In addition some further features, like counter-model counting is not supported by biodivine.
 
-# Usage
-```plain
-USAGE:
-    adf_bdd [FLAGS] [OPTIONS] <input>
-
-FLAGS:
-        --com        Compute the complete models
-        --grd        Compute the grounded model
-    -h, --help       Prints help information
-        --import     Import an adf- bdd state instead of an adf
-    -q               Sets log verbosity to only errors
-        --an         Sorts variables in an alphanumeric manner
-        --lx         Sorts variables in an lexicographic manner
-        --stm        Compute the stable models
-        --stmpre     Compute the stable models with a pre-filter (only hybrid lib-mode)
-        --stmrew     Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
-        --stmrew2    Compute the stable models with a single-formula rewriting on internal representation(only hybrid
-                     lib-mode)
-    -V, --version    Prints version information
-    -v               Sets log verbosity (multiple times means more verbose)
-
-OPTIONS:
-        --export <export>         Export the adf-bdd state after parsing and BDD instantiation to the given filename
-        --lib <implementation>    choose the bdd implementation of either 'biodivine', 'naive', or hybrid [default:
-                                  biodivine]
-        --rust_log <rust-log>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
-                                  [env: RUST_LOG=debug]
-
-ARGS:
-    <input>    Input filename
-```
-
 Note that import and export only works if the naive library is chosen
 
-Right now there is no additional information to the computed models, so if you use --com --grd --stm the borders between the results are not obviously communicated.
+## Noteworthy relations between semantics
 They can be easily identified though:
 - The computation is always in the same order
   - grd
