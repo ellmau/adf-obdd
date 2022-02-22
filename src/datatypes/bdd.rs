@@ -172,6 +172,11 @@ impl BddNode {
     }
 }
 
+/// Type alias for the pair of counter-models and models
+pub type ModelCounts = (usize, usize);
+/// Type alias for the Modelcounts and the depth of a given Node in a BDD
+pub type CountNode = (ModelCounts, usize);
+
 #[cfg(test)]
 mod test {
     use super::*;

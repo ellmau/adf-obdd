@@ -10,10 +10,6 @@ exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
 description = "Library to solve grounded, complete, and stable ADF-semantics by utilising OBDDs - ordered binary decision diagrams"
 build = "build.rs"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-#[[bin]]
-#name="adf_bdd"
 [lib]
 name="adf_bdd"
 path = "src/lib.rs"
@@ -39,3 +35,9 @@ test-log = "0.2.*"
 env_logger = "0.9"
 quickcheck = "1"
 quickcheck_macros = "1"
+
+[features]
+default = ["adhoccounting"]   
+adhoccounting = []    # count models ad-hoc - disable if counting is not needed
+importexport = []
+
