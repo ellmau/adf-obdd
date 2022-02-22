@@ -1,0 +1,21 @@
+[package]
+name = "adf-bdd"
+version = "0.2.0"
+edition = "2021"
+license = "GPL-3.0-only"
+exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
+description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+adf_bdd = { git = "https://github.com/ellmau/adf-obdd", branch = "main" }
+clap = "2.33.*"
+structopt = "0.3.25"
+log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
+env_logger = "0.9"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "2.1"
+assert_fs = "1.0"

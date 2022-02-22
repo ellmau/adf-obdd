@@ -7,13 +7,13 @@ repository = "https://github.com/ellmau/adf-obdd/"
 license = "GPL-3.0-only"
 exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
 
-description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
+description = "Library to solve grounded, complete, and stable ADF-semantics by utilising OBDDs - ordered binary decision diagrams"
 build = "build.rs"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[[bin]]
-name="adf_bdd"
+#[[bin]]
+#name="adf_bdd"
 [lib]
 name="adf_bdd"
 path = "src/lib.rs"
@@ -26,10 +26,7 @@ edition = "2021"       # The edition of the target.
 crate-type = ["lib"]   # The crate types to generate.
 
 [dependencies]
-clap = "2.33.*"
-structopt = "0.3.25"
-log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
-env_logger = "0.9"
+log = { version = "0.4"}
 nom = "7.1.0"
 lexical-sort = "0.3.1"
 serde = { version = "1.0", features = ["derive","rc"] }
@@ -39,8 +36,6 @@ derivative = "2.2.0"
 
 [dev-dependencies]
 test-log = "0.2.*"
+env_logger = "0.9"
 quickcheck = "1"
 quickcheck_macros = "1"
-assert_cmd = "2.0"
-predicates = "2.1"
-assert_fs = "1.0"
