@@ -1,5 +1,4 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) ![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total) ![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
-
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) ![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total) ![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)
 # Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
 
 
@@ -8,7 +7,7 @@ An abstract dialectical framework (ADF) consists of abstract statements. Each st
 ## Ordered Binary Decision Diagram
 An ordered binary decision diagram is a normalised representation of binary functions, where satisfiability- and validity checks can be done relatively cheap.
 
-## Usage of the binary
+## Usage
 ```
 USAGE:
     adf_bdd [FLAGS] [OPTIONS] <input>
@@ -65,11 +64,7 @@ The binary predicate ac relates each statement to one propositional formula in p
 - c(v): constant symbol "verum" - tautology/top
 - c(f): constant symbol "falsum" - inconsistency/bot
 
-# Features
-
-`adhoccounting` will cache the modelcount on-the-fly during the construction of the BDD
-
-# Development notes 
+# Development notes
 To run all the tests placed in the submodule you need to run
 ```bash
 $> git submodule init
