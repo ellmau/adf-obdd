@@ -11,7 +11,7 @@ description = "Solver for ADFs grounded, complete, and stable semantics by utili
 
 [dependencies]
 adf_bdd = { git = "https://github.com/ellmau/adf-obdd", branch = "main" }
-clap = "2.33.*"
+clap = "3.1.*"
 structopt = "0.3.25"
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }
