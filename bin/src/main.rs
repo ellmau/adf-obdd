@@ -69,60 +69,58 @@ use adf_bdd::adf::Adf;
 use adf_bdd::adfbiodivine::Adf as BdAdf;
 
 use adf_bdd::parser::AdfParser;
-use clap::{crate_authors, crate_description, crate_name, crate_version};
+use clap::Parser;
 
-use structopt::StructOpt;
-
-#[derive(StructOpt, Debug)]
-#[structopt(name = crate_name!(), about = crate_description!(), author = crate_authors!(), version = crate_version!())]
+#[derive(Parser, Debug)]
+#[clap(author, version, about)]
 struct App {
     /// Input filename
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     input: PathBuf,
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
-    #[structopt(long = "rust_log", env)]
+    #[clap(long = "rust_log", env)]
     rust_log: Option<String>,
     /// choose the bdd implementation of either 'biodivine', 'naive', or hybrid
-    #[structopt(long = "lib", default_value = "biodivine")]
+    #[clap(long = "lib", default_value = "biodivine")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
-    #[structopt(short, parse(from_occurrences), group = "verbosity")]
+    #[clap(short, parse(from_occurrences), group = "verbosity")]
     verbose: u8,
     /// Sets log verbosity to only errors
-    #[structopt(short, group = "verbosity")]
+    #[clap(short, group = "verbosity")]
     quiet: bool,
     /// Sorts variables in an lexicographic manner
-    #[structopt(long = "lx", group = "sorting")]
+    #[clap(long = "lx", group = "sorting")]
     sort_lex: bool,
     /// Sorts variables in an alphanumeric manner
-    #[structopt(long = "an", group = "sorting")]
+    #[clap(long = "an", group = "sorting")]
     sort_alphan: bool,
     /// Compute the grounded model
-    #[structopt(long = "grd")]
+    #[clap(long = "grd")]
     grounded: bool,
     /// Compute the stable models
-    #[structopt(long = "stm")]
+    #[clap(long = "stm")]
     stable: bool,
     /// Compute the stable models with a pre-filter (only hybrid lib-mode)
-    #[structopt(long = "stmpre")]
+    #[clap(long = "stmpre")]
     stable_pre: bool,
     /// Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
-    #[structopt(long = "stmrew")]
+    #[clap(long = "stmrew")]
     stable_rew: bool,
     /// Compute the stable models with a single-formula rewriting on internal representation(only hybrid lib-mode)
-    #[structopt(long = "stmrew2")]
+    #[clap(long = "stmrew2")]
     stable_rew2: bool,
     /// Compute the complete models
-    #[structopt(long = "com")]
+    #[clap(long = "com")]
     complete: bool,
     /// Import an adf- bdd state instead of an adf
-    #[structopt(long)]
+    #[clap(long)]
     import: bool,
     /// Export the adf-bdd state after parsing and BDD instantiation to the given filename
-    #[structopt(long)]
+    #[clap(long)]
     export: Option<PathBuf>,
     /// Set if the (counter-)models shall be computed and printed, possible values are 'nai' and 'mem' for naive and memoization repectively (only works in hybrid and naive mode)
-    #[structopt(long)]
+    #[clap(long)]
     counter: Option<String>,
 }
 
@@ -149,7 +147,7 @@ impl App {
             }
         };
         env_logger::builder().filter_level(filter_level).init();
-        log::info!("Version: {}", crate_version!());
+        log::info!("Version: {}", clap::crate_version!());
         let input = std::fs::read_to_string(self.input.clone()).expect("Error Reading File");
         match self.implementation.as_str() {
             "hybrid" => {
@@ -344,6 +342,6 @@ impl App {
 }
 
 fn main() {
-    let app = App::from_args();
+    let app = App::parse();
     app.run();
 }

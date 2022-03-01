@@ -14,7 +14,7 @@ fn arguments() -> Result<(), Box<dyn std::error::Error>> {
     cmd = Command::cargo_bin("adf_bdd")?;
     cmd.arg("-v").arg("--lx").arg("--an").arg("file.txt");
     cmd.assert().failure().stderr(predicate::str::contains(
-        "cannot be used with one or more of the other specified arguments",
+        "The argument '--lx' cannot be used with '--an'",
     ));
 
     cmd = Command::cargo_bin("adf_bdd")?;

@@ -450,7 +450,7 @@ mod test {
         let serialized = serde_json::to_string(&adf).unwrap();
         log::debug!("Serialized to {}", serialized);
         let result = r#"{"ordering":{"names":["a","c","b","e","d"],"mapping":{"b":2,"a":0,"c":1,"e":3,"d":4}},"bdd":{"nodes":[{"var":18446744073709551614,"lo":0,"hi":0},{"var":18446744073709551615,"lo":1,"hi":1},{"var":0,"lo":0,"hi":1},{"var":1,"lo":0,"hi":1},{"var":2,"lo":0,"hi":1},{"var":3,"lo":0,"hi":1},{"var":4,"lo":0,"hi":1},{"var":0,"lo":1,"hi":0},{"var":0,"lo":1,"hi":4},{"var":1,"lo":1,"hi":0},{"var":2,"lo":1,"hi":0},{"var":1,"lo":10,"hi":4},{"var":0,"lo":3,"hi":11},{"var":3,"lo":1,"hi":0},{"var":4,"lo":1,"hi":0},{"var":3,"lo":6,"hi":14}],"cache":[[{"var":1,"lo":0,"hi":1},3],[{"var":3,"lo":6,"hi":14},15],[{"var":2,"lo":0,"hi":1},4],[{"var":0,"lo":1,"hi":0},7],[{"var":0,"lo":3,"hi":11},12],[{"var":3,"lo":1,"hi":0},13],[{"var":4,"lo":1,"hi":0},14],[{"var":0,"lo":0,"hi":1},2],[{"var":3,"lo":0,"hi":1},5],[{"var":0,"lo":1,"hi":4},8],[{"var":4,"lo":0,"hi":1},6],[{"var":1,"lo":1,"hi":0},9],[{"var":2,"lo":1,"hi":0},10],[{"var":1,"lo":10,"hi":4},11]],"count_cache":{}},"ac":[4,2,7,15,12]}"#;
-        let mut deserialized: Adf = serde_json::from_str(&result).unwrap();
+        let mut deserialized: Adf = serde_json::from_str(result).unwrap();
         assert_eq!(adf.ac, deserialized.ac);
         let grounded_import = deserialized.grounded();
 
