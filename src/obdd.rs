@@ -12,6 +12,7 @@ use std::{
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
+    #[cfg(feature = "variablelist")]
     #[serde(skip)]
     var_deps: Vec<HashSet<Var>>,
     #[serde(with = "vectorize")]
@@ -45,6 +46,7 @@ impl Bdd {
         {
             let result = Self {
                 nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                #[cfg(feature = "variablelist")]
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
@@ -105,11 +107,13 @@ impl Bdd {
 
     pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
         let node = self.nodes[tree.0];
+        #[cfg(feature = "variablelist")]
+        if !self.var_deps[tree.value()].contains(&var) {
+            return tree;
+        }
         #[allow(clippy::collapsible_else_if)]
         // Readability of algorithm > code-elegance
-        if node.var() > var || node.var() >= Var::BOT || !self.var_deps[tree.value()].contains(&var)
-        {
-            log::trace!("{:?}", self.var_deps[tree.value()]);
+        if node.var() > var || node.var() >= Var::BOT {
             tree
         } else if node.var() < var {
             let lonode = self.restrict(node.lo(), var, val);
@@ -164,12 +168,15 @@ impl Bdd {
                     let new_term = Term(self.nodes.len());
                     self.nodes.push(node);
                     self.cache.insert(node, new_term);
-                    let mut var_set: HashSet<Var> = self.var_deps[lo.value()]
-                        .union(&self.var_deps[hi.value()])
-                        .copied()
-                        .collect();
-                    var_set.insert(var);
-                    self.var_deps.push(var_set);
+                    #[cfg(feature = "variablelist")]
+                    {
+                        let mut var_set: HashSet<Var> = self.var_deps[lo.value()]
+                            .union(&self.var_deps[hi.value()])
+                            .copied()
+                            .collect();
+                        var_set.insert(var);
+                        self.var_deps.push(var_set);
+                    }
                     #[cfg(feature = "adhoccounting")]
                     {
                         log::debug!("newterm: {} as {:?}", new_term, node);
@@ -293,6 +300,7 @@ impl Bdd {
     }
 
     fn generate_var_dependencies(&mut self) {
+        #[cfg(feature = "variablelist")]
         self.nodes.iter().for_each(|node| {
             if node.var() >= Var::BOT {
                 self.var_deps.push(HashSet::new());
@@ -401,7 +409,6 @@ mod test {
 
         let end = bdd.or(con1, b);
         log::debug!("Restrict test: restrict({},{},false)", end, Var(1));
-        log::trace!("{:?}", bdd.var_deps);
         let x = bdd.restrict(end, Var(1), false);
         assert_eq!(x, Term(2));
     }
@@ -492,6 +499,7 @@ mod test {
         );
     }
 
+    #[cfg(feature = "variablelist")]
     #[test]
     fn generate_var_dependencies() {
         let mut bdd = Bdd::new();

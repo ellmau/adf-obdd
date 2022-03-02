@@ -37,7 +37,8 @@ quickcheck = "1"
 quickcheck_macros = "1"
 
 [features]
-default = ["adhoccounting"]   
+default = ["adhoccounting", "variablelist" ]   
 adhoccounting = []    # count models ad-hoc - disable if counting is not needed
 importexport = []
+variablelist = []
 
