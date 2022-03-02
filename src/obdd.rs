@@ -37,6 +37,7 @@ impl Bdd {
         {
             Self {
                 nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                #[cfg(feature = "variablelist")]
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
