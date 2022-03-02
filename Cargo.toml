@@ -40,5 +40,5 @@ quickcheck_macros = "1"
 default = ["adhoccounting", "variablelist" ]   
 adhoccounting = []    # count models ad-hoc - disable if counting is not needed
 importexport = []
-variablelist = []
-
+variablelist = [ "HashSet" ]
+HashSet = []

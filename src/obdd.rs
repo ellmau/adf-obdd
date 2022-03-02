@@ -2,12 +2,9 @@
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    cmp::min,
-    collections::{HashMap, HashSet},
-    fmt::Display,
-};
+#[cfg(feature = "HashSet")]
+use std::collections::HashSet;
+use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Bdd {
