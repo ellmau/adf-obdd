@@ -267,7 +267,7 @@ impl App {
                     }
                     #[cfg(feature = "adhoccounting")]
                     {
-                        let result: Adf = serde_json::from_str(&input).unwrap();
+                        let mut result: Adf = serde_json::from_str(&input).unwrap();
                         log::debug!("test");
                         result.fix_import();
                         result

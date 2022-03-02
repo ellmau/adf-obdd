@@ -394,9 +394,8 @@ impl Adf {
         PrintDictionary::new(&self.ordering)
     }
 
-    #[cfg(feature = "adhoccounting")]
-    /// If the feature for adhoccounting is enabled, this fixes the bdd after an import with serde
-    pub fn fix_import(&self) {
+    /// Fixes the bdd after an import with serde
+    pub fn fix_import(&mut self) {
         self.bdd.fix_import();
     }
 }

@@ -2,11 +2,18 @@
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
+use std::{
+    cell::RefCell,
+    cmp::min,
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
+    #[serde(skip)]
+    var_deps: Vec<HashSet<Var>>,
     #[serde(with = "vectorize")]
     cache: HashMap<BddNode, Term>,
     #[serde(skip, default = "Bdd::default_count_cache")]
@@ -29,6 +36,7 @@ impl Bdd {
         {
             Self {
                 nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
             }
@@ -37,6 +45,7 @@ impl Bdd {
         {
             let result = Self {
                 nodes: vec![BddNode::bot_node(), BddNode::top_node()],
+                var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
             };
@@ -98,7 +107,9 @@ impl Bdd {
         let node = self.nodes[tree.0];
         #[allow(clippy::collapsible_else_if)]
         // Readability of algorithm > code-elegance
-        if node.var() > var || node.var() >= Var::BOT {
+        if node.var() > var || node.var() >= Var::BOT || !self.var_deps[tree.value()].contains(&var)
+        {
+            log::trace!("{:?}", self.var_deps[tree.value()]);
             tree
         } else if node.var() < var {
             let lonode = self.restrict(node.lo(), var, val);
@@ -153,6 +164,12 @@ impl Bdd {
                     let new_term = Term(self.nodes.len());
                     self.nodes.push(node);
                     self.cache.insert(node, new_term);
+                    let mut var_set: HashSet<Var> = self.var_deps[lo.value()]
+                        .union(&self.var_deps[hi.value()])
+                        .copied()
+                        .collect();
+                    var_set.insert(var);
+                    self.var_deps.push(var_set);
                     #[cfg(feature = "adhoccounting")]
                     {
                         log::debug!("newterm: {} as {:?}", new_term, node);
@@ -261,14 +278,33 @@ impl Bdd {
         }
     }
 
-    #[cfg(feature = "adhoccounting")]
-    pub fn fix_import(&self) {
-        self.count_cache.borrow_mut().insert(Term::TOP, ((0, 1), 0));
-        self.count_cache.borrow_mut().insert(Term::BOT, ((1, 0), 0));
-        for i in 0..self.nodes.len() {
-            log::debug!("fixing Term({})", i);
-            self.modelcount_memoization(Term(i));
+    /// repairs the internal structures after an import
+    pub fn fix_import(&mut self) {
+        self.generate_var_dependencies();
+        #[cfg(feature = "adhoccounting")]
+        {
+            self.count_cache.borrow_mut().insert(Term::TOP, ((0, 1), 0));
+            self.count_cache.borrow_mut().insert(Term::BOT, ((1, 0), 0));
+            for i in 0..self.nodes.len() {
+                log::debug!("fixing Term({})", i);
+                self.modelcount_memoization(Term(i));
+            }
         }
+    }
+
+    fn generate_var_dependencies(&mut self) {
+        self.nodes.iter().for_each(|node| {
+            if node.var() >= Var::BOT {
+                self.var_deps.push(HashSet::new());
+            } else {
+                let mut var_set: HashSet<Var> = self.var_deps[node.lo().value()]
+                    .union(&self.var_deps[node.hi().value()])
+                    .copied()
+                    .collect();
+                var_set.insert(node.var());
+                self.var_deps.push(var_set);
+            }
+        });
     }
 }
 
@@ -364,6 +400,8 @@ mod test {
         let con1 = bdd.and(a, conj);
 
         let end = bdd.or(con1, b);
+        log::debug!("Restrict test: restrict({},{},false)", end, Var(1));
+        log::trace!("{:?}", bdd.var_deps);
         let x = bdd.restrict(end, Var(1), false);
         assert_eq!(x, Term(2));
     }
@@ -452,5 +490,33 @@ mod test {
             bdd.modelcount_naive(Term::BOT),
             bdd.modelcount_memoization(Term::BOT)
         );
+    }
+
+    #[test]
+    fn generate_var_dependencies() {
+        let mut bdd = Bdd::new();
+
+        let v1 = bdd.variable(Var(0));
+        let v2 = bdd.variable(Var(1));
+        let v3 = bdd.variable(Var(2));
+
+        let formula1 = bdd.and(v1, v2);
+        let formula2 = bdd.or(v1, v2);
+        let formula3 = bdd.xor(v1, v2);
+        let formula4 = bdd.and(v3, formula2);
+
+        bdd.iff(formula1, formula3);
+        bdd.not(formula4);
+
+        let constructed = bdd.var_deps.clone();
+        bdd.var_deps = Vec::new();
+        bdd.generate_var_dependencies();
+
+        constructed
+            .iter()
+            .zip(bdd.var_deps.iter())
+            .for_each(|(left, right)| {
+                assert!(left == right);
+            });
     }
 }

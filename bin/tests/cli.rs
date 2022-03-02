@@ -27,7 +27,7 @@ fn arguments() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--version");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("adf_bdd "));
+        .stdout(predicate::str::contains("adf_bdd-solver "));
     Ok(())
 }
 
