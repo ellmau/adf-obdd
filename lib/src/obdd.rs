@@ -106,8 +106,10 @@ impl Bdd {
     pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
         let node = self.nodes[tree.0];
         #[cfg(feature = "variablelist")]
-        if !self.var_deps[tree.value()].contains(&var) {
-            return tree;
+        {
+            if !self.var_deps[tree.value()].contains(&var) {
+                return tree;
+            }
         }
         #[allow(clippy::collapsible_else_if)]
         // Readability of algorithm > code-elegance
