@@ -9,11 +9,3 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "monthly"
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/bin/" # Location of package manifests
-    schedule:
-      interval: "monthly"
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/lib/" # Location of package manifests
-    schedule:
-      interval: "monthly"
