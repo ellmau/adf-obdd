@@ -398,6 +398,13 @@ impl Adf {
     pub fn fix_import(&mut self) {
         self.bdd.fix_import();
     }
+
+    /// Counts facets of respective [Terms][crate::datatypes::Term]
+    /// and returns [Vector][std::vec::Vec] containing respective
+    /// facet counts.
+    pub fn facet_count(&self, _interpretation: &[Term]) -> Vec<usize> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
