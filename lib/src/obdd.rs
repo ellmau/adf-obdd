@@ -316,7 +316,7 @@ impl Bdd {
         });
     }
 
-    pub fn var_dependencies(self, tree: Term) -> HashSet<Var> {
+    pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
         #[cfg(feature = "variablelist")]
         {
             return self.var_deps[tree.value()].clone();
