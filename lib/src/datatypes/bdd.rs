@@ -176,6 +176,8 @@ impl BddNode {
 pub type ModelCounts = (usize, usize);
 /// Type alias for the Modelcounts and the depth of a given Node in a BDD
 pub type CountNode = (ModelCounts, usize);
+/// Type alias for Facet counts, which contains number of facets and counter facets.
+pub type FacetCounts = (usize, usize);
 
 #[cfg(test)]
 mod test {

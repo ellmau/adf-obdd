@@ -2,7 +2,6 @@
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "HashSet")]
 use std::collections::HashSet;
 use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
@@ -211,6 +210,8 @@ impl Bdd {
     }
 
     /// Computes the number of counter-models and models for a given BDD-tree
+    ///
+    /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing if the feature `adhoccounting` is used)
     pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
@@ -313,6 +314,19 @@ impl Bdd {
                 self.var_deps.push(var_set);
             }
         });
+    }
+
+    pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
+        #[cfg(feature = "variablelist")]
+        {
+            self.var_deps[tree.value()].clone()
+        }
+        #[cfg(not(feature = "variablelist"))]
+        {
+            let _ = tree;
+            HashSet::new()
+        }
+        // TODO!
     }
 }
 

@@ -11,7 +11,7 @@ use crate::{
             PrintDictionary, PrintableInterpretation, ThreeValuedInterpretationsIterator,
             TwoValuedInterpretationsIterator, VarContainer,
         },
-        ModelCounts, Term, Var,
+        FacetCounts, ModelCounts, Term, Var,
     },
     obdd::Bdd,
     parser::{AdfParser, Formula},
@@ -398,12 +398,37 @@ impl Adf {
     pub fn fix_import(&mut self) {
         self.bdd.fix_import();
     }
+
+    /// Counts facets of respective [Terms][crate::datatypes::Term]
+    /// and returns [Vector][std::vec::Vec] containing respective
+    /// facet counts.
+    pub fn facet_count(&self, interpretation: &[Term]) -> Vec<(ModelCounts, FacetCounts)> {
+        interpretation
+            .iter()
+            .map(|t| {
+                let mcs = self.bdd.models(*t, true);
+
+                let n_vdps = { |t| self.bdd.var_dependencies(t).len() };
+
+                let fc = match mcs.1 > 2 {
+                    true => 2 * n_vdps(*t),
+                    _ => 0,
+                };
+                let cfc = match mcs.0 > 2 {
+                    true => 2 * n_vdps(*t),
+                    _ => 0,
+                };
+                (mcs, (cfc, fc))
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use test_log::test;
+
     #[test]
     fn from_parser() {
         let parser = AdfParser::default();
@@ -587,5 +612,43 @@ mod test {
     #[test]
     fn adf_default() {
         let _adf = Adf::default();
+    }
+
+    #[cfg(feature = "variablelist")]
+    #[test]
+    fn facet_counts() {
+        let parser = AdfParser::default();
+        parser.parse()(
+            "s(a). s(b). s(c). s(d). ac(a,c(v)). ac(b,b). ac(c,and(a,b)). ac(d,neg(b)).",
+        )
+        .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let mut v = adf.ac.clone();
+        let mut fcs = adf.facet_count(&v);
+        assert_eq!(
+            fcs.iter().map(|t| t.1).collect::<Vec<_>>(),
+            vec![(0, 0), (0, 0), (4, 0), (0, 0)]
+        );
+
+        v[0] = Term::TOP;
+        // make navigation step for each bdd in adf-bdd-represenation
+        v = v
+            .iter()
+            .map(|t| {
+                v.iter()
+                    .enumerate()
+                    .fold(*t, |acc, (var, term)| match term.is_truth_value() {
+                        true => adf.bdd.restrict(acc, Var(var), term.is_true()),
+                        _ => acc,
+                    })
+            })
+            .collect::<Vec<_>>();
+        fcs = adf.facet_count(&v);
+
+        assert_eq!(
+            fcs.iter().map(|t| t.1).collect::<Vec<_>>(),
+            vec![(0, 0), (0, 0), (0, 0), (0, 0)]
+        );
     }
 }
