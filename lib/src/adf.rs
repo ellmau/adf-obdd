@@ -614,6 +614,7 @@ mod test {
         let _adf = Adf::default();
     }
 
+    #[cfg(feature = "variablelist")]
     #[test]
     fn facet_counts() {
         let parser = AdfParser::default();

@@ -319,9 +319,13 @@ impl Bdd {
     pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
         #[cfg(feature = "variablelist")]
         {
-            return self.var_deps[tree.value()].clone();
+            self.var_deps[tree.value()].clone()
         }
-        HashSet::new()
+        #[cfg(not(feature = "variablelist"))]
+        {
+            let _ = tree;
+            HashSet::new()
+        }
         // TODO!
     }
 }
