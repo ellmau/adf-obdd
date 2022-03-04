@@ -403,6 +403,10 @@ impl Adf {
     /// and returns [Vector][std::vec::Vec] containing respective
     /// facet counts.
     pub fn facet_count(&self, _interpretation: &[Term]) -> Vec<usize> {
+        //interpretation
+        //    .iter()
+        //    .map(|t| self.bdd.var_dependencies(t).len())
+        //    .collect::<Vec<_>>()
         todo!()
     }
 }
