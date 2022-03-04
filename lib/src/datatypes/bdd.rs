@@ -113,6 +113,11 @@ impl Var {
     pub fn value(self) -> usize {
         self.0
     }
+
+    /// Returns true if the value of the variable is a constant (i.e. Top or Bot)
+    pub fn is_constant(&self) -> bool {
+        self.value() >= Var::BOT.value()
+    }
 }
 
 /// A [BddNode] is representing one Node in the decision diagram
@@ -216,6 +221,17 @@ mod test {
         assert_eq!(*node.var(), var);
         assert_eq!(*node.lo(), lo);
         assert_eq!(*node.hi(), hi);
+        match node.var() {
+            Var::TOP => {
+                assert!(node.var().is_constant());
+            }
+            Var::BOT => {
+                assert!(node.var().is_constant());
+            }
+            val => {
+                assert!(!val.is_constant());
+            }
+        }
         true
     }
 }

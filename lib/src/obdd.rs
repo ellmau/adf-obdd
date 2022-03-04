@@ -323,10 +323,18 @@ impl Bdd {
         }
         #[cfg(not(feature = "variablelist"))]
         {
-            let _ = tree;
-            HashSet::new()
+            let node = self.nodes[tree.value()];
+            if node.var().is_constant() {
+                return HashSet::new();
+            }
+            let mut var_set = self
+                .var_dependencies(node.lo())
+                .union(&self.var_dependencies(node.hi()))
+                .copied()
+                .collect::<HashSet<Var>>();
+            var_set.insert(node.var());
+            var_set
         }
-        // TODO!
     }
 }
 
