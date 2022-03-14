@@ -19,6 +19,8 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
+///
+/// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,

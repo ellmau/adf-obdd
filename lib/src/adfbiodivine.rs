@@ -22,6 +22,8 @@ use derivative::Derivative;
 #[derive(Derivative)]
 #[derivative(Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine)
+///
+/// To be compatible with results from the own implementation of the Bdd-based [`Adf`][crate::adf::Adf], we use the [`Term`][crate::datatypes::Term]-based representation for the various computed models.
 pub struct Adf {
     ordering: VarContainer,
     ac: Vec<Bdd>,

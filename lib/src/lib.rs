@@ -39,18 +39,127 @@ The binary predicate ac relates each statement to one propositional formula in p
 - c(f): constant symbol "falsum" - inconsistency/bot
 */
 
-//! ## Example input file:
-//! ```prolog
-//! s(a).
-//! s(b).
-//! s(c).
-//! s(d).
-//!
-//! ac(a,c(v)).
-//! ac(b,or(a,b)).
-//! ac(c,neg(b)).
-//! ac(d,d).
-//! ```
+/*!
+## Example input file:
+```prolog
+s(a).
+s(b).
+s(c).
+s(d).
+
+ac(a,c(v)).
+ac(b,or(a,b)).
+ac(c,neg(b)).
+ac(d,d).
+```
+*/
+
+/*!
+## Usage examples
+First parse a given ADF and sort the statements, if needed.
+```rust
+use adf_bdd::parser::AdfParser;
+use adf_bdd::adf::Adf;
+// use the above example as input
+let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+let parser = AdfParser::default();
+match parser.parse()(&input) {
+    Ok(_) => log::info!("[Done] parsing"),
+    Err(e) => {
+    log::error!(
+        "Error during parsing:\n{} \n\n cannot continue, panic!",
+        e
+        );
+        panic!("Parsing failed, see log for further details")
+    }
+}
+// sort lexicographic
+parser.varsort_lexi();
+```
+### use the naive/in-crate implementation
+```rust
+# use adf_bdd::parser::AdfParser;
+# use adf_bdd::adf::Adf;
+# // use the above example as input
+# let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+# let parser = AdfParser::default();
+# match parser.parse()(&input) {
+#    Ok(_) => log::info!("[Done] parsing"),
+#    Err(e) => {
+#    log::error!(
+#        "Error during parsing:\n{} \n\n cannot continue, panic!",
+#        e
+#        );
+#        panic!("Parsing failed, see log for further details")
+#    }
+# }
+# // sort lexicographic
+# parser.varsort_lexi();
+// create Adf
+let mut adf = Adf::from_parser(&parser);
+// compute and print the complete models
+let printer = adf.print_dictionary();
+for model in adf.complete() {
+    print!("{}", printer.print_interpretation(&model));
+}
+```
+### use the biodivine implementation
+```rust
+# use adf_bdd::parser::AdfParser;
+# use adf_bdd::adf::Adf;
+# // use the above example as input
+# let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+# let parser = AdfParser::default();
+# match parser.parse()(&input) {
+#    Ok(_) => log::info!("[Done] parsing"),
+#    Err(e) => {
+#    log::error!(
+#        "Error during parsing:\n{} \n\n cannot continue, panic!",
+#        e
+#        );
+#        panic!("Parsing failed, see log for further details")
+#    }
+# }
+# // sort lexicographic
+# parser.varsort_lexi();
+// create Adf
+let adf = adf_bdd::adfbiodivine::Adf::from_parser(&parser);
+// compute and print the complete models
+let printer = adf.print_dictionary();
+for model in adf.complete() {
+    print!("{}", printer.print_interpretation(&model));
+}
+```
+### use the hybrid approach implementation
+```rust
+# use adf_bdd::parser::AdfParser;
+# use adf_bdd::adf::Adf;
+# // use the above example as input
+# let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+# let parser = AdfParser::default();
+# match parser.parse()(&input) {
+#    Ok(_) => log::info!("[Done] parsing"),
+#    Err(e) => {
+#    log::error!(
+#        "Error during parsing:\n{} \n\n cannot continue, panic!",
+#        e
+#        );
+#        panic!("Parsing failed, see log for further details")
+#    }
+# }
+# // sort lexicographic
+# parser.varsort_lexi();
+// create biodivine Adf
+let badf = adf_bdd::adfbiodivine::Adf::from_parser(&parser);
+// instantiate the internally used adf after the reduction done by biodivine
+let mut adf = badf.hybrid_step();
+// compute and print the complete models
+let printer = adf.print_dictionary();
+for model in adf.complete() {
+    print!("{}", printer.print_interpretation(&model));
+}
+```
+*/
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
