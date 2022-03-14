@@ -22,6 +22,8 @@ use derivative::Derivative;
 #[derive(Derivative)]
 #[derivative(Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine)
+///
+/// To be compatible with results from the own implementation of the Bdd-based [`Adf`][crate::adf::Adf], we use the [`Term`][crate::datatypes::Term]-based representation for the various computed models.
 pub struct Adf {
     ordering: VarContainer,
     ac: Vec<Bdd>,
@@ -69,7 +71,7 @@ impl Adf {
                 );
                 result.ac[*new_order] = result
                     .varset
-                    .eval_expression(&parser.ac_at(insert_order).unwrap().to_boolean_expr());
+                    .eval_expression(&parser.ac_at(insert_order).expect("Insert order needs to exist, as all the data originates from the same parser object").to_boolean_expr());
                 log::trace!("instantiated {}", result.ac[*new_order]);
             });
         log::info!("[Success] instantiated");
@@ -97,7 +99,7 @@ impl Adf {
                                 .name(crate::datatypes::Var(*new_order))
                                 .expect("Variable should exist"),
                         )),
-                        Box::new(parser.ac_at(insert_order).unwrap().to_boolean_expr()),
+                        Box::new(parser.ac_at(insert_order).expect("Insert order needs to exist, as all the data originates from the same parser object").to_boolean_expr()),
                     )),
                 )
             },
@@ -293,7 +295,7 @@ impl Adf {
         let internal_rewriting: Bdd;
         let sr: &Bdd;
         if self.has_stm_rewriting() {
-            sr = self.rewrite.as_ref().unwrap();
+            sr = self.rewrite.as_ref().expect("self.rewrite has to exist, because it has been checked just before calling this reference");
         } else {
             internal_rewriting = self.stable_representation();
             sr = &internal_rewriting;

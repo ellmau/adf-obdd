@@ -102,8 +102,14 @@ impl Display for PrintableInterpretation<'_> {
                 } else {
                     write!(f, "u(").expect("writing Interpretation failed!");
                 }
-                write!(f, "{}) ", self.ordering.name(Var(pos)).unwrap())
-                    .expect("writing Interpretation failed!");
+                write!(
+                    f,
+                    "{}) ",
+                    self.ordering
+                        .name(Var(pos))
+                        .expect("Variable originates from same parser object as the ordering")
+                )
+                .expect("writing Interpretation failed!");
             });
         writeln!(f)
     }

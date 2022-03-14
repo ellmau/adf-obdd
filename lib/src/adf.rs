@@ -19,6 +19,8 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
+///
+/// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,
@@ -66,7 +68,9 @@ impl Adf {
                     new_order,
                     parser.ac_at(insert_order)
                 );
-                let result_term = result.term(&parser.ac_at(insert_order).unwrap());
+                let result_term = result.term(&parser.ac_at(insert_order).expect(
+                    "Index should exist, because the data originates from the same parser object",
+                ));
                 result.ac[*new_order] = result_term;
             });
         log::info!("[Success] instantiated");
@@ -138,7 +142,7 @@ impl Adf {
             Formula::Bot => Bdd::constant(false),
             Formula::Top => Bdd::constant(true),
             Formula::Atom(val) => {
-                let t1 = self.ordering.variable(val).unwrap();
+                let t1 = self.ordering.variable(val).expect("Variable should exist, because the ordering has been filled by the same parser as the input formula comes from");
                 self.bdd.variable(t1)
             }
             Formula::Not(val) => {
