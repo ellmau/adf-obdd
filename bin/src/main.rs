@@ -152,8 +152,13 @@ impl App {
         match self.implementation.as_str() {
             "hybrid" => {
                 let parser = adf_bdd::parser::AdfParser::default();
-                parser.parse()(&input).unwrap();
-                log::info!("[Done] parsing");
+                match parser.parse()(&input) {
+                    Ok(_) => log::info!("[Done] parsing"),
+                    Err(e) => {
+                        log::error!("Error during parsing:\n{} \n\n cannot continue, panic!", e);
+                        panic!("Parsing failed, see log for further details")
+                    }
+                }
                 if self.sort_lex {
                     parser.varsort_lexi();
                 }
@@ -222,7 +227,13 @@ impl App {
                     log::error!("Modelcounting not supported in biodivine mode");
                 }
                 let parser = adf_bdd::parser::AdfParser::default();
-                parser.parse()(&input).unwrap();
+                match parser.parse()(&input) {
+                    Ok(_) => log::info!("[Done] parsing"),
+                    Err(e) => {
+                        log::error!("Error during parsing:\n{} \n\n cannot continue, panic!", e);
+                        panic!("Parsing failed, see log for further details")
+                    }
+                }
                 log::info!("[Done] parsing");
                 if self.sort_lex {
                     parser.varsort_lexi();
@@ -263,18 +274,28 @@ impl App {
                 let mut adf = if self.import {
                     #[cfg(not(feature = "adhoccounting"))]
                     {
-                        serde_json::from_str(&input).unwrap()
+                        serde_json::from_str(&input).expect("Old feature should work")
                     }
                     #[cfg(feature = "adhoccounting")]
                     {
-                        let mut result: Adf = serde_json::from_str(&input).unwrap();
+                        let mut result: Adf =
+                            serde_json::from_str(&input).expect("Old feature should work");
                         log::debug!("test");
                         result.fix_import();
                         result
                     }
                 } else {
                     let parser = AdfParser::default();
-                    parser.parse()(&input).unwrap();
+                    match parser.parse()(&input) {
+                        Ok(_) => log::info!("[Done] parsing"),
+                        Err(e) => {
+                            log::error!(
+                                "Error during parsing:\n{} \n\n cannot continue, panic!",
+                                e
+                            );
+                            panic!("Parsing failed, see log for further details")
+                        }
+                    }
                     log::info!("[Done] parsing");
                     if self.sort_lex {
                         parser.varsort_lexi();

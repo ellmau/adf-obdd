@@ -370,7 +370,14 @@ impl AdfParser<'_> {
         self.formulaname
             .borrow()
             .iter()
-            .map(|name| *self.dict.as_ref().borrow().get(name).unwrap())
+            .map(|name| {
+                *self
+                    .dict
+                    .as_ref()
+                    .borrow()
+                    .get(name)
+                    .expect("Dictionary should contain all the used formulanames")
+            })
             .collect()
     }
 }

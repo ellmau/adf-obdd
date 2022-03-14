@@ -215,7 +215,7 @@ impl Bdd {
     pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
-            return self.count_cache.borrow().get(&term).unwrap().0;
+            return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").0;
         }
         #[cfg(not(feature = "adhoccounting"))]
         if _memoization {
