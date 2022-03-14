@@ -11,38 +11,41 @@ An ordered binary decision diagram is a normalised representation of binary func
 ## Usage of the binary
 ```
 USAGE:
-    adf_bdd [FLAGS] [OPTIONS] <input>
-
-FLAGS:
-        --com        Compute the complete models
-        --grd        Compute the grounded model
-    -h, --help       Prints help information
-        --import     Import an adf- bdd state instead of an adf
-    -q               Sets log verbosity to only errors
-        --an         Sorts variables in an alphanumeric manner
-        --lx         Sorts variables in an lexicographic manner
-        --stm        Compute the stable models
-        --stmpre     Compute the stable models with a pre-filter (only hybrid lib-mode)
-        --stmrew     Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
-        --stmrew2    Compute the stable models with a single-formula rewriting on internal representation(only hybrid
-                     lib-mode)
-    -V, --version    Prints version information
-    -v               Sets log verbosity (multiple times means more verbose)
-
-OPTIONS:
-        --export <export>         Export the adf-bdd state after parsing and BDD instantiation to the given filename
-        --lib <implementation>    choose the bdd implementation of either 'biodivine', 'naive', or hybrid [default:
-                                  biodivine]
-        --rust_log <rust-log>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
-                                  [env: RUST_LOG=debug]
+    adf_bdd [OPTIONS] <INPUT>
 
 ARGS:
-    <input>    Input filename
+    <INPUT>    Input filename
+
+OPTIONS:
+        --an                      Sorts variables in an alphanumeric manner
+        --com                     Compute the complete models
+        --counter <COUNTER>       Set if the (counter-)models shall be computed and printed,
+                                  possible values are 'nai' and 'mem' for naive and memoization
+                                  repectively (only works in hybrid and naive mode)
+        --export <EXPORT>         Export the adf-bdd state after parsing and BDD instantiation to
+                                  the given filename
+        --grd                     Compute the grounded model
+    -h, --help                    Print help information
+        --import                  Import an adf- bdd state instead of an adf
+        --lib <IMPLEMENTATION>    choose the bdd implementation of either 'biodivine', 'naive', or
+                                  hybrid [default: hybrid]
+        --lx                      Sorts variables in an lexicographic manner
+    -q                            Sets log verbosity to only errors
+        --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
+                                  -q are not use [env: RUST_LOG=debug]
+        --stm                     Compute the stable models
+        --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
+        --stmrew                  Compute the stable models with a single-formula rewriting (only
+                                  hybrid lib-mode)
+        --stmrew2                 Compute the stable models with a single-formula rewriting on
+                                  internal representation(only hybrid lib-mode)
+    -v                            Sets log verbosity (multiple times means more verbose)
+    -V, --version                 Print version information
 ```
 
 Note that import and export only works if the naive library is chosen
 
-Right now there is no additional information to the computed models, so if you use --com --grd --stm the borders between the results are not obviously communicated.
+Right now there is no additional information to the computed models, so if you use `--com --grd --stm` as the command line arguments the borders between the results are not obviously communicated.
 They can be easily identified though:
 - The computation is always in the same order
   - grd
