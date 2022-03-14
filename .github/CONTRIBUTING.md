@@ -72,7 +72,7 @@ Start reading our code and you'll get the hang of it.
   * We try to have one atomic commit for refactoring work done.
   * Error-handling shall follow these guidelines:
 	* `panic!` (and `expect()`, `assert!`, `unreachable!` etc.) is fine for situations that should not occur, e.g., if there is some invariant that makes the situation impossible, or where graceful recovery is impossible, but not otherwise, and
-	* `unwrap()` should (almost?) always be `expect()` instead.
+	* `unwrap()` should (almost?) always be `expect()` instead (exceptions are in tests).
   * Use `unsafe` code only if :
 	* It is checked that there is no safe way to achieve the functionality,
 	* it has been discussed with the core development team in detail,
