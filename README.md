@@ -73,6 +73,11 @@ The binary predicate ac relates each statement to one propositional formula in p
 `adhoccounting` will cache the modelcount on-the-fly during the construction of the BDD
 
 # Development notes 
+Here some additional information for contribution, testing, and development in general can be found.
+## Contributing to the project
+You want to help and contribute to the project? That is great. Please see the [contributing guidelines](https://github.com/ellmau/adf-obdd/blob/main/.github/CONTRIBUTING.md) first.
+
+## Testing with the `res` folder:
 To run all the tests placed in the submodule you need to run
 ```bash
 $> git submodule init
