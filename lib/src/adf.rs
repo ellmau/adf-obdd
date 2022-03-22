@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation
+/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation.
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
@@ -228,8 +228,8 @@ impl Adf {
         new_interpretation
     }
 
-    /// Computes the stable models
-    /// Returns an Iterator which contains all stable models
+    /// Computes the stable models.
+    /// Returns an Iterator which contains all stable models.
     pub fn stable<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
     where
         'a: 'c,
@@ -266,9 +266,9 @@ impl Adf {
             .map(|(int, _grd)| int)
     }
 
-    /// Computes the stable models
-    /// Returns a vector with all stable models, using a single-formula representation in biodivine to enumerate the possible models
-    /// Note that the biodivine adf needs to be the one which instantiated the adf (if applicable)
+    /// Computes the stable models.
+    /// Returns a vector with all stable models, using a single-formula representation in biodivine to enumerate the possible models.
+    /// Note that the biodivine adf needs to be the one which instantiated the adf (if applicable).
     pub fn stable_bdd_representation(
         &mut self,
         biodivine: &crate::adfbiodivine::Adf,
@@ -296,8 +296,8 @@ impl Adf {
             .collect::<Vec<Vec<Term>>>()
     }
 
-    /// Computes the stable models
-    /// Returns an Iterator which contains all stable models
+    /// Computes the stable models.
+    /// Returns an Iterator which contains all stable models.
     pub fn stable_with_prefilter<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
     where
         'a: 'c,
@@ -347,6 +347,121 @@ impl Adf {
                     .all(|(it, gr)| it.compare_inf(gr))
             })
             .map(|(int, _grd)| int)
+    }
+
+    /// Computes the stable models.
+    /// Returns an iterator which contains all stable models.
+    /// This variant uses the computation of model and counter-model counts.
+    pub fn stable_count_optimisation<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+    {
+        log::debug!("[Start] stable count optimisation");
+        let grounded = self.grounded();
+        self.two_val_model_counts(&grounded)
+            .into_iter()
+            .filter(|int| self.stability_check(int))
+    }
+
+    fn stability_check(&mut self, interpretation: &[Term]) -> bool {
+        let mut new_int = self.ac.clone();
+        for ac in new_int.iter_mut() {
+            *ac = interpretation
+                .iter()
+                .enumerate()
+                .fold(*ac, |acc, (var, term)| {
+                    if term.is_truth_value() && !term.is_true() {
+                        self.bdd.restrict(acc, Var(var), false)
+                    } else {
+                        acc
+                    }
+                });
+        }
+
+        let grd = self.grounded_internal(&new_int);
+        for (idx, grd) in grd.iter().enumerate() {
+            if !grd.compare_inf(&interpretation[idx]) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
+        if let Some((idx, ac)) = interpr
+            .iter()
+            .enumerate()
+            .filter(|(_idx, val)| !val.is_truth_value())
+            .min_by(|(_idx_a, val_a), (_idx_b, val_b)| {
+                self.bdd
+                    .models(**val_a, true)
+                    .minimum()
+                    .cmp(&self.bdd.models(**val_b, true).minimum())
+            })
+        {
+            let mut result = Vec::new();
+            let check_models = !self.bdd.models(*ac, true).more_models();
+            let _ = self // return value can be ignored, but must be catched
+                .bdd
+                .interpretations(*ac, check_models, Var(idx), &[], &[])
+                .iter()
+                .try_for_each(|(negative, positive)| {
+                    let mut new_int = interpr.to_vec();
+                    let res = negative
+                        .iter()
+                        .try_for_each(|var| {
+                            if new_int[var.value()].is_true() {
+                                return Err(());
+                            }
+                            new_int[var.value()] = Term::BOT;
+                            Ok(())
+                        })
+                        .and(positive.iter().try_for_each(|var| {
+                            if new_int[var.value()].is_truth_value()
+                                && !new_int[var.value()].is_true()
+                            {
+                                return Err(());
+                            }
+                            new_int[var.value()] = Term::TOP;
+                            Ok(())
+                        }));
+                    if res.is_ok() {
+                        new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
+                        let upd_int = self.update_interpretation(&new_int);
+                        result.append(&mut self.two_val_model_counts(&upd_int));
+                    }
+                    res
+                });
+            // checked one alternative, we can now conclude that only the other option may work
+            let mut new_int = interpr
+                .iter()
+                .map(|tree| self.bdd.restrict(*tree, Var(idx), !check_models))
+                .collect::<Vec<Term>>();
+            new_int = self.update_interpretation(&new_int);
+            result.append(&mut self.two_val_model_counts(&new_int));
+            result
+        } else {
+            // filter has created empty iterator
+            vec![interpr.to_vec()]
+        }
+    }
+
+    fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
+        interpretation
+            .iter()
+            .map(|ac| {
+                interpretation
+                    .iter()
+                    .enumerate()
+                    .fold(*ac, |acc, (idx, val)| {
+                        if val.is_truth_value() {
+                            self.bdd.restrict(acc, Var(idx), val.is_true())
+                        } else {
+                            acc
+                        }
+                    })
+            })
+            .collect::<Vec<Term>>()
     }
 
     /// Computes the complete models
@@ -561,6 +676,50 @@ mod test {
         parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
         let mut adf = Adf::from_parser(&parser);
         assert_eq!(adf.stable().next(), None);
+    }
+
+    #[test]
+    fn stable_w_counts() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let mut stable = adf.stable_count_optimisation();
+        assert_eq!(
+            stable.next(),
+            Some(vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ])
+        );
+        assert_eq!(stable.next(), None);
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        let mut stable = adf.stable_count_optimisation();
+
+        assert_eq!(stable.next(), Some(vec![Term::BOT, Term::TOP]));
+        assert_eq!(stable.next(), Some(vec![Term::TOP, Term::BOT]));
+        assert_eq!(stable.next(), None);
+
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,b).ac(b,a).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        assert_eq!(
+            adf.stable_count_optimisation().collect::<Vec<_>>(),
+            vec![vec![Term::BOT, Term::BOT]]
+        );
+
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        assert_eq!(adf.stable_count_optimisation().next(), None);
     }
 
     #[test]

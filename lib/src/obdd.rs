@@ -1,6 +1,5 @@
 //! Represents an obdd
 pub mod vectorize;
-use crate::adfbiodivine::AdfOperations;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
