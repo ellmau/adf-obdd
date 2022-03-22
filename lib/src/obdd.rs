@@ -1,5 +1,6 @@
 //! Represents an obdd
 pub mod vectorize;
+use crate::adfbiodivine::AdfOperations;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -100,6 +101,58 @@ impl Bdd {
     pub fn xor(&mut self, term_a: Term, term_b: Term) -> Term {
         let not_b = self.not(term_b);
         self.if_then_else(term_a, not_b, term_b)
+    }
+
+    /// Computes the interpretations represented in the reduced BDD, which are either models or none.
+    /// *goal_var* is the variable to which the BDD is related to and it is ensured that the goal is consistent with the respective interpretation
+    /// *goal* is a boolean variable, which defines whether the models or inconsistent interpretations are of interest
+    pub fn interpretations(
+        &self,
+        tree: Term,
+        goal: bool,
+        goal_var: Var,
+        negative: &[Var],
+        positive: &[Var],
+    ) -> Vec<(Vec<Var>, Vec<Var>)> {
+        let mut result = Vec::new();
+        let node = self.nodes[tree.value()];
+        let var = node.var();
+        if tree.is_truth_value() {
+            return Vec::new();
+        }
+        // if the current var is the goal var, then only work with the hi-node if the goal is true
+        if (goal_var != var) || goal {
+            if node.hi().is_truth_value() {
+                if node.hi().is_true() == goal {
+                    result.push((negative.to_vec(), [positive, &[var]].concat()));
+                }
+            } else {
+                result.append(&mut self.interpretations(
+                    node.hi(),
+                    goal,
+                    goal_var,
+                    negative,
+                    &[positive, &[var]].concat(),
+                ));
+            }
+        }
+        // if the current var is the goal var, then only work with the lo-node if the goal is false
+        if (goal_var != var) || !goal {
+            if node.lo().is_truth_value() {
+                if node.lo().is_true() == goal {
+                    result.push(([negative, &[var]].concat(), positive.to_vec()));
+                }
+            } else {
+                result.append(&mut self.interpretations(
+                    node.lo(),
+                    goal,
+                    goal_var,
+                    &[negative, &[var]].concat(),
+                    positive,
+                ));
+            }
+        }
+        result
     }
 
     pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
@@ -565,5 +618,59 @@ mod test {
             .for_each(|(left, right)| {
                 assert!(left == right);
             });
+    }
+
+    #[test]
+    fn interpretations() {
+        let mut bdd = Bdd::new();
+
+        let v1 = bdd.variable(Var(0));
+        let v2 = bdd.variable(Var(1));
+
+        let formula1 = bdd.and(v1, v2);
+        let formula2 = bdd.xor(v1, v2);
+
+        assert_eq!(
+            bdd.interpretations(formula1, true, Var(2), &[], &[]),
+            vec![(vec![], vec![Var(0), Var(1)])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula1, true, Var(0), &[], &[]),
+            vec![(vec![], vec![Var(0), Var(1)])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula1, false, Var(2), &[], &[]),
+            vec![(vec![Var(1)], vec![Var(0)]), (vec![Var(0)], vec![])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula1, false, Var(0), &[], &[]),
+            vec![(vec![Var(0)], vec![])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula2, false, Var(2), &[], &[]),
+            vec![
+                (vec![], vec![Var(0), Var(1)]),
+                (vec![Var(0), Var(1)], vec![])
+            ]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula2, true, Var(2), &[], &[]),
+            vec![(vec![Var(1)], vec![Var(0)]), (vec![Var(0)], vec![Var(1)])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(formula2, true, Var(0), &[], &[]),
+            vec![(vec![Var(1)], vec![Var(0)])]
+        );
+
+        assert_eq!(
+            bdd.interpretations(Term::TOP, true, Var(0), &[], &[]),
+            vec![]
+        );
     }
 }

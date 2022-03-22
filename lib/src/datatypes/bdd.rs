@@ -196,6 +196,17 @@ impl ModelCounts {
     pub fn bot() -> ModelCounts {
         (1, 0).into()
     }
+
+    /// Returns the smaller size (models or counter-models).
+    pub fn minimum(&self) -> usize {
+        self.models.min(self.cmodels)
+    }
+
+    /// Returns true, if there are more models than counter-models.
+    /// If they are equal, the function returns true too.
+    pub fn more_models(&self) -> bool {
+        self.models >= self.minimum()
+    }
 }
 
 impl From<(usize, usize)> for ModelCounts {
