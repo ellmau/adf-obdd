@@ -1,7 +1,9 @@
-//! This module describes the abstract dialectical framework
-//!
-//!  - computing interpretations
-//!  - computing fixpoints
+/*!
+This module describes the abstract dialectical framework
+
+ - computing interpretations
+ - computing fixpoints
+*/
 
 use serde::{Deserialize, Serialize};
 
@@ -414,11 +416,11 @@ impl Adf {
 
                 let n_vdps = { |t| self.bdd.var_dependencies(t).len() };
 
-                let fc = match mcs.1 > 2 {
+                let fc = match mcs.models > 2 {
                     true => 2 * n_vdps(*t),
                     _ => 0,
                 };
-                let cfc = match mcs.0 > 2 {
+                let cfc = match mcs.cmodels > 2 {
                     true => 2 * n_vdps(*t),
                     _ => 0,
                 };

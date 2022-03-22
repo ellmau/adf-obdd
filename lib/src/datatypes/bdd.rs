@@ -178,7 +178,34 @@ impl BddNode {
 }
 
 /// Type alias for the pair of counter-models and models
-pub type ModelCounts = (usize, usize);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub struct ModelCounts {
+    /// Contains the number of counter-models
+    pub cmodels: usize,
+    /// Contains the number of models
+    pub models: usize,
+}
+
+impl ModelCounts {
+    /// Represents the top-node model-counts
+    pub fn top() -> ModelCounts {
+        (0, 1).into()
+    }
+
+    /// Represents the bot-node model-counts
+    pub fn bot() -> ModelCounts {
+        (1, 0).into()
+    }
+}
+
+impl From<(usize, usize)> for ModelCounts {
+    fn from(tuple: (usize, usize)) -> Self {
+        ModelCounts {
+            cmodels: tuple.0,
+            models: tuple.1,
+        }
+    }
+}
 /// Type alias for the Modelcounts and the depth of a given Node in a BDD
 pub type CountNode = (ModelCounts, usize);
 /// Type alias for Facet counts, which contains number of facets and counter facets.

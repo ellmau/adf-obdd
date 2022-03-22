@@ -51,11 +51,11 @@ impl Bdd {
             result
                 .count_cache
                 .borrow_mut()
-                .insert(Term::TOP, ((0, 1), 0));
+                .insert(Term::TOP, (ModelCounts::top(), 0));
             result
                 .count_cache
                 .borrow_mut()
-                .insert(Term::BOT, ((1, 0), 0));
+                .insert(Term::BOT, (ModelCounts::bot(), 0));
             result
         }
     }
@@ -180,12 +180,20 @@ impl Bdd {
                     {
                         log::debug!("newterm: {} as {:?}", new_term, node);
                         let mut count_cache = self.count_cache.borrow_mut();
-                        let ((lo_cmodel, lo_model), lodepth) =
-                            *count_cache.get(&lo).expect("Cache corrupted");
-                        let ((hi_cmodel, hi_model), hidepth) =
-                            *count_cache.get(&hi).expect("Cache corrupted");
-                        log::debug!("lo (cm: {}, mo: {}, dp: {})", lo_cmodel, lo_model, lodepth);
-                        log::debug!("hi (cm: {}, mo: {}, dp: {})", hi_cmodel, hi_model, hidepth);
+                        let (lo_counts, lodepth) = *count_cache.get(&lo).expect("Cache corrupted");
+                        let (hi_counts, hidepth) = *count_cache.get(&hi).expect("Cache corrupted");
+                        log::debug!(
+                            "lo (cm: {}, mo: {}, dp: {})",
+                            lo_counts.cmodels,
+                            lo_counts.models,
+                            lodepth
+                        );
+                        log::debug!(
+                            "hi (cm: {}, mo: {}, dp: {})",
+                            hi_counts.cmodels,
+                            hi_counts.models,
+                            hidepth
+                        );
                         let (lo_exp, hi_exp) = if lodepth > hidepth {
                             (1, 2usize.pow((lodepth - hidepth) as u32))
                         } else {
@@ -196,9 +204,10 @@ impl Bdd {
                             new_term,
                             (
                                 (
-                                    lo_cmodel * lo_exp + hi_cmodel * hi_exp,
-                                    lo_model * lo_exp + hi_model * hi_exp,
-                                ),
+                                    lo_counts.cmodels * lo_exp + hi_counts.cmodels * hi_exp,
+                                    lo_counts.models * lo_exp + hi_counts.models * hi_exp,
+                                )
+                                    .into(),
                                 std::cmp::max(lodepth, hidepth) + 1,
                             ),
                         );
@@ -229,15 +238,15 @@ impl Bdd {
     /// Computes the number of counter-models, models, and variables for a given BDD-tree
     fn modelcount_naive(&self, term: Term) -> CountNode {
         if term == Term::TOP {
-            ((0, 1), 0)
+            (ModelCounts::top(), 0)
         } else if term == Term::BOT {
-            ((1, 0), 0)
+            (ModelCounts::bot(), 0)
         } else {
             let node = &self.nodes[term.0];
             let mut lo_exp = 0u32;
             let mut hi_exp = 0u32;
-            let ((lo_counter, lo_model), lodepth) = self.modelcount_naive(node.lo());
-            let ((hi_counter, hi_model), hidepth) = self.modelcount_naive(node.hi());
+            let (lo_counts, lodepth) = self.modelcount_naive(node.lo());
+            let (hi_counts, hidepth) = self.modelcount_naive(node.hi());
             if lodepth > hidepth {
                 hi_exp = (lodepth - hidepth) as u32;
             } else {
@@ -245,9 +254,10 @@ impl Bdd {
             }
             (
                 (
-                    lo_counter * 2usize.pow(lo_exp) + hi_counter * 2usize.pow(hi_exp),
-                    lo_model * 2usize.pow(lo_exp) + hi_model * 2usize.pow(hi_exp),
-                ),
+                    lo_counts.cmodels * 2usize.pow(lo_exp) + hi_counts.cmodels * 2usize.pow(hi_exp),
+                    lo_counts.models * 2usize.pow(lo_exp) + hi_counts.models * 2usize.pow(hi_exp),
+                )
+                    .into(),
                 std::cmp::max(lodepth, hidepth) + 1,
             )
         }
@@ -255,9 +265,9 @@ impl Bdd {
 
     fn modelcount_memoization(&self, term: Term) -> CountNode {
         if term == Term::TOP {
-            ((0, 1), 0)
+            (ModelCounts::top(), 0)
         } else if term == Term::BOT {
-            ((1, 0), 0)
+            (ModelCounts::bot(), 0)
         } else {
             if let Some(result) = self.count_cache.borrow().get(&term) {
                 return *result;
@@ -266,8 +276,8 @@ impl Bdd {
                 let node = &self.nodes[term.0];
                 let mut lo_exp = 0u32;
                 let mut hi_exp = 0u32;
-                let ((lo_counter, lo_model), lodepth) = self.modelcount_memoization(node.lo());
-                let ((hi_counter, hi_model), hidepth) = self.modelcount_memoization(node.hi());
+                let (lo_counts, lodepth) = self.modelcount_memoization(node.lo());
+                let (hi_counts, hidepth) = self.modelcount_memoization(node.hi());
                 if lodepth > hidepth {
                     hi_exp = (lodepth - hidepth) as u32;
                 } else {
@@ -275,9 +285,12 @@ impl Bdd {
                 }
                 (
                     (
-                        lo_counter * 2usize.pow(lo_exp) + hi_counter * 2usize.pow(hi_exp),
-                        lo_model * 2usize.pow(lo_exp) + hi_model * 2usize.pow(hi_exp),
-                    ),
+                        lo_counts.cmodels * 2usize.pow(lo_exp)
+                            + hi_counts.cmodels * 2usize.pow(hi_exp),
+                        lo_counts.models * 2usize.pow(lo_exp)
+                            + hi_counts.models * 2usize.pow(hi_exp),
+                    )
+                        .into(),
                     std::cmp::max(lodepth, hidepth) + 1,
                 )
             };
@@ -291,8 +304,12 @@ impl Bdd {
         self.generate_var_dependencies();
         #[cfg(feature = "adhoccounting")]
         {
-            self.count_cache.borrow_mut().insert(Term::TOP, ((0, 1), 0));
-            self.count_cache.borrow_mut().insert(Term::BOT, ((1, 0), 0));
+            self.count_cache
+                .borrow_mut()
+                .insert(Term::TOP, (ModelCounts::top(), 0));
+            self.count_cache
+                .borrow_mut()
+                .insert(Term::BOT, (ModelCounts::bot(), 0));
             for i in 0..self.nodes.len() {
                 log::debug!("fixing Term({})", i);
                 self.modelcount_memoization(Term(i));
@@ -462,7 +479,7 @@ mod test {
         let formula3 = bdd.xor(v1, v2);
         let formula4 = bdd.and(v3, formula2);
 
-        assert_eq!(bdd.models(v1, false), (1, 1));
+        assert_eq!(bdd.models(v1, false), (1, 1).into());
         let mut x = bdd.count_cache.get_mut().iter().collect::<Vec<_>>();
         x.sort();
         log::debug!("{:?}", formula1);
@@ -470,28 +487,28 @@ mod test {
             log::debug!("{:?}", x);
         }
         log::debug!("{:?}", x);
-        assert_eq!(bdd.models(formula1, false), (3, 1));
-        assert_eq!(bdd.models(formula2, false), (1, 3));
-        assert_eq!(bdd.models(formula3, false), (2, 2));
-        assert_eq!(bdd.models(formula4, false), (5, 3));
-        assert_eq!(bdd.models(Term::TOP, false), (0, 1));
-        assert_eq!(bdd.models(Term::BOT, false), (1, 0));
+        assert_eq!(bdd.models(formula1, false), (3, 1).into());
+        assert_eq!(bdd.models(formula2, false), (1, 3).into());
+        assert_eq!(bdd.models(formula3, false), (2, 2).into());
+        assert_eq!(bdd.models(formula4, false), (5, 3).into());
+        assert_eq!(bdd.models(Term::TOP, false), (0, 1).into());
+        assert_eq!(bdd.models(Term::BOT, false), (1, 0).into());
 
-        assert_eq!(bdd.models(v1, true), (1, 1));
-        assert_eq!(bdd.models(formula1, true), (3, 1));
-        assert_eq!(bdd.models(formula2, true), (1, 3));
-        assert_eq!(bdd.models(formula3, true), (2, 2));
-        assert_eq!(bdd.models(formula4, true), (5, 3));
-        assert_eq!(bdd.models(Term::TOP, true), (0, 1));
-        assert_eq!(bdd.models(Term::BOT, true), (1, 0));
+        assert_eq!(bdd.models(v1, true), (1, 1).into());
+        assert_eq!(bdd.models(formula1, true), (3, 1).into());
+        assert_eq!(bdd.models(formula2, true), (1, 3).into());
+        assert_eq!(bdd.models(formula3, true), (2, 2).into());
+        assert_eq!(bdd.models(formula4, true), (5, 3).into());
+        assert_eq!(bdd.models(Term::TOP, true), (0, 1).into());
+        assert_eq!(bdd.models(Term::BOT, true), (1, 0).into());
 
-        assert_eq!(bdd.modelcount_naive(v1), ((1, 1), 1));
-        assert_eq!(bdd.modelcount_naive(formula1), ((3, 1), 2));
-        assert_eq!(bdd.modelcount_naive(formula2), ((1, 3), 2));
-        assert_eq!(bdd.modelcount_naive(formula3), ((2, 2), 2));
-        assert_eq!(bdd.modelcount_naive(formula4), ((5, 3), 3));
-        assert_eq!(bdd.modelcount_naive(Term::TOP), ((0, 1), 0));
-        assert_eq!(bdd.modelcount_naive(Term::BOT), ((1, 0), 0));
+        assert_eq!(bdd.modelcount_naive(v1), ((1, 1).into(), 1));
+        assert_eq!(bdd.modelcount_naive(formula1), ((3, 1).into(), 2));
+        assert_eq!(bdd.modelcount_naive(formula2), ((1, 3).into(), 2));
+        assert_eq!(bdd.modelcount_naive(formula3), ((2, 2).into(), 2));
+        assert_eq!(bdd.modelcount_naive(formula4), ((5, 3).into(), 3));
+        assert_eq!(bdd.modelcount_naive(Term::TOP), ((0, 1).into(), 0));
+        assert_eq!(bdd.modelcount_naive(Term::BOT), ((1, 0).into(), 0));
 
         assert_eq!(
             bdd.modelcount_naive(formula4),
