@@ -40,6 +40,7 @@ OPTIONS:
         --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
                                   -q are not use [env: RUST_LOG=debug]
         --stm                     Compute the stable models
+        --stmc                    Compute the stable models with the help of modelcounting
         --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
         --stmrew                  Compute the stable models with a single-formula rewriting (only
                                   hybrid lib-mode)
@@ -104,6 +105,9 @@ struct App {
     /// Compute the stable models
     #[clap(long = "stm")]
     stable: bool,
+    /// Compute the stable models with the help of modelcounting
+    #[clap(long = "stmc")]
+    stable_counting: bool,
     /// Compute the stable models with a pre-filter (only hybrid lib-mode)
     #[clap(long = "stmpre")]
     stable_pre: bool,
@@ -201,6 +205,7 @@ impl App {
                 }
 
                 let printer = naive_adf.print_dictionary();
+
                 if self.complete {
                     for model in naive_adf.complete() {
                         print!("{}", printer.print_interpretation(&model));
@@ -209,6 +214,12 @@ impl App {
 
                 if self.stable {
                     for model in naive_adf.stable() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_counting {
+                    for model in naive_adf.stable_count_optimisation() {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }
