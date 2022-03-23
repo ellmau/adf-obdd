@@ -388,6 +388,7 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
+        log::trace!("two_val_model_counts({:?}) called ", interpr);
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
@@ -401,6 +402,12 @@ impl Adf {
         {
             let mut result = Vec::new();
             let check_models = !self.bdd.models(*ac, true).more_models();
+            log::trace!(
+                "Identified Var({}) with ac {:?} to be {}",
+                idx,
+                ac,
+                check_models
+            );
             let _ = self // return value can be ignored, but must be catched
                 .bdd
                 .interpretations(*ac, check_models, Var(idx), &[], &[])
@@ -433,12 +440,21 @@ impl Adf {
                     res
                 });
             // checked one alternative, we can now conclude that only the other option may work
-            let mut new_int = interpr
+            log::trace!("checked one alternative, concluding the other value");
+            let new_int = interpr
                 .iter()
                 .map(|tree| self.bdd.restrict(*tree, Var(idx), !check_models))
                 .collect::<Vec<Term>>();
-            new_int = self.update_interpretation(&new_int);
-            result.append(&mut self.two_val_model_counts(&new_int));
+            let mut upd_int = self.update_interpretation(&new_int);
+
+            // TODO: should be "must be true/false" instead of setting it to TOP/BOT and will need sanity checks at every iteration
+            log::trace!("\nnew_int {new_int:?}\nupd_int {upd_int:?}");
+            if new_int[idx].no_inf_decrease(&upd_int[idx]) {
+                upd_int[idx] = if check_models { Term::BOT } else { Term::TOP };
+                if new_int[idx].no_inf_decrease(&upd_int[idx]) {
+                    result.append(&mut self.two_val_model_counts(&upd_int));
+                }
+            }
             result
         } else {
             // filter has created empty iterator

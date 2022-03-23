@@ -72,6 +72,14 @@ impl Term {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 
+    /// Returns true if the information of *other* does not decrease and it is not inconsistent.
+    pub fn no_inf_decrease(&self, other: &Self) -> bool {
+        if self.compare_inf(other) {
+            return true;
+        }
+        !self.is_truth_value()
+    }
+
     /// Returns true, if the Term and the BDD have the same information-value
     pub fn cmp_information(&self, other: &biodivine_lib_bdd::Bdd) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
