@@ -388,11 +388,15 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
+        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()])
+    }
+
+    fn two_val_model_counts_logic(&mut self, interpr: &[Term], must_be: &[Term]) -> Vec<Vec<Term>> {
         log::trace!("two_val_model_counts({:?}) called ", interpr);
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
-            .filter(|(_idx, val)| !val.is_truth_value())
+            .filter(|(idx, val)| !(val.is_truth_value() || must_be[*idx].is_truth_value()))
             .min_by(|(_idx_a, val_a), (_idx_b, val_b)| {
                 self.bdd
                     .models(**val_a, true)
@@ -417,15 +421,16 @@ impl Adf {
                     let res = negative
                         .iter()
                         .try_for_each(|var| {
-                            if new_int[var.value()].is_true() {
+                            if new_int[var.value()].is_true() || must_be[var.value()] == Term::TOP {
                                 return Err(());
                             }
                             new_int[var.value()] = Term::BOT;
                             Ok(())
                         })
                         .and(positive.iter().try_for_each(|var| {
-                            if new_int[var.value()].is_truth_value()
-                                && !new_int[var.value()].is_true()
+                            if (new_int[var.value()].is_truth_value()
+                                && !new_int[var.value()].is_true())
+                                || must_be[var.value()] == Term::BOT
                             {
                                 return Err(());
                             }
@@ -435,7 +440,7 @@ impl Adf {
                     if res.is_ok() {
                         new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
                         let upd_int = self.update_interpretation(&new_int);
-                        result.append(&mut self.two_val_model_counts(&upd_int));
+                        result.append(&mut self.two_val_model_counts_logic(&upd_int, must_be));
                     }
                     res
                 });
@@ -449,16 +454,34 @@ impl Adf {
 
             // TODO: should be "must be true/false" instead of setting it to TOP/BOT and will need sanity checks at every iteration
             log::trace!("\nnew_int {new_int:?}\nupd_int {upd_int:?}");
-            if new_int[idx].no_inf_decrease(&upd_int[idx]) {
+            if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
                 upd_int[idx] = if check_models { Term::BOT } else { Term::TOP };
-                if new_int[idx].no_inf_decrease(&upd_int[idx]) {
-                    result.append(&mut self.two_val_model_counts(&upd_int));
+                if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
+                    let mut must_be_new = must_be.to_vec();
+                    must_be_new[idx] = new_int[idx];
+                    result.append(&mut self.two_val_model_counts_logic(&upd_int, &must_be_new));
                 }
             }
             result
         } else {
             // filter has created empty iterator
-            vec![interpr.to_vec()]
+            let concluded = interpr
+                .iter()
+                .enumerate()
+                .map(|(idx, val)| {
+                    if !val.is_truth_value() {
+                        must_be[idx]
+                    } else {
+                        *val
+                    }
+                })
+                .collect::<Vec<Term>>();
+            // TODO: Not copletely correct - should be a check if concluded is consistant with ac
+            if concluded == self.update_interpretation(&concluded) {
+                vec![concluded]
+            } else {
+                vec![interpr.to_vec()]
+            }
         }
     }
 
