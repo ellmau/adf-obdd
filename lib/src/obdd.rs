@@ -405,6 +405,16 @@ impl Bdd {
             var_set
         }
     }
+
+    pub fn var_impact(&self, var: Var, termlist: &[Term]) -> usize {
+        termlist.iter().fold(0usize, |acc, val| {
+            if self.var_dependencies(*val).contains(&var) {
+                acc + 1
+            } else {
+                acc
+            }
+        })
+    }
 }
 
 #[cfg(test)]

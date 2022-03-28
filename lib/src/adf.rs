@@ -388,20 +388,35 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
-        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()])
+        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
     }
 
-    fn two_val_model_counts_logic(&mut self, interpr: &[Term], must_be: &[Term]) -> Vec<Vec<Term>> {
-        log::trace!("two_val_model_counts({:?}) called ", interpr);
+    fn two_val_model_counts_logic(
+        &mut self,
+        interpr: &[Term],
+        will_be: &[Term],
+        depth: usize,
+    ) -> Vec<Vec<Term>> {
+        log::trace!("two_val_model_counts({:?}) called", interpr);
+        log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
-            .filter(|(idx, val)| !(val.is_truth_value() || must_be[*idx].is_truth_value()))
-            .min_by(|(_idx_a, val_a), (_idx_b, val_b)| {
-                self.bdd
+            .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
+            .min_by(|(idx_a, val_a), (idx_b, val_b)| {
+                match self
+                    .bdd
                     .models(**val_a, true)
                     .minimum()
                     .cmp(&self.bdd.models(**val_b, true).minimum())
+                {
+                    // if the minimal counts are equal, choose the maximal var_impact
+                    std::cmp::Ordering::Equal => self
+                        .bdd
+                        .var_impact(Var(*idx_b), interpr)
+                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr)),
+                    value => value,
+                }
             })
         {
             let mut result = Vec::new();
@@ -412,6 +427,7 @@ impl Adf {
                 ac,
                 check_models
             );
+
             let _ = self // return value can be ignored, but must be catched
                 .bdd
                 .interpretations(*ac, check_models, Var(idx), &[], &[])
@@ -421,7 +437,7 @@ impl Adf {
                     let res = negative
                         .iter()
                         .try_for_each(|var| {
-                            if new_int[var.value()].is_true() || must_be[var.value()] == Term::TOP {
+                            if new_int[var.value()].is_true() || will_be[var.value()] == Term::TOP {
                                 return Err(());
                             }
                             new_int[var.value()] = Term::BOT;
@@ -430,7 +446,7 @@ impl Adf {
                         .and(positive.iter().try_for_each(|var| {
                             if (new_int[var.value()].is_truth_value()
                                 && !new_int[var.value()].is_true())
-                                || must_be[var.value()] == Term::BOT
+                                || will_be[var.value()] == Term::BOT
                             {
                                 return Err(());
                             }
@@ -440,7 +456,13 @@ impl Adf {
                     if res.is_ok() {
                         new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
                         let upd_int = self.update_interpretation(&new_int);
-                        result.append(&mut self.two_val_model_counts_logic(&upd_int, must_be));
+                        if self.check_consistency(&upd_int, will_be) {
+                            result.append(&mut self.two_val_model_counts_logic(
+                                &upd_int,
+                                will_be,
+                                depth + 1,
+                            ));
+                        }
                     }
                     res
                 });
@@ -452,14 +474,17 @@ impl Adf {
                 .collect::<Vec<Term>>();
             let mut upd_int = self.update_interpretation(&new_int);
 
-            // TODO: should be "must be true/false" instead of setting it to TOP/BOT and will need sanity checks at every iteration
             log::trace!("\nnew_int {new_int:?}\nupd_int {upd_int:?}");
             if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
                 upd_int[idx] = if check_models { Term::BOT } else { Term::TOP };
                 if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
-                    let mut must_be_new = must_be.to_vec();
+                    let mut must_be_new = will_be.to_vec();
                     must_be_new[idx] = new_int[idx];
-                    result.append(&mut self.two_val_model_counts_logic(&upd_int, &must_be_new));
+                    result.append(&mut self.two_val_model_counts_logic(
+                        &upd_int,
+                        &must_be_new,
+                        depth + 1,
+                    ));
                 }
             }
             result
@@ -470,15 +495,17 @@ impl Adf {
                 .enumerate()
                 .map(|(idx, val)| {
                     if !val.is_truth_value() {
-                        must_be[idx]
+                        will_be[idx]
                     } else {
                         *val
                     }
                 })
                 .collect::<Vec<Term>>();
             // TODO: Not copletely correct - should be a check if concluded is consistant with ac
-            if concluded == self.update_interpretation(&concluded) {
-                vec![concluded]
+            let ac = self.ac.clone();
+            let result = self.apply_interpretation(&ac, &concluded);
+            if self.check_consistency(&result, &concluded) {
+                vec![result]
             } else {
                 vec![interpr.to_vec()]
             }
@@ -486,8 +513,11 @@ impl Adf {
     }
 
     fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
-        interpretation
-            .iter()
+        self.apply_interpretation(interpretation, interpretation)
+    }
+
+    fn apply_interpretation(&mut self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
+        ac.iter()
             .map(|ac| {
                 interpretation
                     .iter()
@@ -501,6 +531,13 @@ impl Adf {
                     })
             })
             .collect::<Vec<Term>>()
+    }
+
+    fn check_consistency(&mut self, interpretation: &[Term], will_be: &[Term]) -> bool {
+        interpretation
+            .iter()
+            .zip(will_be.iter())
+            .all(|(int, wb)| wb.no_inf_inconsistency(int))
     }
 
     /// Computes the complete models
