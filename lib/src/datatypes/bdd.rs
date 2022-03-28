@@ -72,6 +72,14 @@ impl Term {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 
+    /// Returns true if the information of *other* does not decrease and it is not inconsistent.
+    pub fn no_inf_decrease(&self, other: &Self) -> bool {
+        if self.compare_inf(other) {
+            return true;
+        }
+        !self.is_truth_value()
+    }
+
     /// Returns true, if the Term and the BDD have the same information-value
     pub fn cmp_information(&self, other: &biodivine_lib_bdd::Bdd) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
@@ -178,7 +186,45 @@ impl BddNode {
 }
 
 /// Type alias for the pair of counter-models and models
-pub type ModelCounts = (usize, usize);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub struct ModelCounts {
+    /// Contains the number of counter-models
+    pub cmodels: usize,
+    /// Contains the number of models
+    pub models: usize,
+}
+
+impl ModelCounts {
+    /// Represents the top-node model-counts
+    pub fn top() -> ModelCounts {
+        (0, 1).into()
+    }
+
+    /// Represents the bot-node model-counts
+    pub fn bot() -> ModelCounts {
+        (1, 0).into()
+    }
+
+    /// Returns the smaller size (models or counter-models).
+    pub fn minimum(&self) -> usize {
+        self.models.min(self.cmodels)
+    }
+
+    /// Returns true, if there are more models than counter-models.
+    /// If they are equal, the function returns true too.
+    pub fn more_models(&self) -> bool {
+        self.models >= self.minimum()
+    }
+}
+
+impl From<(usize, usize)> for ModelCounts {
+    fn from(tuple: (usize, usize)) -> Self {
+        ModelCounts {
+            cmodels: tuple.0,
+            models: tuple.1,
+        }
+    }
+}
 /// Type alias for the Modelcounts and the depth of a given Node in a BDD
 pub type CountNode = (ModelCounts, usize);
 /// Type alias for Facet counts, which contains number of facets and counter facets.

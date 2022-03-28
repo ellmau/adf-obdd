@@ -1,4 +1,4 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) ![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total) ![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) [![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total)](https://github.com/ellmau/adf-obdd/releases) [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
 # Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
 
@@ -73,7 +73,7 @@ The binary predicate ac relates each statement to one propositional formula in p
 `adhoccounting` will cache the modelcount on-the-fly during the construction of the BDD
 
 # Development notes 
-Here some additional information for contribution, testing, and development in general can be found.
+Additional information for contribution, testing, and development in general can be found here.
 ## Contributing to the project
 You want to help and contribute to the project? That is great. Please see the [contributing guidelines](https://github.com/ellmau/adf-obdd/blob/main/.github/CONTRIBUTING.md) first.
 
