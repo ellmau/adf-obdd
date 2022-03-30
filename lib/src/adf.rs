@@ -5,7 +5,9 @@ This module describes the abstract dialectical framework
  - computing fixpoints
 */
 
-use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+
+use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
     datatypes::{
@@ -27,6 +29,8 @@ pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,
     ac: Vec<Term>,
+    #[serde(skip)]
+    callcache: HashSet<Vec<Term>>,
 }
 
 impl Default for Adf {
@@ -35,6 +39,7 @@ impl Default for Adf {
             ordering: VarContainer::default(),
             bdd: Bdd::new(),
             ac: Vec::new(),
+            callcache: HashSet::new(),
         }
     }
 }
@@ -50,6 +55,7 @@ impl Adf {
             ),
             bdd: Bdd::new(),
             ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
+            callcache: HashSet::new(),
         };
         (0..parser.namelist_rc_refcell().borrow().len())
             .into_iter()
@@ -87,6 +93,7 @@ impl Adf {
             ordering: VarContainer::copy(ordering),
             bdd: Bdd::new(),
             ac: vec![Term(0); bio_ac.len()],
+            callcache: HashSet::new(),
         };
         result
             .ac
@@ -397,8 +404,15 @@ impl Adf {
         will_be: &[Term],
         depth: usize,
     ) -> Vec<Vec<Term>> {
+        if self.callcache.contains(&interpr.to_vec()) {
+            panic!("moo");
+        }
+        self.callcache.insert(interpr.to_vec());
         log::trace!("two_val_model_counts({:?}) called", interpr);
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
+        for (idx, &ac) in interpr.iter().enumerate() {
+            log::trace!("idx{}, ac: Term({}), modelc-/+: {:?}, depth:{}, impact: {}, num_interpr+: {}, num interpr-: {}", idx, ac, self.bdd.models(ac, true), self.bdd.max_depth(ac), self.bdd.var_impact(Var(idx),interpr), self.bdd.interpretations(ac, true, Var(idx), &[], &[]).len(),self.bdd.interpretations(ac, false, Var(idx), &[], &[]).len());
+        }
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
@@ -466,6 +480,7 @@ impl Adf {
                     }
                     res
                 });
+            log::trace!("results found so far:{}", result.len());
             // checked one alternative, we can now conclude that only the other option may work
             log::trace!("checked one alternative, concluding the other value");
             let new_int = interpr

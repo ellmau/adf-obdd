@@ -286,6 +286,25 @@ impl Bdd {
         }
     }
 
+    pub fn max_depth(&self, term: Term) -> usize {
+        #[cfg(feature = "adhoccounting")]
+        {
+            return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").1;
+        }
+        #[cfg(not(feature = "adhoccounting"))]
+        match self.count_cache.borrow().get(&term) {
+            Some((mc, depth)) => *depth,
+            None => {
+                if term.is_truth_value() {
+                    0
+                } else {
+                    self.max_depth(self.nodes[term.0].hi())
+                        .max(self.max_depth(self.nodes[term.0].lo()))
+                }
+            }
+        }
+    }
+
     #[allow(dead_code)] // dead code due to more efficient ad-hoc building, still used for a couple of tests
     /// Computes the number of counter-models, models, and variables for a given BDD-tree
     fn modelcount_naive(&self, term: Term) -> CountNode {
@@ -598,6 +617,11 @@ mod test {
             bdd.modelcount_naive(Term::BOT),
             bdd.modelcount_memoization(Term::BOT)
         );
+
+        assert_eq!(bdd.max_depth(Term::BOT), 0);
+        assert_eq!(bdd.max_depth(v1), 1);
+        assert_eq!(bdd.max_depth(formula3), 2);
+        assert_eq!(bdd.max_depth(formula4), 3);
     }
 
     #[cfg(feature = "variablelist")]
