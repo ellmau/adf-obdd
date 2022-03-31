@@ -404,15 +404,20 @@ impl Adf {
         will_be: &[Term],
         depth: usize,
     ) -> Vec<Vec<Term>> {
-        if self.callcache.contains(&interpr.to_vec()) {
-            panic!("moo");
+        let cacheitem = interpr
+            .iter()
+            .enumerate()
+            .map(|(idx, val)| *val.min(&will_be[idx]))
+            .collect::<Vec<Term>>();
+        if !self.callcache.insert(cacheitem) {
+            panic!("trying to check the same model candidate twice");
+            return Vec::new();
         }
-        self.callcache.insert(interpr.to_vec());
         log::trace!("two_val_model_counts({:?}) called", interpr);
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
-        for (idx, &ac) in interpr.iter().enumerate() {
-            log::trace!("idx{}, ac: Term({}), modelc-/+: {:?}, depth:{}, impact: {}, num_interpr+: {}, num interpr-: {}", idx, ac, self.bdd.models(ac, true), self.bdd.max_depth(ac), self.bdd.var_impact(Var(idx),interpr), self.bdd.interpretations(ac, true, Var(idx), &[], &[]).len(),self.bdd.interpretations(ac, false, Var(idx), &[], &[]).len());
-        }
+        //for (idx, &ac) in interpr.iter().enumerate() {
+        //    log::trace!("idx{}, ac: Term({}), modelc-/+: {:?}, depth:{}, impact: {}, num_interpr+: {}, num interpr-: {}", idx, ac, self.bdd.models(ac, true), self.bdd.max_depth(ac), self.bdd.var_impact(Var(idx),interpr), self.bdd.interpretations(ac, true, Var(idx), &[], &[]).len(),self.bdd.interpretations(ac, false, Var(idx), &[], &[]).len());
+        //}
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
@@ -420,15 +425,14 @@ impl Adf {
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
                 match self
                     .bdd
-                    .models(**val_a, true)
-                    .minimum()
-                    .cmp(&self.bdd.models(**val_b, true).minimum())
+                    .var_impact(Var(*idx_b), interpr)
+                    .cmp(&self.bdd.var_impact(Var(*idx_a), interpr))
                 {
                     // if the minimal counts are equal, choose the maximal var_impact
                     std::cmp::Ordering::Equal => self
                         .bdd
-                        .var_impact(Var(*idx_b), interpr)
-                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr)),
+                        .max_depth(**val_a)
+                        .cmp(&self.bdd.max_depth(**val_b)),
                     value => value,
                 }
             })
@@ -441,7 +445,6 @@ impl Adf {
                 ac,
                 check_models
             );
-
             let _ = self // return value can be ignored, but must be catched
                 .bdd
                 .interpretations(*ac, check_models, Var(idx), &[], &[])
@@ -469,7 +472,7 @@ impl Adf {
                         }));
                     if res.is_ok() {
                         new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
-                        let upd_int = self.update_interpretation(&new_int);
+                        let upd_int = self.update_interpretation_fixpoint(&new_int);
                         if self.check_consistency(&upd_int, will_be) {
                             result.append(&mut self.two_val_model_counts_logic(
                                 &upd_int,
@@ -482,12 +485,12 @@ impl Adf {
                 });
             log::trace!("results found so far:{}", result.len());
             // checked one alternative, we can now conclude that only the other option may work
-            log::trace!("checked one alternative, concluding the other value");
+            log::debug!("checked one alternative, concluding the other value");
             let new_int = interpr
                 .iter()
                 .map(|tree| self.bdd.restrict(*tree, Var(idx), !check_models))
                 .collect::<Vec<Term>>();
-            let mut upd_int = self.update_interpretation(&new_int);
+            let mut upd_int = self.update_interpretation_fixpoint(&new_int);
 
             log::trace!("\nnew_int {new_int:?}\nupd_int {upd_int:?}");
             if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
@@ -516,13 +519,24 @@ impl Adf {
                     }
                 })
                 .collect::<Vec<Term>>();
-            // TODO: Not copletely correct - should be a check if concluded is consistant with ac
             let ac = self.ac.clone();
             let result = self.apply_interpretation(&ac, &concluded);
             if self.check_consistency(&result, &concluded) {
                 vec![result]
             } else {
                 vec![interpr.to_vec()]
+            }
+        }
+    }
+
+    fn update_interpretation_fixpoint(&mut self, interpretation: &[Term]) -> Vec<Term> {
+        let mut cur_int = interpretation.to_vec();
+        loop {
+            let new_int = self.update_interpretation(interpretation);
+            if cur_int == new_int {
+                return cur_int;
+            } else {
+                cur_int = new_int;
             }
         }
     }
