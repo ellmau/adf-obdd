@@ -7,7 +7,7 @@ This module describes the abstract dialectical framework
 
 use std::collections::HashSet;
 
-use serde::{ser::SerializeMap, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     datatypes::{
