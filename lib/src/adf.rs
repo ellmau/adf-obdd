@@ -404,20 +404,7 @@ impl Adf {
         will_be: &[Term],
         depth: usize,
     ) -> Vec<Vec<Term>> {
-        let cacheitem = interpr
-            .iter()
-            .enumerate()
-            .map(|(idx, val)| *val.min(&will_be[idx]))
-            .collect::<Vec<Term>>();
-        if !self.callcache.insert(cacheitem) {
-            panic!("trying to check the same model candidate twice");
-            return Vec::new();
-        }
-        log::trace!("two_val_model_counts({:?}) called", interpr);
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
-        //for (idx, &ac) in interpr.iter().enumerate() {
-        //    log::trace!("idx{}, ac: Term({}), modelc-/+: {:?}, depth:{}, impact: {}, num_interpr+: {}, num interpr-: {}", idx, ac, self.bdd.models(ac, true), self.bdd.max_depth(ac), self.bdd.var_impact(Var(idx),interpr), self.bdd.interpretations(ac, true, Var(idx), &[], &[]).len(),self.bdd.interpretations(ac, false, Var(idx), &[], &[]).len());
-        //}
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
@@ -425,20 +412,21 @@ impl Adf {
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
                 match self
                     .bdd
-                    .var_impact(Var(*idx_b), interpr)
-                    .cmp(&self.bdd.var_impact(Var(*idx_a), interpr))
+                    .paths(**val_a, true)
+                    .minimum()
+                    .cmp(&self.bdd.paths(**val_b, true).minimum())
                 {
                     // if the minimal counts are equal, choose the maximal var_impact
                     std::cmp::Ordering::Equal => self
                         .bdd
-                        .max_depth(**val_a)
-                        .cmp(&self.bdd.max_depth(**val_b)),
+                        .var_impact(Var(*idx_b), interpr)
+                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr)),
                     value => value,
                 }
             })
         {
             let mut result = Vec::new();
-            let check_models = !self.bdd.models(*ac, true).more_models();
+            let check_models = !self.bdd.paths(*ac, true).more_models();
             log::trace!(
                 "Identified Var({}) with ac {:?} to be {}",
                 idx,
