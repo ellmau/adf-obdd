@@ -321,7 +321,7 @@ impl Bdd {
         }
         #[cfg(not(feature = "adhoccounting"))]
         match self.count_cache.borrow().get(&term) {
-            Some((mc, depth)) => *depth,
+            Some((_mc, _pc, depth)) => *depth,
             None => {
                 if term.is_truth_value() {
                     0
