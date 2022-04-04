@@ -1,11 +1,9 @@
 /*!
 This module describes the abstract dialectical framework
 
- - computing interpretations
+ - computing interpretations and models
  - computing fixpoints
 */
-
-use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +27,6 @@ pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,
     ac: Vec<Term>,
-    #[serde(skip)]
-    callcache: HashSet<Vec<Term>>,
 }
 
 impl Default for Adf {
@@ -39,7 +35,6 @@ impl Default for Adf {
             ordering: VarContainer::default(),
             bdd: Bdd::new(),
             ac: Vec::new(),
-            callcache: HashSet::new(),
         }
     }
 }
@@ -55,7 +50,6 @@ impl Adf {
             ),
             bdd: Bdd::new(),
             ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
-            callcache: HashSet::new(),
         };
         (0..parser.namelist_rc_refcell().borrow().len())
             .into_iter()
@@ -93,7 +87,6 @@ impl Adf {
             ordering: VarContainer::copy(ordering),
             bdd: Bdd::new(),
             ac: vec![Term(0); bio_ac.len()],
-            callcache: HashSet::new(),
         };
         result
             .ac
@@ -417,10 +410,18 @@ impl Adf {
                     .cmp(&self.bdd.paths(**val_b, true).minimum())
                 {
                     // if the minimal counts are equal, choose the maximal var_impact
-                    std::cmp::Ordering::Equal => self
+                    std::cmp::Ordering::Equal => match self
                         .bdd
                         .var_impact(Var(*idx_b), interpr)
-                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr)),
+                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr))
+                    {
+                        // If it is still equal, choose the one with the maximal depth (i.e. the most applied changes)
+                        std::cmp::Ordering::Equal => self
+                            .bdd
+                            .max_depth(**val_b)
+                            .cmp(&self.bdd.max_depth(**val_a)),
+                        value => value,
+                    },
                     value => value,
                 }
             })
