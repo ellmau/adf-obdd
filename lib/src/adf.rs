@@ -388,6 +388,7 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
+        // base case
         self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
     }
 
@@ -397,7 +398,22 @@ impl Adf {
         will_be: &[Term],
         depth: usize,
     ) -> Vec<Vec<Term>> {
+        log::debug!("interpr: {:?}", &interpr);
+
+        #[cfg(feature = "debug")]
+        interpr.iter().enumerate().for_each(|(i, t)| {
+            log::debug!("idx={:?} paths: {:?}", i, self.bdd.paths(t, true));
+            log::debug!(
+                "idx={:?} var_impact: {:?}",
+                i,
+                self.bdd.var_impact(Var(i), &interpr)
+            );
+            log::debug!("idx={:?} max_depth: {:?}", i, self.bdd.max_depth(t));
+        });
+
+        log::debug!("will_be: {:?}", &will_be);
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
+
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
