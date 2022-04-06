@@ -1,7 +1,7 @@
 /*!
 This module describes the abstract dialectical framework
 
- - computing interpretations
+ - computing interpretations and models
  - computing fixpoints
 */
 
@@ -388,20 +388,52 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
-        log::trace!("two_val_model_counts({:?}) called ", interpr);
+        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
+    }
+
+    fn heuristic1(
+        &self,
+        lhs: (Var, Term),
+        rhs: (Var, Term),
+        interpr: &[Term],
+    ) -> std::cmp::Ordering {
+        match self
+            .bdd
+            .var_impact(rhs.0, interpr)
+            .cmp(&self.bdd.var_impact(lhs.0, interpr))
+        {
+            std::cmp::Ordering::Equal => match self
+                .bdd
+                .nacyc_var_impact(lhs.0, interpr)
+                .cmp(&self.bdd.nacyc_var_impact(rhs.0, interpr))
+            {
+                std::cmp::Ordering::Equal => self
+                    .bdd
+                    .paths(lhs.1, true)
+                    .minimum()
+                    .cmp(&self.bdd.paths(rhs.1, true).minimum()),
+                value => value,
+            },
+            value => value,
+        }
+    }
+    fn two_val_model_counts_logic(
+        &mut self,
+        interpr: &[Term],
+        will_be: &[Term],
+        depth: usize,
+    ) -> Vec<Vec<Term>> {
+        log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
-            .filter(|(_idx, val)| !val.is_truth_value())
-            .min_by(|(_idx_a, val_a), (_idx_b, val_b)| {
-                self.bdd
-                    .models(**val_a, true)
-                    .minimum()
-                    .cmp(&self.bdd.models(**val_b, true).minimum())
+            .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
+            .min_by(|(idx_a, val_a), (idx_b, val_b)| {
+                self.heuristic1((Var(*idx_a), **val_a), (Var(*idx_b), **val_b), interpr)
             })
         {
             let mut result = Vec::new();
-            let check_models = !self.bdd.models(*ac, true).more_models();
+            let check_models = !self.bdd.paths(*ac, true).more_models();
             log::trace!(
                 "Identified Var({}) with ac {:?} to be {}",
                 idx,
@@ -417,15 +449,16 @@ impl Adf {
                     let res = negative
                         .iter()
                         .try_for_each(|var| {
-                            if new_int[var.value()].is_true() {
+                            if new_int[var.value()].is_true() || will_be[var.value()] == Term::TOP {
                                 return Err(());
                             }
                             new_int[var.value()] = Term::BOT;
                             Ok(())
                         })
                         .and(positive.iter().try_for_each(|var| {
-                            if new_int[var.value()].is_truth_value()
-                                && !new_int[var.value()].is_true()
+                            if (new_int[var.value()].is_truth_value()
+                                && !new_int[var.value()].is_true())
+                                || will_be[var.value()] == Term::BOT
                             {
                                 return Err(());
                             }
@@ -434,37 +467,81 @@ impl Adf {
                         }));
                     if res.is_ok() {
                         new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
-                        let upd_int = self.update_interpretation(&new_int);
-                        result.append(&mut self.two_val_model_counts(&upd_int));
+                        let upd_int = self.update_interpretation_fixpoint(&new_int);
+                        if self.check_consistency(&upd_int, will_be) {
+                            result.append(&mut self.two_val_model_counts_logic(
+                                &upd_int,
+                                will_be,
+                                depth + 1,
+                            ));
+                        }
                     }
                     res
                 });
+            log::trace!("results found so far:{}", result.len());
             // checked one alternative, we can now conclude that only the other option may work
-            log::trace!("checked one alternative, concluding the other value");
+            log::debug!("checked one alternative, concluding the other value");
             let new_int = interpr
                 .iter()
                 .map(|tree| self.bdd.restrict(*tree, Var(idx), !check_models))
                 .collect::<Vec<Term>>();
-            let mut upd_int = self.update_interpretation(&new_int);
+            let mut upd_int = self.update_interpretation_fixpoint(&new_int);
 
-            // TODO: should be "must be true/false" instead of setting it to TOP/BOT and will need sanity checks at every iteration
             log::trace!("\nnew_int {new_int:?}\nupd_int {upd_int:?}");
-            if new_int[idx].no_inf_decrease(&upd_int[idx]) {
+            if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
                 upd_int[idx] = if check_models { Term::BOT } else { Term::TOP };
-                if new_int[idx].no_inf_decrease(&upd_int[idx]) {
-                    result.append(&mut self.two_val_model_counts(&upd_int));
+                if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
+                    let mut must_be_new = will_be.to_vec();
+                    must_be_new[idx] = new_int[idx];
+                    result.append(&mut self.two_val_model_counts_logic(
+                        &upd_int,
+                        &must_be_new,
+                        depth + 1,
+                    ));
                 }
             }
             result
         } else {
             // filter has created empty iterator
-            vec![interpr.to_vec()]
+            let concluded = interpr
+                .iter()
+                .enumerate()
+                .map(|(idx, val)| {
+                    if !val.is_truth_value() {
+                        will_be[idx]
+                    } else {
+                        *val
+                    }
+                })
+                .collect::<Vec<Term>>();
+            let ac = self.ac.clone();
+            let result = self.apply_interpretation(&ac, &concluded);
+            if self.check_consistency(&result, &concluded) {
+                vec![result]
+            } else {
+                vec![interpr.to_vec()]
+            }
+        }
+    }
+
+    fn update_interpretation_fixpoint(&mut self, interpretation: &[Term]) -> Vec<Term> {
+        let mut cur_int = interpretation.to_vec();
+        loop {
+            let new_int = self.update_interpretation(interpretation);
+            if cur_int == new_int {
+                return cur_int;
+            } else {
+                cur_int = new_int;
+            }
         }
     }
 
     fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
-        interpretation
-            .iter()
+        self.apply_interpretation(interpretation, interpretation)
+    }
+
+    fn apply_interpretation(&mut self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
+        ac.iter()
             .map(|ac| {
                 interpretation
                     .iter()
@@ -478,6 +555,13 @@ impl Adf {
                     })
             })
             .collect::<Vec<Term>>()
+    }
+
+    fn check_consistency(&mut self, interpretation: &[Term], will_be: &[Term]) -> bool {
+        interpretation
+            .iter()
+            .zip(will_be.iter())
+            .all(|(int, wb)| wb.no_inf_inconsistency(int))
     }
 
     /// Computes the complete models

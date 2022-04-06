@@ -73,7 +73,7 @@ impl Term {
     }
 
     /// Returns true if the information of *other* does not decrease and it is not inconsistent.
-    pub fn no_inf_decrease(&self, other: &Self) -> bool {
+    pub fn no_inf_inconsistency(&self, other: &Self) -> bool {
         if self.compare_inf(other) {
             return true;
         }
@@ -185,7 +185,7 @@ impl BddNode {
     }
 }
 
-/// Type alias for the pair of counter-models and models
+/// Represents the pair of counts, related to counter-models and models.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct ModelCounts {
     /// Contains the number of counter-models
@@ -225,8 +225,8 @@ impl From<(usize, usize)> for ModelCounts {
         }
     }
 }
-/// Type alias for the Modelcounts and the depth of a given Node in a BDD
-pub type CountNode = (ModelCounts, usize);
+/// Type alias for the Modelcounts, Count of paths to bot resp top, and the depth of a given Node in a BDD
+pub type CountNode = (ModelCounts, ModelCounts, usize);
 /// Type alias for Facet counts, which contains number of facets and counter facets.
 pub type FacetCounts = (usize, usize);
 
