@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "adf_bdd"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "biodivine-lib-bdd",
  "derivative",
@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "adf_bdd-solver"
-version = "0.2.1"
+version = "0.2.3"
 dependencies = [
  "adf_bdd",
  "assert_cmd",

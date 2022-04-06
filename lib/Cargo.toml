@@ -1,6 +1,6 @@
 [package]
 name = "adf_bdd"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 repository = "https://github.com/ellmau/adf-obdd/"
