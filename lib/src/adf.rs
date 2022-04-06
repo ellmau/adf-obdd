@@ -391,6 +391,32 @@ impl Adf {
         self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
     }
 
+    fn heuristic1(
+        &self,
+        lhs: (Var, Term),
+        rhs: (Var, Term),
+        interpr: &[Term],
+    ) -> std::cmp::Ordering {
+        match self
+            .bdd
+            .var_impact(rhs.0, interpr)
+            .cmp(&self.bdd.var_impact(lhs.0, interpr))
+        {
+            std::cmp::Ordering::Equal => match self
+                .bdd
+                .nacyc_var_impact(lhs.0, interpr)
+                .cmp(&self.bdd.nacyc_var_impact(rhs.0, interpr))
+            {
+                std::cmp::Ordering::Equal => self
+                    .bdd
+                    .paths(lhs.1, true)
+                    .minimum()
+                    .cmp(&self.bdd.paths(rhs.1, true).minimum()),
+                value => value,
+            },
+            value => value,
+        }
+    }
     fn two_val_model_counts_logic(
         &mut self,
         interpr: &[Term],
@@ -403,27 +429,7 @@ impl Adf {
             .enumerate()
             .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
-                match self
-                    .bdd
-                    .paths(**val_a, true)
-                    .minimum()
-                    .cmp(&self.bdd.paths(**val_b, true).minimum())
-                {
-                    // if the minimal counts are equal, choose the maximal var_impact
-                    std::cmp::Ordering::Equal => match self
-                        .bdd
-                        .var_impact(Var(*idx_b), interpr)
-                        .cmp(&self.bdd.var_impact(Var(*idx_a), interpr))
-                    {
-                        // If it is still equal, choose the one with the maximal depth (i.e. the most applied changes)
-                        std::cmp::Ordering::Equal => self
-                            .bdd
-                            .max_depth(**val_b)
-                            .cmp(&self.bdd.max_depth(**val_a)),
-                        value => value,
-                    },
-                    value => value,
-                }
+                self.heuristic1((Var(*idx_a), **val_a), (Var(*idx_b), **val_b), interpr)
             })
         {
             let mut result = Vec::new();

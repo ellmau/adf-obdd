@@ -314,6 +314,7 @@ impl Bdd {
     }
 
     /// Computes the maximal depth of the given sub-tree.
+    #[allow(dead_code)] // max depth may be used in future heuristics
     pub fn max_depth(&self, term: Term) -> usize {
         #[cfg(feature = "adhoccounting")]
         {
@@ -466,6 +467,19 @@ impl Bdd {
     pub fn var_impact(&self, var: Var, termlist: &[Term]) -> usize {
         termlist.iter().fold(0usize, |acc, val| {
             if self.var_dependencies(*val).contains(&var) {
+                acc + 1
+            } else {
+                acc
+            }
+        })
+    }
+
+    pub fn nacyc_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
+        (0..termlist.len()).into_iter().fold(0usize, |acc, idx| {
+            if self
+                .var_dependencies(termlist[var.value()])
+                .contains(&Var(idx))
+            {
                 acc + 1
             } else {
                 acc
@@ -732,6 +746,26 @@ mod test {
             1
         );
         assert_eq!(bdd.var_impact(Var(2), &[formula1, formula2, formula3]), 0);
+    }
+
+    #[test]
+    fn var_impact() {
+        let mut bdd = Bdd::new();
+        let v1 = bdd.variable(Var(0));
+        let v2 = bdd.variable(Var(1));
+        let v3 = bdd.variable(Var(2));
+
+        let formula1 = bdd.and(v1, v2);
+        let formula2 = bdd.or(v1, v2);
+
+        let ac: Vec<Term> = vec![formula1, formula2, v3];
+
+        assert_eq!(bdd.var_impact(Var(0), &ac), 2);
+        assert_eq!(bdd.var_impact(Var(1), &ac), 2);
+        assert_eq!(bdd.var_impact(Var(2), &ac), 1);
+
+        assert_eq!(bdd.nacyc_var_impact(Var(0), &ac), 2);
+        assert_eq!(bdd.nacyc_var_impact(Var(2), &ac), 1);
     }
 
     #[test]
