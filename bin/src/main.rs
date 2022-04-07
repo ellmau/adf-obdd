@@ -105,9 +105,12 @@ struct App {
     /// Compute the stable models
     #[clap(long = "stm")]
     stable: bool,
-    /// Compute the stable models with the help of modelcounting
-    #[clap(long = "stmc")]
-    stable_counting: bool,
+    /// Compute the stable models with the help of modelcounting using heuristics a
+    #[clap(long = "stmca")]
+    stable_counting_a: bool,
+    /// Compute the stable models with the help of modelcounting using heuristics b
+    #[clap(long = "stmcb")]
+    stable_counting_b: bool,
     /// Compute the stable models with a pre-filter (only hybrid lib-mode)
     #[clap(long = "stmpre")]
     stable_pre: bool,
@@ -218,8 +221,14 @@ impl App {
                     }
                 }
 
-                if self.stable_counting {
-                    for model in naive_adf.stable_count_optimisation() {
+                if self.stable_counting_a {
+                    for model in naive_adf.stable_count_optimisation_heu_a() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_counting_b {
+                    for model in naive_adf.stable_count_optimisation_heu_b() {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }

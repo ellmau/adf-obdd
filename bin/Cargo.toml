@@ -1,6 +1,6 @@
 [package]
 name = "adf_bdd-solver"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 license = "GPL-3.0-only"

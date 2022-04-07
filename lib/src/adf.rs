@@ -351,14 +351,32 @@ impl Adf {
 
     /// Computes the stable models.
     /// Returns an iterator which contains all stable models.
-    /// This variant uses the computation of model and counter-model counts.
-    pub fn stable_count_optimisation<'a, 'c>(&'a mut self) -> impl Iterator<Item = Vec<Term>> + 'c
+    /// This variant uses the heuristic, which uses maximal var impact, minimal self-cyclye impact and the minimal amount of paths .
+    pub fn stable_count_optimisation_heu_a<'a, 'c>(
+        &'a mut self,
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
     where
         'a: 'c,
     {
         log::debug!("[Start] stable count optimisation");
         let grounded = self.grounded();
-        self.two_val_model_counts(&grounded)
+        self.two_val_model_counts(&grounded, Self::heu_max_imp_min_nacyc_impact_min_paths)
+            .into_iter()
+            .filter(|int| self.stability_check(int))
+    }
+
+    /// Computes the stable models.
+    /// Returns an iterator which contains all stable models.
+    /// This variant uses the heuristic, which uses minimal number of paths and maximal variable-impact.
+    pub fn stable_count_optimisation_heu_b<'a, 'c>(
+        &'a mut self,
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+    {
+        log::debug!("[Start] stable count optimisation");
+        let grounded = self.grounded();
+        self.two_val_model_counts(&grounded, Self::heu_min_paths_max_imp)
             .into_iter()
             .filter(|int| self.stability_check(int))
     }
@@ -387,11 +405,14 @@ impl Adf {
         true
     }
 
-    fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
-        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
+    fn two_val_model_counts<H>(&mut self, interpr: &[Term], heuristic: H) -> Vec<Vec<Term>>
+    where
+        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
+    {
+        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0, heuristic)
     }
 
-    fn heuristic1(
+    fn heu_max_imp_min_nacyc_impact_min_paths(
         &self,
         lhs: (Var, Term),
         rhs: (Var, Term),
@@ -417,19 +438,50 @@ impl Adf {
             value => value,
         }
     }
-    fn two_val_model_counts_logic(
+
+    fn heu_min_paths_max_imp(
+        &self,
+        lhs: (Var, Term),
+        rhs: (Var, Term),
+        interpr: &[Term],
+    ) -> std::cmp::Ordering {
+        match self
+            .bdd
+            .paths(lhs.1, true)
+            .minimum()
+            .cmp(&self.bdd.paths(rhs.1, true).minimum())
+        {
+            std::cmp::Ordering::Equal => self
+                .bdd
+                .var_impact(rhs.0, interpr)
+                .cmp(&self.bdd.var_impact(lhs.0, interpr)),
+
+            value => value,
+        }
+    }
+
+    fn two_val_model_counts_logic<H>(
         &mut self,
         interpr: &[Term],
         will_be: &[Term],
         depth: usize,
-    ) -> Vec<Vec<Term>> {
+        heuristic: H,
+    ) -> Vec<Vec<Term>>
+    where
+        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
+    {
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
             .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
-                self.heuristic1((Var(*idx_a), **val_a), (Var(*idx_b), **val_b), interpr)
+                heuristic(
+                    self,
+                    (Var(*idx_a), **val_a),
+                    (Var(*idx_b), **val_b),
+                    interpr,
+                )
             })
         {
             let mut result = Vec::new();
@@ -473,6 +525,7 @@ impl Adf {
                                 &upd_int,
                                 will_be,
                                 depth + 1,
+                                heuristic,
                             ));
                         }
                     }
@@ -497,6 +550,7 @@ impl Adf {
                         &upd_int,
                         &must_be_new,
                         depth + 1,
+                        heuristic,
                     ));
                 }
             }
@@ -785,7 +839,7 @@ mod test {
             .unwrap();
         let mut adf = Adf::from_parser(&parser);
 
-        let mut stable = adf.stable_count_optimisation();
+        let mut stable = adf.stable_count_optimisation_heu_a();
         assert_eq!(
             stable.next(),
             Some(vec![
@@ -801,7 +855,7 @@ mod test {
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
         let mut adf = Adf::from_parser(&parser);
-        let mut stable = adf.stable_count_optimisation();
+        let mut stable = adf.stable_count_optimisation_heu_a();
 
         assert_eq!(stable.next(), Some(vec![Term::BOT, Term::TOP]));
         assert_eq!(stable.next(), Some(vec![Term::TOP, Term::BOT]));
@@ -812,14 +866,20 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
 
         assert_eq!(
-            adf.stable_count_optimisation().collect::<Vec<_>>(),
+            adf.stable_count_optimisation_heu_a().collect::<Vec<_>>(),
+            vec![vec![Term::BOT, Term::BOT]]
+        );
+
+        assert_eq!(
+            adf.stable_count_optimisation_heu_b().collect::<Vec<_>>(),
             vec![vec![Term::BOT, Term::BOT]]
         );
 
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).ac(a,neg(a)).ac(b,a).").unwrap();
         let mut adf = Adf::from_parser(&parser);
-        assert_eq!(adf.stable_count_optimisation().next(), None);
+        assert_eq!(adf.stable_count_optimisation_heu_a().next(), None);
+        assert_eq!(adf.stable_count_optimisation_heu_b().next(), None);
     }
 
     #[test]
