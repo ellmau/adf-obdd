@@ -388,7 +388,12 @@ impl Adf {
     }
 
     fn two_val_model_counts(&mut self, interpr: &[Term]) -> Vec<Vec<Term>> {
-        self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0)
+        self.two_val_model_counts_logic(
+            interpr,
+            &vec![Term::UND; interpr.len()],
+            0,
+            Self::heuristic1,
+        )
     }
 
     fn heuristic1(
@@ -417,19 +422,28 @@ impl Adf {
             value => value,
         }
     }
-    fn two_val_model_counts_logic(
+    fn two_val_model_counts_logic<H>(
         &mut self,
         interpr: &[Term],
         will_be: &[Term],
         depth: usize,
-    ) -> Vec<Vec<Term>> {
+        heuristic: H,
+    ) -> Vec<Vec<Term>>
+    where
+        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
+    {
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
         if let Some((idx, ac)) = interpr
             .iter()
             .enumerate()
             .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
-                self.heuristic1((Var(*idx_a), **val_a), (Var(*idx_b), **val_b), interpr)
+                heuristic(
+                    self,
+                    (Var(*idx_a), **val_a),
+                    (Var(*idx_b), **val_b),
+                    interpr,
+                )
             })
         {
             let mut result = Vec::new();
@@ -473,6 +487,7 @@ impl Adf {
                                 &upd_int,
                                 will_be,
                                 depth + 1,
+                                heuristic,
                             ));
                         }
                     }
@@ -497,6 +512,7 @@ impl Adf {
                         &upd_int,
                         &must_be_new,
                         depth + 1,
+                        heuristic,
                     ));
                 }
             }
