@@ -216,7 +216,7 @@ impl ThreeValuedInterpretationsIterator {
         }
     }
 
-    fn decrement_vec(vector: &mut Vec<usize>) -> bool {
+    fn decrement_vec(vector: &mut [usize]) -> bool {
         let mut cur_pos = None;
         for (idx, value) in vector.iter_mut().enumerate() {
             if *value > 0 {
