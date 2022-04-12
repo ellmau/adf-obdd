@@ -73,6 +73,16 @@ The binary predicate ac relates each statement to one propositional formula in p
 - c(f): constant symbol "falsum" - inconsistency/bot
 
 # Development notes
+To build the binary, you need to run
+```bash
+$> cargo build --workspace --release
+```
+
+To build it with debug-symbols, run
+```bash
+$> cargo build --workspace
+```
+
 To run all the tests placed in the submodule you need to run
 ```bash
 $> git submodule init
