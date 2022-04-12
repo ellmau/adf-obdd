@@ -1,6 +1,7 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) ![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total) ![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)
-# Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) [![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total)](https://github.com/ellmau/adf-obdd/releases) [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
+# Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden (ADF-BDD) 
+This is the readme for the executable solver.
 
 ## Abstract Dialectical Frameworks
 An abstract dialectical framework (ADF) consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration. 
@@ -10,33 +11,40 @@ An ordered binary decision diagram is a normalised representation of binary func
 ## Usage
 ```
 USAGE:
-    adf_bdd [FLAGS] [OPTIONS] <input>
-
-FLAGS:
-        --com        Compute the complete models
-        --grd        Compute the grounded model
-    -h, --help       Prints help information
-        --import     Import an adf- bdd state instead of an adf
-    -q               Sets log verbosity to only errors
-        --an         Sorts variables in an alphanumeric manner
-        --lx         Sorts variables in an lexicographic manner
-        --stm        Compute the stable models
-        --stmpre     Compute the stable models with a pre-filter (only hybrid lib-mode)
-        --stmrew     Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
-        --stmrew2    Compute the stable models with a single-formula rewriting on internal representation(only hybrid
-                     lib-mode)
-    -V, --version    Prints version information
-    -v               Sets log verbosity (multiple times means more verbose)
-
-OPTIONS:
-        --export <export>         Export the adf-bdd state after parsing and BDD instantiation to the given filename
-        --lib <implementation>    choose the bdd implementation of either 'biodivine', 'naive', or hybrid [default:
-                                  biodivine]
-        --rust_log <rust-log>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
-                                  [env: RUST_LOG=debug]
+    adf_bdd [OPTIONS] <INPUT>
 
 ARGS:
-    <input>    Input filename
+    <INPUT>    Input filename
+
+OPTIONS:
+        --an                      Sorts variables in an alphanumeric manner
+        --com                     Compute the complete models
+        --counter <COUNTER>       Set if the (counter-)models shall be computed and printed,
+                                  possible values are 'nai' and 'mem' for naive and memoization
+                                  repectively (only works in hybrid and naive mode)
+        --export <EXPORT>         Export the adf-bdd state after parsing and BDD instantiation to
+                                  the given filename
+        --grd                     Compute the grounded model
+    -h, --help                    Print help information
+        --import                  Import an adf- bdd state instead of an adf
+        --lib <IMPLEMENTATION>    choose the bdd implementation of either 'biodivine', 'naive', or
+                                  hybrid [default: hybrid]
+        --lx                      Sorts variables in an lexicographic manner
+    -q                            Sets log verbosity to only errors
+        --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
+                                  -q are not use [env: RUST_LOG=debug]
+        --stm                     Compute the stable models
+        --stmca                   Compute the stable models with the help of modelcounting using
+                                  heuristics a
+        --stmcb                   Compute the stable models with the help of modelcounting using
+                                  heuristics b
+        --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
+        --stmrew                  Compute the stable models with a single-formula rewriting (only
+                                  hybrid lib-mode)
+        --stmrew2                 Compute the stable models with a single-formula rewriting on
+                                  internal representation(only hybrid lib-mode)
+    -v                            Sets log verbosity (multiple times means more verbose)
+    -V, --version                 Print version information
 ```
 
 Note that import and export only works if the naive library is chosen
