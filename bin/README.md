@@ -78,7 +78,7 @@ To build the binary, you need to run
 $> cargo build --workspace --release
 ```
 
-To build it with debug-symbols, run
+To build the binary with debug-symbols, run
 ```bash
 $> cargo build --workspace
 ```

@@ -81,6 +81,17 @@ Additional information for contribution, testing, and development in general can
 ## Contributing to the project
 You want to help and contribute to the project? That is great. Please see the [contributing guidelines](https://github.com/ellmau/adf-obdd/blob/main/.github/CONTRIBUTING.md) first.
 
+## Building the binary:
+To build the binary, you need to run
+```bash
+$> cargo build --workspace --release
+```
+
+To build the binary with debug-symbols, run
+```bash
+$> cargo build --workspace
+```
+
 ## Testing with the `res` folder:
 To run all the tests placed in the submodule you need to run
 ```bash
