@@ -34,6 +34,10 @@ OPTIONS:
         --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
                                   -q are not use [env: RUST_LOG=debug]
         --stm                     Compute the stable models
+        --stmca                   Compute the stable models with the help of modelcounting using
+                                  heuristics a
+        --stmcb                   Compute the stable models with the help of modelcounting using
+                                  heuristics b
         --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
         --stmrew                  Compute the stable models with a single-formula rewriting (only
                                   hybrid lib-mode)

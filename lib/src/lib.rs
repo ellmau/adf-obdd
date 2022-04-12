@@ -3,6 +3,18 @@ This library contains an efficient representation of `Abstract Dialectical Frame
 
 # Abstract Dialectical Frameworks
 An `abstract dialectical framework` consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration.
+
+## Noteworthy relations between semantics
+They can be easily identified though:
+- The computation is always in the same order
+  - grd
+  - com
+  - stm
+- We know that there is always exactly one grounded model
+- We know that there always exist at least one complete model (i.e. the grounded one)
+- We know that there does not need to exist a stable model
+- We know that every stable model is a complete model too
+
 # Ordered Binary Decision Diagram
 An `ordered binary decision diagram` is a normalised representation of binary functions, where satisfiability- and validity checks can be done relatively cheap.
 
@@ -15,17 +27,6 @@ The variant implemented in this library offers reuse of already done reductions 
 In addition some further features, like counter-model counting is not supported by biodivine.
 
 Note that import and export only works if the naive library is chosen
-
-## Noteworthy relations between semantics
-They can be easily identified though:
-- The computation is always in the same order
-  - grd
-  - com
-  - stm
-- We know that there is always exactly one grounded model
-- We know that there always exist at least one complete model (i.e. the grounded one)
-- We know that there does not need to exist a stable model
-- We know that every stable model is a complete model too
 
 # Input-file format:
 Each statement is defined by an ASP-style unary predicate s, where the enclosed term represents the label of the statement.
