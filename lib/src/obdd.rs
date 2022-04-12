@@ -1,12 +1,16 @@
-//! Represents an obdd
+//! Module which represents obdds
+//!
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
+/// Containts the data of (possibly) multiple BDDs, managed over one collection of nodes.
+/// It has a couple of methods to instantiate, update, and query properties on a given BDD.
+/// Each BDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a BDD.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Bdd {
+pub struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
@@ -27,7 +31,15 @@ impl Display for Bdd {
     }
 }
 
+impl Default for Bdd {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Bdd {
+    /// Instantiate a new BDD structures
+    /// Constants for the [`Top`][crate::datatypes::Term::TOP] and [`Bot`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
     pub fn new() -> Self {
         #[cfg(not(feature = "adhoccounting"))]
         {
@@ -64,10 +76,12 @@ impl Bdd {
         RefCell::new(HashMap::new())
     }
 
+    /// Instantiates a [Variable][crate::datatypes::Var] and returns the representing BDD as a [`Term`][crate::datatypes::Term]
     pub fn variable(&mut self, var: Var) -> Term {
         self.node(var, Term::BOT, Term::TOP)
     }
 
+    /// Instantiates a constant, which is either [true] or [false]
     pub fn constant(val: bool) -> Term {
         if val {
             Term::TOP
@@ -76,27 +90,33 @@ impl Bdd {
         }
     }
 
+    /// Returns a BDD, which represents the negation of the given BDD
     pub fn not(&mut self, term: Term) -> Term {
         self.if_then_else(term, Term::BOT, Term::TOP)
     }
 
+    /// Returns a BDD, which represents the conjunction of the two given BDDs
     pub fn and(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, term_b, Term::BOT)
     }
 
+    /// Returns a BDD, which represents the disjunction of the two given BDDs
     pub fn or(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, Term::TOP, term_b)
     }
 
+    /// Returns a BDD, which represents the implication of the two given BDDs
     pub fn imp(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, term_b, Term::TOP)
     }
 
+    /// Returns a BDD, which represents the if and only if relation  of the two given BDDs
     pub fn iff(&mut self, term_a: Term, term_b: Term) -> Term {
         let not_b = self.not(term_b);
         self.if_then_else(term_a, term_b, not_b)
     }
 
+    /// Returns a BDD, which represents the exclusive disjunction of the two given BDDs
     pub fn xor(&mut self, term_a: Term, term_b: Term) -> Term {
         let not_b = self.not(term_b);
         self.if_then_else(term_a, not_b, term_b)
@@ -154,6 +174,7 @@ impl Bdd {
         result
     }
 
+    /// Restrict the value of a given [Variable][crate::datatypes::Var] to the boolean value.
     pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
         let node = self.nodes[tree.0];
         #[cfg(feature = "variablelist")]
@@ -179,6 +200,7 @@ impl Bdd {
         }
     }
 
+    /// Creates an ordered BDD, based on the relation of three BDDs, which are in an `if-then-else` relation.
     fn if_then_else(&mut self, i: Term, t: Term, e: Term) -> Term {
         if i == Term::TOP {
             t
@@ -208,6 +230,9 @@ impl Bdd {
             self.node(minvar, bot_ite, top_ite)
         }
     }
+
+    /// Creates a new node in the BDD.
+    /// It will not create duplicate nodes and uses already existing nodes if applicable.
     pub fn node(&mut self, var: Var, lo: Term, hi: Term) -> Term {
         if lo == hi {
             lo
@@ -443,6 +468,7 @@ impl Bdd {
         });
     }
 
+    /// Returns a [Set][HashSet] of [Variables][crate::datatypes::Var] which occur in a given BDD.
     pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
         #[cfg(feature = "variablelist")]
         {
@@ -464,6 +490,9 @@ impl Bdd {
         }
     }
 
+    /// Returns the variable impact of a Variable, with respect to a given set of BDDs.
+    ///
+    /// It does count of BDDs where the [Variable][crate::datatypes::Var] occurs.
     pub fn var_impact(&self, var: Var, termlist: &[Term]) -> usize {
         termlist.iter().fold(0usize, |acc, val| {
             if self.var_dependencies(*val).contains(&var) {
@@ -474,6 +503,7 @@ impl Bdd {
         })
     }
 
+    /// Counts how often another BDD uses a variable, which occurs in this BDD.
     pub fn nacyc_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
         (0..termlist.len()).into_iter().fold(0usize, |acc, idx| {
             if self
