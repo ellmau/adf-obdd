@@ -11,14 +11,14 @@ An abstract dialectical framework consists of abstract statements. Each statemen
 
 They can be easily identified though:
 
-    The computation is always in the same order
-        grd
-        com
-        stm
-    We know that there is always exactly one grounded model
-    We know that there always exist at least one complete model (i.e. the grounded one)
-    We know that there does not need to exist a stable model
-    We know that every stable model is a complete model too
+* The computation is always in the same order
+    * grd
+    * com
+    * stm
+* We know that there is always exactly one grounded model
+* We know that there always exist at least one complete model (i.e. the grounded one)
+* We know that there does not need to exist a stable model
+* We know that every stable model is a complete model too
 
 
 ## Ordered Binary Decision Diagram
