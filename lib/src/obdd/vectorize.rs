@@ -1,8 +1,8 @@
-//! vectorize maps with non-standard keys
+//! Vectorize maps with non-standard keys.
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::iter::FromIterator;
 
-/// Serialise into a Vector from a Map
+/// Serialize into a [Vector][std::vec::Vec] from a [Map][std::collections::HashMap].
 pub fn serialize<'a, T, K, V, S>(target: T, ser: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -14,7 +14,7 @@ where
     serde::Serialize::serialize(&container, ser)
 }
 
-/// Deserialize from a Vector to a Map
+/// Deserialize from a [Vector][std::vec::Vec] to a [Map][std::collections::HashMap].
 pub fn deserialize<'de, T, K, V, D>(des: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,

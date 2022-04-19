@@ -1,5 +1,7 @@
 //! This module describes the abstract dialectical framework
-//! utilising the biodivine-lib-bdd (see <https://github.com/sybila/biodivine-lib-bdd>) BDD implementation to compute the
+//! utilising the biodivine-lib-bdd (see <https://github.com/sybila/biodivine-lib-bdd>) BDD implementation to compute various semantics.
+//!
+//! These are currently the
 //!  - grounded
 //!  - stable
 //!  - complete
@@ -21,7 +23,7 @@ use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine)
+/// Representation of an ADF, with an ordering and dictionary which relates statements to numbers, a binary decision diagram, and a list of acceptance functions in biodivine  representation together with a variable-list (needed by biodivine).
 ///
 /// To be compatible with results from the own implementation of the Bdd-based [`Adf`][crate::adf::Adf], we use the [`Term`][crate::datatypes::Term]-based representation for the various computed models.
 pub struct Adf {
@@ -34,7 +36,7 @@ pub struct Adf {
 }
 
 impl Adf {
-    /// Instantiates a new ADF, based on the parser-data
+    /// Instantiates a new ADF, based on the parser-data.
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
         let mut bdd_var_builder = biodivine_lib_bdd::BddVariableSetBuilder::new();
@@ -78,7 +80,7 @@ impl Adf {
         result
     }
 
-    /// Instantiates a new ADF and prepares a rewriting for the stable model computation based on the parser-data
+    /// Instantiates a new ADF and prepares a rewriting for the stable model computation based on the parser-data.
     pub fn from_parser_with_stm_rewrite(parser: &AdfParser) -> Self {
         let mut result = Self::from_parser(parser);
         log::debug!("[Start] rewriting");
@@ -108,7 +110,7 @@ impl Adf {
         self.rewrite = Some(self.varset.eval_expression(&expr));
     }
 
-    /// returns `true` if the stable rewriting for this adf exists
+    /// returns `true` if the stable rewriting for this ADF exists.
     pub fn has_stm_rewriting(&self) -> bool {
         self.rewrite.is_some()
     }
@@ -120,7 +122,7 @@ impl Adf {
     pub(crate) fn ac(&self) -> &[Bdd] {
         &self.ac
     }
-    /// Computes the grounded extension and returns it as a list
+    /// Computes the grounded extension and returns it as a list.
     pub fn grounded(&self) -> Vec<Term> {
         log::info!("[Start] grounded");
         let ac = &self.ac.clone();
@@ -186,8 +188,8 @@ impl Adf {
         new_interpretation
     }
 
-    /// Computes the complete models
-    /// Returns an Iterator which contains all the complete models
+    /// Computes the complete models.
+    /// Returns an [Iterator][std::iter::Iterator] which contains all the complete models.
     pub fn complete<'a, 'b>(&'a self) -> impl Iterator<Item = Vec<Term>> + 'b
     where
         'a: 'b,
@@ -205,7 +207,7 @@ impl Adf {
 
     /// Shifts the representation and allows to use the naive approach.
     ///
-    /// The grounded interpretation is computed by the biodivine library first.
+    /// The grounded interpretation is computed by the [biodivine library](https://github.com/sybila/biodivine-lib-bdd) first.
     pub fn hybrid_step(&self) -> crate::adf::Adf {
         crate::adf::Adf::from_biodivine_vector(
             self.var_container(),
@@ -215,7 +217,7 @@ impl Adf {
 
     /// Shifts the representation and allows to use the naive approach.
     ///
-    /// `bio_grounded` will compute the grounded, based on biodivine, first.
+    /// `bio_grounded` will compute the grounded, based on [biodivine](https://github.com/sybila/biodivine-lib-bdd), first.
     pub fn hybrid_step_opt(&self, bio_grounded: bool) -> crate::adf::Adf {
         if bio_grounded {
             self.hybrid_step()
@@ -224,8 +226,8 @@ impl Adf {
         }
     }
 
-    /// Computes the stable models
-    /// Returns an Iterator which contains all the stable models
+    /// Computes the stable models.
+    /// Returns an [Iterator][std::iter::Iterator] which contains all the stable models.
     pub fn stable<'a, 'b>(&'a self) -> impl Iterator<Item = Vec<Term>> + 'b
     where
         'a: 'b,
@@ -258,8 +260,8 @@ impl Adf {
         )
     }
 
-    /// Computes the stable models
-    /// This variant returns all stable models and utilises a rewrite of the adf as one big conjunction of equalities (iff)
+    /// Computes the stable models.
+    /// This variant returns all stable models and utilises a rewrite of the ADF as one big conjunction of equalities (`if and only if`).
     pub fn stable_bdd_representation(&self) -> Vec<Vec<Term>> {
         let smc = self.stable_model_candidates();
         log::debug!("[Start] checking for stability");
@@ -339,7 +341,7 @@ impl Adf {
         )
     }
 
-    /// creates a [PrintableInterpretation] for output purposes
+    /// Creates a [PrintableInterpretation] for output purposes.
     pub fn print_interpretation<'a, 'b>(
         &'a self,
         interpretation: &'b [Term],
@@ -350,18 +352,18 @@ impl Adf {
         PrintableInterpretation::new(interpretation, &self.ordering)
     }
 
-    /// creates a [PrintDictionary] for output purposes
+    /// Creates a [PrintDictionary] for output purposes.
     pub fn print_dictionary(&self) -> PrintDictionary {
         PrintDictionary::new(&self.ordering)
     }
 }
 
-/// Provides Adf-Specific operations on truth valuations
+/// Provides ADF-Specific operations on truth valuations.
 pub trait AdfOperations {
-    /// Returns `true` if the BDD is either valid or unsatisfiable
+    /// Returns `true` if the roBDD is either valid or unsatisfiable.
     fn is_truth_value(&self) -> bool;
 
-    /// Compares whether the information between two given BDDs are the same
+    /// Compares whether the information between two given roBDDs are the same.
     fn cmp_information(&self, other: &Self) -> bool;
 }
 
@@ -375,11 +377,11 @@ impl AdfOperations for Bdd {
     }
 }
 
-/// Implementations of the restrict-operations on BDDs
+/// Implementations of the restrict-operations on roBDDs.
 pub trait BddRestrict {
-    /// Provides an implementation of the restrict-operation on BDDs for one variable
+    /// Provides an implementation of the restrict-operation on roBDDs for one variable.
     fn var_restrict(&self, variable: biodivine_lib_bdd::BddVariable, value: bool) -> Self;
-    /// Provides an implementation of the restrict-operation on a set of variables
+    /// Provides an implementation of the restrict-operation on a set of variables.
     fn restrict(&self, variables: &[(biodivine_lib_bdd::BddVariable, bool)]) -> Self;
 }
 

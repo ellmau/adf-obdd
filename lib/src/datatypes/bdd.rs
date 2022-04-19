@@ -1,14 +1,14 @@
 //! To represent a BDD, a couple of datatypes is needed.
 //! This module consists of all internally and externally used datatypes, such as
-//! [Term], [Var], and [BddNode]
+//! [Term], [Var], and [BddNode].
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref};
 
 use crate::adfbiodivine::AdfOperations;
 
-/// Representation of a Term
-/// Each Term is represented in a number ([usize]) and relates to a
-/// Node in the decision diagram
+/// Representation of a Term.
+/// Each [`Term`] is represented in a number ([usize]) and relates to a
+/// node in the [BDD][crate::obdd::Bdd].
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct Term(pub usize);
 
@@ -44,14 +44,16 @@ impl Display for Term {
 }
 
 impl Term {
-    /// Represents the truth-value bottom, i.e. false
+    /// Represents the truth-value bottom, i.e., false.
     pub const BOT: Term = Term(0);
-    /// Represents the truth-value top, i.e. true
+    /// Represents the truth-value top, i.e., true.
     pub const TOP: Term = Term(1);
-    /// Represents the truth-value undecided, i.e. sat, but not valid
+    /// Represents the truth-value undecided, i.e., sat, but not valid.
+    ///
+    /// In other words, we are describing a truth-value, which still allows a consistent solution, but is not necessarily decided yet.
     pub const UND: Term = Term(2);
 
-    /// Get the value of the Term, i.e. the corresponding [usize]
+    /// Get the value of the [Term], i.e., the corresponding [usize].
     pub fn value(self) -> usize {
         self.0
     }
@@ -62,17 +64,17 @@ impl Term {
         self.0 <= Term::TOP.0
     }
 
-    /// Returns true, if the Term is true, i.e. [Term::TOP]
+    /// Returns [true], if the [Term] is true, i.e., [Term::TOP].
     pub fn is_true(&self) -> bool {
         *self == Self::TOP
     }
 
-    /// Returns true, if the Terms have the same information-value
+    /// Returns [true], if the [Term]s have the same information-value.
     pub fn compare_inf(&self, other: &Self) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 
-    /// Returns true if the information of *other* does not decrease and it is not inconsistent.
+    /// Returns [true] if the information of **other** does not decrease and it is not inconsistent.
     pub fn no_inf_inconsistency(&self, other: &Self) -> bool {
         if self.compare_inf(other) {
             return true;
@@ -80,15 +82,15 @@ impl Term {
         !self.is_truth_value()
     }
 
-    /// Returns true, if the Term and the BDD have the same information-value
+    /// Returns [true], if the [Term] and the roBDD have the same information-value.
     pub fn cmp_information(&self, other: &biodivine_lib_bdd::Bdd) -> bool {
         self.is_truth_value() == other.is_truth_value() && self.is_true() == other.is_true()
     }
 }
 
-/// Representation of Variables
+/// Representation of variables.
 /// Note that the algorithm only uses [usize] values to identify variables.
-/// The order of these values will be defining for the Variable order of the decision diagram.
+/// The order of these values will be defining for the [variable][Var] order of the roBDD.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct Var(pub usize);
 
@@ -112,23 +114,23 @@ impl Display for Var {
 }
 
 impl Var {
-    /// Represents the constant symbol "Top"
+    /// Represents the constant symbol "⊤", which stands for the "verum" concept.
     pub const TOP: Var = Var(usize::MAX);
-    /// Represents the constant symbol "Bot"
+    /// Represents the constant symbol "⊥", which stands for the "falsum" concept.
     pub const BOT: Var = Var(usize::MAX - 1);
 
-    /// Returns the value of the [Var] as [usize]
+    /// Returns the value of the [variable][Var] as [usize].
     pub fn value(self) -> usize {
         self.0
     }
 
-    /// Returns true if the value of the variable is a constant (i.e. Top or Bot)
+    /// Returns [true] if the value of the [variable][Var] is a constant (i.e., [BOT][Var::BOT] or [TOP][Var::TOP]).
     pub fn is_constant(&self) -> bool {
         self.value() >= Var::BOT.value()
     }
 }
 
-/// A [BddNode] is representing one Node in the decision diagram
+/// A [BddNode] is representing one Node in the decision diagram.
 ///
 /// Intuitively this is a binary tree structure, where the diagram is allowed to
 /// pool same values to the same Node.
@@ -146,27 +148,27 @@ impl Display for BddNode {
 }
 
 impl BddNode {
-    /// Creates a new Node
+    /// Creates a new Node.
     pub fn new(var: Var, lo: Term, hi: Term) -> Self {
         Self { var, lo, hi }
     }
 
-    /// Returns the current Variable-value
+    /// Returns the current Variable-value.
     pub fn var(self) -> Var {
         self.var
     }
 
-    /// Returns the `lo`-branch
+    /// Returns the `lo`-branch.
     pub fn lo(self) -> Term {
         self.lo
     }
 
-    /// Returns the `hi`-branch
+    /// Returns the `hi`-branch.
     pub fn hi(self) -> Term {
         self.hi
     }
 
-    /// Creates a node, which represents the `Bot`-truth value
+    /// Creates a node, which represents the `Bot`-truth value.
     pub fn bot_node() -> Self {
         Self {
             var: Var::BOT,
@@ -175,7 +177,7 @@ impl BddNode {
         }
     }
 
-    /// Creates a node, which represents the `Top`-truth value
+    /// Creates a node, which represents the `Top`-truth value.
     pub fn top_node() -> Self {
         Self {
             var: Var::TOP,
@@ -186,21 +188,24 @@ impl BddNode {
 }
 
 /// Represents the pair of counts, related to counter-models and models.
+///
+/// A model of a formula is an interpretation such that the formula evaluates to true with respect to the interpretation.
+/// A counter-model of a formula is an interpretation such that the formula evaluates to false with respect to the interpretation.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
 pub struct ModelCounts {
-    /// Contains the number of counter-models
+    /// Contains the number of counter-models.
     pub cmodels: usize,
-    /// Contains the number of models
+    /// Contains the number of models.
     pub models: usize,
 }
 
 impl ModelCounts {
-    /// Represents the top-node model-counts
+    /// Represents the top-node model-counts.
     pub fn top() -> ModelCounts {
         (0, 1).into()
     }
 
-    /// Represents the bot-node model-counts
+    /// Represents the bot-node model-counts.
     pub fn bot() -> ModelCounts {
         (1, 0).into()
     }
@@ -210,8 +215,8 @@ impl ModelCounts {
         self.models.min(self.cmodels)
     }
 
-    /// Returns true, if there are more models than counter-models.
-    /// If they are equal, the function returns true too.
+    /// Returns [true], if there are more models than counter-models.
+    /// If they are equal, the function returns [true] too.
     pub fn more_models(&self) -> bool {
         self.models >= self.minimum()
     }
@@ -225,9 +230,9 @@ impl From<(usize, usize)> for ModelCounts {
         }
     }
 }
-/// Type alias for the Modelcounts, Count of paths to bot resp top, and the depth of a given Node in a BDD
+/// Type alias for the [Modelcounts][ModelCounts], count of paths to ⊥ respectively ⊤, and the depth of a given node in an roBDD.
 pub type CountNode = (ModelCounts, ModelCounts, usize);
-/// Type alias for Facet counts, which contains number of facets and counter facets.
+/// Type alias for [Facet counts][FacetCounts], which contains the number of facets and counter-facets.
 pub type FacetCounts = (usize, usize);
 
 #[cfg(test)]

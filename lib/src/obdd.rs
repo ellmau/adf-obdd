@@ -1,4 +1,4 @@
-//! Module which represents obdds
+//! Module which represents obdds.
 //!
 pub mod vectorize;
 use crate::datatypes::*;
@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
-/// Containts the data of (possibly) multiple BDDs, managed over one collection of nodes.
-/// It has a couple of methods to instantiate, update, and query properties on a given BDD.
-/// Each BDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a BDD.
+/// Contains the data of (possibly) multiple roBDDs, managed over one collection of nodes.
+/// It has a couple of methods to instantiate, update, and query properties on a given roBDD.
+/// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
     pub(crate) nodes: Vec<BddNode>,
@@ -38,8 +38,8 @@ impl Default for Bdd {
 }
 
 impl Bdd {
-    /// Instantiate a new BDD structures
-    /// Constants for the [`Top`][crate::datatypes::Term::TOP] and [`Bot`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
+    /// Instantiate a new roBDD structures.
+    /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
     pub fn new() -> Self {
         #[cfg(not(feature = "adhoccounting"))]
         {
@@ -76,12 +76,12 @@ impl Bdd {
         RefCell::new(HashMap::new())
     }
 
-    /// Instantiates a [Variable][crate::datatypes::Var] and returns the representing BDD as a [`Term`][crate::datatypes::Term]
+    /// Instantiates a [variable][crate::datatypes::Var] and returns the representing roBDD as a [`Term`][crate::datatypes::Term].
     pub fn variable(&mut self, var: Var) -> Term {
         self.node(var, Term::BOT, Term::TOP)
     }
 
-    /// Instantiates a constant, which is either [true] or [false]
+    /// Instantiates a constant, which is either [true] or [false].
     pub fn constant(val: bool) -> Term {
         if val {
             Term::TOP
@@ -90,41 +90,41 @@ impl Bdd {
         }
     }
 
-    /// Returns a BDD, which represents the negation of the given BDD
+    /// Returns an roBDD, which represents the negation of the given roBDD.
     pub fn not(&mut self, term: Term) -> Term {
         self.if_then_else(term, Term::BOT, Term::TOP)
     }
 
-    /// Returns a BDD, which represents the conjunction of the two given BDDs
+    /// Returns an roBDD, which represents the conjunction of the two given roBDDs.
     pub fn and(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, term_b, Term::BOT)
     }
 
-    /// Returns a BDD, which represents the disjunction of the two given BDDs
+    /// Returns an roBDD, which represents the disjunction of the two given roBDDs.
     pub fn or(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, Term::TOP, term_b)
     }
 
-    /// Returns a BDD, which represents the implication of the two given BDDs
+    /// Returns an roBDD, which represents the implication of the two given roBDDs.
     pub fn imp(&mut self, term_a: Term, term_b: Term) -> Term {
         self.if_then_else(term_a, term_b, Term::TOP)
     }
 
-    /// Returns a BDD, which represents the if and only if relation  of the two given BDDs
+    /// Returns an roBDD, which represents the if and only if relation  of the two given roBDDs.
     pub fn iff(&mut self, term_a: Term, term_b: Term) -> Term {
         let not_b = self.not(term_b);
         self.if_then_else(term_a, term_b, not_b)
     }
 
-    /// Returns a BDD, which represents the exclusive disjunction of the two given BDDs
+    /// Returns an roBDD, which represents the exclusive disjunction of the two given roBDDs.
     pub fn xor(&mut self, term_a: Term, term_b: Term) -> Term {
         let not_b = self.not(term_b);
         self.if_then_else(term_a, not_b, term_b)
     }
 
-    /// Computes the interpretations represented in the reduced BDD, which are either models or none.
-    /// *goal_var* is the variable to which the BDD is related to and it is ensured that the goal is consistent with the respective interpretation
-    /// *goal* is a boolean variable, which defines whether the models or inconsistent interpretations are of interest
+    /// Computes the interpretations represented in the roBDD, which are either models or counter-models.
+    /// **goal_var** is the [variable][Var] to which the roBDD is related to and it is ensured that the goal is consistent with the respective interpretation.
+    /// **goal** is a boolean [variable][Var], which defines whether the models or counter-models are of interest.
     pub fn interpretations(
         &self,
         tree: Term,
@@ -174,7 +174,7 @@ impl Bdd {
         result
     }
 
-    /// Restrict the value of a given [Variable][crate::datatypes::Var] to the boolean value.
+    /// Restrict the value of a given [variable][crate::datatypes::Var] to **val**.
     pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
         let node = self.nodes[tree.0];
         #[cfg(feature = "variablelist")]
@@ -200,7 +200,7 @@ impl Bdd {
         }
     }
 
-    /// Creates an ordered BDD, based on the relation of three BDDs, which are in an `if-then-else` relation.
+    /// Creates an roBDD, based on the relation of three roBDDs, which are in an `if-then-else` relation.
     fn if_then_else(&mut self, i: Term, t: Term, e: Term) -> Term {
         if i == Term::TOP {
             t
@@ -231,8 +231,8 @@ impl Bdd {
         }
     }
 
-    /// Creates a new node in the BDD.
-    /// It will not create duplicate nodes and uses already existing nodes if applicable.
+    /// Creates a new node in the roBDD.
+    /// It will not create duplicate nodes and uses already existing nodes, if applicable.
     pub fn node(&mut self, var: Var, lo: Term, hi: Term) -> Term {
         if lo == hi {
             lo
@@ -306,9 +306,9 @@ impl Bdd {
         }
     }
 
-    /// Computes the number of counter-models and models for a given BDD-tree.
+    /// Computes the number of counter-models and models for a given roBDD.
     ///
-    /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing if the feature `adhoccounting` is used)
+    /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing, if the feature `adhoccounting` is used)
     pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
@@ -322,9 +322,9 @@ impl Bdd {
         }
     }
 
-    /// Computes the number of paths which lead to Bot respectively Top.
+    /// Computes the number of paths, which lead to ⊥ respectively ⊤.
     ///
-    /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing if the feature `adhoccounting` is used)
+    /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing, if the feature `adhoccounting` is used)
     pub fn paths(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
@@ -338,7 +338,9 @@ impl Bdd {
         }
     }
 
-    /// Computes the maximal depth of the given sub-tree.
+    /// Computes the maximal depth of the given sub-diagram.
+    ///
+    /// Intuitively this will compute the longest possible path from **term** to a leaf-node (i.e., ⊥ or ⊤).
     #[allow(dead_code)] // max depth may be used in future heuristics
     pub fn max_depth(&self, term: Term) -> usize {
         #[cfg(feature = "adhoccounting")]
@@ -360,7 +362,7 @@ impl Bdd {
     }
 
     #[allow(dead_code)] // dead code due to more efficient ad-hoc building, still used for a couple of tests
-    /// Computes the number of counter-models, models, and variables for a given BDD-tree
+    /// Computes the number of counter-models, models, and variables for a given roBDD
     fn modelcount_naive(&self, term: Term) -> CountNode {
         if term == Term::TOP {
             (ModelCounts::top(), ModelCounts::top(), 0)
@@ -434,7 +436,7 @@ impl Bdd {
         }
     }
 
-    /// repairs the internal structures after an import
+    /// Repairs the internal structures after an import.
     pub fn fix_import(&mut self) {
         self.generate_var_dependencies();
         #[cfg(feature = "adhoccounting")]
@@ -468,7 +470,7 @@ impl Bdd {
         });
     }
 
-    /// Returns a [Set][HashSet] of [Variables][crate::datatypes::Var] which occur in a given BDD.
+    /// Returns a [HashSet] of [variables][crate::datatypes::Var], which occur in a given roBDD.
     pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
         #[cfg(feature = "variablelist")]
         {
@@ -490,10 +492,8 @@ impl Bdd {
         }
     }
 
-    /// Returns the variable impact of a Variable, with respect to a given set of BDDs.
-    ///
-    /// It does count of BDDs where the [Variable][crate::datatypes::Var] occurs.
-    pub fn var_impact(&self, var: Var, termlist: &[Term]) -> usize {
+    /// Returns the variable impact of a [variable][crate::datatypes::Var] with respect to a given set of roBDDs.
+    pub fn passive_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
         termlist.iter().fold(0usize, |acc, val| {
             if self.var_dependencies(*val).contains(&var) {
                 acc + 1
@@ -503,8 +503,8 @@ impl Bdd {
         })
     }
 
-    /// Counts how often another BDD uses a variable, which occurs in this BDD.
-    pub fn nacyc_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
+    /// Counts how often another roBDD uses a [variable][crate::datatypes::Var], which occurs in this roBDD.
+    pub fn active_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
         (0..termlist.len()).into_iter().fold(0usize, |acc, idx| {
             if self
                 .var_dependencies(termlist[var.value()])
@@ -768,14 +768,17 @@ mod test {
             });
 
         assert_eq!(
-            bdd.var_impact(Var(0), &[formula1, formula2, formula3, formula4]),
+            bdd.passive_var_impact(Var(0), &[formula1, formula2, formula3, formula4]),
             4
         );
         assert_eq!(
-            bdd.var_impact(Var(2), &[formula1, formula2, formula3, formula4]),
+            bdd.passive_var_impact(Var(2), &[formula1, formula2, formula3, formula4]),
             1
         );
-        assert_eq!(bdd.var_impact(Var(2), &[formula1, formula2, formula3]), 0);
+        assert_eq!(
+            bdd.passive_var_impact(Var(2), &[formula1, formula2, formula3]),
+            0
+        );
     }
 
     #[test]
@@ -790,12 +793,12 @@ mod test {
 
         let ac: Vec<Term> = vec![formula1, formula2, v3];
 
-        assert_eq!(bdd.var_impact(Var(0), &ac), 2);
-        assert_eq!(bdd.var_impact(Var(1), &ac), 2);
-        assert_eq!(bdd.var_impact(Var(2), &ac), 1);
+        assert_eq!(bdd.passive_var_impact(Var(0), &ac), 2);
+        assert_eq!(bdd.passive_var_impact(Var(1), &ac), 2);
+        assert_eq!(bdd.passive_var_impact(Var(2), &ac), 1);
 
-        assert_eq!(bdd.nacyc_var_impact(Var(0), &ac), 2);
-        assert_eq!(bdd.nacyc_var_impact(Var(2), &ac), 1);
+        assert_eq!(bdd.active_var_impact(Var(0), &ac), 2);
+        assert_eq!(bdd.active_var_impact(Var(2), &ac), 1);
     }
 
     #[test]
