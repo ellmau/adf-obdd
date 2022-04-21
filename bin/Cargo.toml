@@ -3,7 +3,7 @@ name = "adf_bdd-solver"
 version = "0.2.4"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
-license = "GPL-3.0-only"
+license = "MIT"
 exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
 description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
 
