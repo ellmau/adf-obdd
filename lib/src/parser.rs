@@ -1,5 +1,5 @@
-//! A Parser for ADFs with all needed helper-methods.
-//! It utilises the [nom-crate](https://crates.io/crates/nom)
+//! Parser for ADFs with all needed helper-methods.
+//! It utilises the [nom-crate](https://crates.io/crates/nom).
 use lexical_sort::{natural_lexical_cmp, StringSort};
 use nom::{
     branch::alt,
@@ -12,26 +12,26 @@ use nom::{
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-/// A representation of a formula, still using the strings from the input
+/// A representation of a formula, still using the strings from the input.
 #[derive(Clone, PartialEq, Eq)]
 pub enum Formula<'a> {
-    /// c(v) in the input format
+    /// `c(f)` in the input format.
     Bot,
-    /// c(f) in the input format
+    /// `c(v)` in the input format.
     Top,
-    /// Some atomic variable in the input format
+    /// Some atomic variable in the input format.
     Atom(&'a str),
-    /// Negation of a subformula
+    /// Negation of a subformula.
     Not(Box<Formula<'a>>),
-    /// Conjunction of two subformulae
+    /// Conjunction of two subformulae.
     And(Box<Formula<'a>>, Box<Formula<'a>>),
-    /// Disjunction of two subformulae
+    /// Disjunction of two subformulae.
     Or(Box<Formula<'a>>, Box<Formula<'a>>),
-    /// Implication of two subformulae
+    /// Implication of two subformulae.
     Imp(Box<Formula<'a>>, Box<Formula<'a>>),
-    /// Exclusive-Or of two subformulae
+    /// Exclusive-Or of two subformulae.
     Xor(Box<Formula<'a>>, Box<Formula<'a>>),
-    /// If and only if connective between two formulae
+    /// If and only if connective between two formulae.
     Iff(Box<Formula<'a>>, Box<Formula<'a>>),
 }
 
@@ -122,7 +122,7 @@ impl std::fmt::Debug for Formula<'_> {
 /// A parse structure to hold all the information given by the input file in one place.
 ///
 /// Due to an internal representation with [RefCell][std::cell::RefCell] and [Rc][std::rc::Rc] the values can be
-/// handed over to other structures without further storage needs.
+/// handed over to other structures without further memory needs.
 ///
 /// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
@@ -157,7 +157,7 @@ where
     }
 
     /// Parses a full input file and creates internal structures.
-    /// Note that this method returns a closure (see the following Example for the correct usage).
+    /// Note that this method returns a closure (see the following example for the correct usage).
     /// # Example
     /// ```
     /// let parser = adf_bdd::parser::AdfParser::default();
@@ -214,7 +214,8 @@ impl AdfParser<'_> {
     }
 
     /// Sort the variables in lexicographical order.
-    /// Results which got used before might become corrupted.
+    /// Results, which got used before might become corrupted.
+    /// Ensure that all used data is physically copied.
     pub fn varsort_lexi(&self) -> &Self {
         self.namelist.as_ref().borrow_mut().sort_unstable();
         self.regenerate_indizes();
@@ -222,7 +223,8 @@ impl AdfParser<'_> {
     }
 
     /// Sort the variables in alphanumerical order.
-    /// Results which got used before might become corrupted.
+    /// Results, which got used before might become corrupted.
+    /// Ensure that all used data is physically copied.
     pub fn varsort_alphanum(&self) -> &Self {
         self.namelist
             .as_ref()
@@ -338,18 +340,22 @@ impl AdfParser<'_> {
         ))(input)
     }
 
-    /// Allows insight of the number of parsed Statements
+    /// Allows insight of the number of parsed statements.
     pub fn dict_size(&self) -> usize {
         //self.dict.borrow().len()
         self.dict.as_ref().borrow().len()
     }
 
-    /// Returns the number-representation and position of a given variable/statement in string-representation
+    /// Returns the number-representation and position of a given statement in string-representation.
+    ///
+    /// Will return [None] if the string does no occur in the dictionary.
     pub fn dict_value(&self, value: &str) -> Option<usize> {
         self.dict.as_ref().borrow().get(value).copied()
     }
 
-    /// Returns the acceptance condition of a statement at the given positon
+    /// Returns the acceptance condition of a statement at the given position.
+    ///
+    /// Will return [None] if the position does not map to a formula.
     pub fn ac_at(&self, idx: usize) -> Option<Formula> {
         self.formulae.borrow().get(idx).cloned()
     }

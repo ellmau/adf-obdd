@@ -1,5 +1,5 @@
 /*!
-This module describes the abstract dialectical framework
+This module describes the abstract dialectical framework.
 
  - computing interpretations and models
  - computing fixpoints
@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-/// Representation of an ADF, with an ordering and dictionary of statement <-> number relations, a binary decision diagram, and a list of acceptance functions in Term representation.
+/// Representation of an ADF, with an ordering and dictionary which relates statements to numbers, a binary decision diagram, and a list of acceptance conditions in [`Term`][crate::datatypes::Term] representation.
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
@@ -40,7 +40,7 @@ impl Default for Adf {
 }
 
 impl Adf {
-    /// Instantiates a new ADF, based on the parser-data
+    /// Instantiates a new ADF, based on the [parser-data][crate::parser::AdfParser].
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
         let mut result = Self {
@@ -134,7 +134,7 @@ impl Adf {
         result
     }
 
-    /// Instantiates a new ADF, based on a biodivine adf
+    /// Instantiates a new ADF, based on a [biodivine adf][crate::adfbiodivine::Adf].
     pub fn from_biodivine(bio_adf: &super::adfbiodivine::Adf) -> Self {
         Self::from_biodivine_vector(bio_adf.var_container(), bio_adf.ac())
     }
@@ -179,7 +179,7 @@ impl Adf {
         }
     }
 
-    /// Computes the grounded extension and returns it as a list
+    /// Computes the grounded extension and returns it as a list.
     pub fn grounded(&mut self) -> Vec<Term> {
         log::info!("[Start] grounded");
         let ac = &self.ac.clone();
@@ -351,7 +351,7 @@ impl Adf {
 
     /// Computes the stable models.
     /// Returns an iterator which contains all stable models.
-    /// This variant uses the heuristic, which uses maximal var impact, minimal self-cyclye impact and the minimal amount of paths .
+    /// This variant uses the heuristic, which uses maximal [var impact][crate::obdd::Bdd::passive_var_impact], minimal [self-cycle impact][crate::obdd::Bdd::active_var_impact] and the minimal amount of [paths][crate::obdd::Bdd::paths].
     pub fn stable_count_optimisation_heu_a<'a, 'c>(
         &'a mut self,
     ) -> impl Iterator<Item = Vec<Term>> + 'c
@@ -367,7 +367,7 @@ impl Adf {
 
     /// Computes the stable models.
     /// Returns an iterator which contains all stable models.
-    /// This variant uses the heuristic, which uses minimal number of paths and maximal variable-impact.
+    /// This variant uses the heuristic, which uses minimal number of [paths][crate::obdd::Bdd::paths] and maximal [variable-impact][crate::obdd::Bdd::passive_var_impact].
     pub fn stable_count_optimisation_heu_b<'a, 'c>(
         &'a mut self,
     ) -> impl Iterator<Item = Vec<Term>> + 'c
@@ -420,13 +420,13 @@ impl Adf {
     ) -> std::cmp::Ordering {
         match self
             .bdd
-            .var_impact(rhs.0, interpr)
-            .cmp(&self.bdd.var_impact(lhs.0, interpr))
+            .passive_var_impact(rhs.0, interpr)
+            .cmp(&self.bdd.passive_var_impact(lhs.0, interpr))
         {
             std::cmp::Ordering::Equal => match self
                 .bdd
-                .nacyc_var_impact(lhs.0, interpr)
-                .cmp(&self.bdd.nacyc_var_impact(rhs.0, interpr))
+                .active_var_impact(lhs.0, interpr)
+                .cmp(&self.bdd.active_var_impact(rhs.0, interpr))
             {
                 std::cmp::Ordering::Equal => self
                     .bdd
@@ -453,8 +453,8 @@ impl Adf {
         {
             std::cmp::Ordering::Equal => self
                 .bdd
-                .var_impact(rhs.0, interpr)
-                .cmp(&self.bdd.var_impact(lhs.0, interpr)),
+                .passive_var_impact(rhs.0, interpr)
+                .cmp(&self.bdd.passive_var_impact(lhs.0, interpr)),
 
             value => value,
         }
@@ -653,7 +653,7 @@ impl Adf {
             .collect()
     }
 
-    /// creates a [PrintableInterpretation] for output purposes
+    /// Creates a [PrintableInterpretation] for output purposes.
     pub fn print_interpretation<'a, 'b>(
         &'a self,
         interpretation: &'b [Term],
@@ -664,12 +664,12 @@ impl Adf {
         PrintableInterpretation::new(interpretation, &self.ordering)
     }
 
-    /// creates a [PrintDictionary] for output purposes
+    /// Creates a [PrintDictionary] for output purposes.
     pub fn print_dictionary(&self) -> PrintDictionary {
         PrintDictionary::new(&self.ordering)
     }
 
-    /// Fixes the bdd after an import with serde
+    /// Fixes the bdd after an import with serde.
     pub fn fix_import(&mut self) {
         self.bdd.fix_import();
     }

@@ -1,6 +1,6 @@
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin) [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases) ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd) [![GitHub all releases](https://img.shields.io/github/downloads/ellmau/adf-obdd/total)](https://github.com/ellmau/adf-obdd/releases) [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
-# Solver for ADFs grounded semantics by utilising OBDDs - ordered binary decision diagrams
+# Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden (ADF-BDD) 
 
 
 ## Abstract Dialectical Frameworks
@@ -34,6 +34,10 @@ OPTIONS:
         --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
                                   -q are not use [env: RUST_LOG=debug]
         --stm                     Compute the stable models
+        --stmca                   Compute the stable models with the help of modelcounting using
+                                  heuristics a
+        --stmcb                   Compute the stable models with the help of modelcounting using
+                                  heuristics b
         --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
         --stmrew                  Compute the stable models with a single-formula rewriting (only
                                   hybrid lib-mode)
@@ -76,6 +80,17 @@ The binary predicate ac relates each statement to one propositional formula in p
 Additional information for contribution, testing, and development in general can be found here.
 ## Contributing to the project
 You want to help and contribute to the project? That is great. Please see the [contributing guidelines](https://github.com/ellmau/adf-obdd/blob/main/.github/CONTRIBUTING.md) first.
+
+## Building the binary:
+To build the binary, you need to run
+```bash
+$> cargo build --workspace --release
+```
+
+To build the binary with debug-symbols, run
+```bash
+$> cargo build --workspace
+```
 
 ## Testing with the `res` folder:
 To run all the tests placed in the submodule you need to run

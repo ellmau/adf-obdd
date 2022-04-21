@@ -1,4 +1,4 @@
-//! Repesentation of all needed ADF based datatypes
+//! Representation of all needed ADF based datatypes.
 
 use super::{Term, Var};
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,7 @@ impl VarContainer {
         Rc::clone(&self.names)
     }
 }
-/// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations
+/// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations.
 #[derive(Debug)]
 pub struct PrintDictionary {
     ordering: VarContainer,
@@ -115,8 +115,8 @@ impl Display for PrintableInterpretation<'_> {
     }
 }
 
-/// Provides an Iterator, which contains all two valued Interpretations, with respect to the given
-/// 3-valued interpretation.
+/// Provides an [Iterator][std::iter::Iterator], which contains all two valued interpretations, with respect to the given
+/// three valued interpretation.
 
 #[derive(Debug)]
 pub struct TwoValuedInterpretationsIterator {
@@ -126,7 +126,7 @@ pub struct TwoValuedInterpretationsIterator {
 }
 
 impl TwoValuedInterpretationsIterator {
-    /// Creates a new iterable structure, which represents all two-valued interpretations wrt. the given 3-valued interpretation
+    /// Creates a new iterable structure, which represents all two-valued interpretations wrt. the given three valued interpretation.
     pub fn new(term: &[Term]) -> Self {
         let indexes = term
             .iter()
