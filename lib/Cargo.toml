@@ -5,7 +5,7 @@ authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 homepage = "https://ellmau.github.io/adf-obdd/"
 repository = "https://github.com/ellmau/adf-obdd/"
-license = "GPL-3.0-only"
+license = "MIT"
 exclude = ["res/", "./flake*", "flake.lock", "*.nix", ".envrc", "_config.yml", "tarpaulin-report.*", "*~"]
 
 description = "Library to solve grounded, complete, and stable ADF-semantics by utilising OBDDs - ordered binary decision diagrams"
