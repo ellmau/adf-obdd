@@ -10,11 +10,11 @@ description = "Solver for ADFs grounded, complete, and stable semantics by utili
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
-name = "adf_bdd"
+name = "adf-bdd"
 path = "src/main.rs"
 
 [dependencies]
-adf_bdd = { path = "../lib", default-features = false }
+adf_bdd = { version="0.2.4", default-features = false }
 clap = {version = "3.1.8", features = [ "derive", "cargo", "env" ]}
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }
