@@ -123,3 +123,15 @@ or
 ```bash
 $> git submodule deinit --all
 ```
+
+# Acknowledgements
+This work is partly supported by Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) in projects number 389792660 (TRR 248, [Center for Perspicuous Systems](https://www.perspicuous-computing.science/)), 
+the Bundesministerium für Bildung und Forschung (BMBF, Federal Ministry of Education and Research) in the
+[Center for Scalable Data Analytics and Artificial Intelligence](https://www.scads.de) (ScaDS.AI),
+and by the [Center for Advancing Electronics Dresden](https://cfaed.tu-dresden.de) (cfaed).
+
+# Affiliation 
+This work has been party developed by the [Knowledge-Based Systems Group](https://iccl.inf.tu-dresden.de/web/Wissensbasierte_Systeme/en), [Faculty of Computer Science](https://tu-dresden.de/ing/informatik)  of [TU Dresden](https://tu-dresden.de).
+
+# Disclaimer
+Hosting content here does not establish any formal or legal relation to TU Dresden
