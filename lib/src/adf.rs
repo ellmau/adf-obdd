@@ -5,6 +5,8 @@ This module describes the abstract dialectical framework.
  - computing fixpoints
 */
 
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -36,6 +38,21 @@ impl Default for Adf {
             bdd: Bdd::new(),
             ac: Vec::new(),
         }
+    }
+}
+
+impl Display for Adf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        self.ac.iter().enumerate().for_each(|(idx, val)| {
+            write!(f, "{idx}:{val}").expect("stdout should be working");
+            if idx < self.ac.len() - 1 {
+                write!(f, ", ").expect("stdout should be working");
+            }
+        });
+        writeln!(f, "]")?;
+        writeln!(f, "bdd\n {}", self.bdd)?;
+        Ok(())
     }
 }
 
