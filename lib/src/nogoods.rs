@@ -131,8 +131,8 @@ impl NoGoodStore {
                         .iter_mut()
                         .enumerate()
                         .for_each(|(cur_idx, ng_vec)| {
-                            if idx <= cur_idx {
-                                ng_vec.retain(|ng| !nogood.is_violating(ng));
+                            if idx >= cur_idx {
+                                ng_vec.retain(|ng| !ng.is_violating(&nogood));
                             }
                         });
                     true
@@ -285,7 +285,8 @@ mod test {
                 .fold(0, |acc, ng_vec| { acc + ng_vec.len() }),
             5
         );
-        ngs.add_ng(NoGood::from_term_vec(&[Term(22), Term::BOT, Term::BOT]));
+
+        ngs.add_ng(NoGood::from_term_vec(&[Term(22), Term::BOT, Term(22)]));
 
         assert_eq!(
             ngs.store
@@ -294,7 +295,7 @@ mod test {
             6
         );
 
-        ngs.add_ng(NoGood::from_term_vec(&[Term(22), Term::BOT, Term(22)]));
+        ngs.add_ng(NoGood::from_term_vec(&[Term(22), Term::BOT, Term::BOT]));
 
         assert_eq!(
             ngs.store
