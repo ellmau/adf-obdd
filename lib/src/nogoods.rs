@@ -205,6 +205,16 @@ mod test {
         assert_eq!(ng1.conclude(&ng3), Some((2, false)));
         assert_eq!(ng3.conclude(&ng1), Some((5, true)));
         assert_eq!(ng3.conclude(&ng2), Some((5, true)));
+
+        // conclusions on empty knowledge
+        let ng4 = NoGood::from_term_vec(&[Term::TOP]);
+        let ng5 = NoGood::from_term_vec(&[Term::BOT]);
+        let ng6 = NoGood::from_term_vec(&[]);
+
+        assert_eq!(ng4.conclude(&ng6), Some((0, false)));
+        assert_eq!(ng5.conclude(&ng6), Some((0, true)));
+        assert_eq!(ng6.conclude(&ng5), None);
+        assert_eq!(ng4.conclude(&ng5), None);
     }
 
     #[test]
