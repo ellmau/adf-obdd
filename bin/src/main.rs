@@ -132,6 +132,9 @@ struct App {
     /// Set if the (counter-)models shall be computed and printed, possible values are 'nai' and 'mem' for naive and memoization repectively (only works in hybrid and naive mode)
     #[clap(long)]
     counter: Option<String>,
+    /// Experimental: Output of the data, values are a TODO
+    #[clap(short)]
+    out: Option<String>,
 }
 
 impl App {
@@ -179,6 +182,17 @@ impl App {
                     BdAdf::from_parser(&parser)
                 } else {
                     BdAdf::from_parser_with_stm_rewrite(&parser)
+                };
+
+                match self.out {
+                    Some(_) => {
+                        let mut visual = adf.hybrid_step_opt(false);
+                        println!("{}", visual);
+                        println!("grounded");
+                        visual = adf.hybrid_step_opt(true);
+                        println!("{}", visual);
+                    }
+                    None => {}
                 };
 
                 match self.counter.as_deref() {
