@@ -14,7 +14,7 @@ name = "adf-bdd"
 path = "src/main.rs"
 
 [dependencies]
-adf_bdd = { version="0.2.4", default-features = false }
+adf_bdd = { version="0.2.4", path="../lib", default-features = false }
 clap = {version = "3.1.14", features = [ "derive", "cargo", "env" ]}
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }

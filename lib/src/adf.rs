@@ -946,7 +946,7 @@ mod test {
             "s(a). s(b). s(c). s(d). ac(a,c(v)). ac(b,b). ac(c,and(a,b)). ac(d,neg(b)).",
         )
         .unwrap();
-        let mut adf = Adf::from_parser(&parser);
+        let adf = Adf::from_parser(&parser);
 
         let mut v = adf.ac.clone();
         let mut fcs = adf.facet_count(&v);
