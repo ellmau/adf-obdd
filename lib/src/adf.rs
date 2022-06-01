@@ -5,6 +5,9 @@ This module describes the abstract dialectical framework.
  - computing fixpoints
 */
 
+use std::{marker::Sync, sync::Mutex};
+
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -49,9 +52,20 @@ impl Adf {
                 parser.dict_rc_refcell(),
             ),
             bdd: Bdd::new(),
-            ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
+            ac: vec![
+                Term(0);
+                parser
+                    .namelist_rc_refcell()
+                    .read()
+                    .expect("Failed to gain read lock")
+                    .len()
+            ],
         };
-        (0..parser.namelist_rc_refcell().borrow().len())
+        (0..parser
+            .namelist_rc_refcell()
+            .read()
+            .expect("Failed to gain read lock")
+            .len())
             .into_iter()
             .for_each(|value| {
                 log::trace!("adding variable {}", Var(value));
@@ -188,7 +202,7 @@ impl Adf {
         result
     }
 
-    fn grounded_internal(&mut self, interpretation: &[Term]) -> Vec<Term> {
+    fn grounded_internal(&self, interpretation: &[Term]) -> Vec<Term> {
         let mut t_vals: usize = interpretation
             .iter()
             .filter(|elem| elem.is_truth_value())
@@ -264,6 +278,43 @@ impl Adf {
                     .all(|(it, gr)| it.compare_inf(gr))
             })
             .map(|(int, _grd)| int)
+    }
+
+    /// Testing some parallel stable computation
+    pub fn stable_par(&mut self) -> Vec<Vec<Term>> {
+        let grounded = self.grounded();
+        TwoValuedInterpretationsIterator::new(&grounded)
+            .par_bridge()
+            .into_par_iter()
+            .map(|interpretation| {
+                let mut interpr = self.ac.clone();
+                for ac in interpr.iter_mut() {
+                    *ac = interpretation
+                        .iter()
+                        .enumerate()
+                        .fold(*ac, |acc, (var, term)| {
+                            if term.is_truth_value() && !term.is_true() {
+                                self.bdd.restrict(acc, Var(var), false)
+                            } else {
+                                acc
+                            }
+                        });
+                }
+                let grounded_check = self.grounded_internal(&interpr);
+                log::debug!(
+                    "grounded candidate\n{:?}\n{:?}",
+                    interpretation,
+                    grounded_check
+                );
+                (interpretation, grounded_check)
+            })
+            .filter(|(int, grd)| {
+                int.iter()
+                    .zip(grd.iter())
+                    .all(|(it, gr)| it.compare_inf(gr))
+            })
+            .map(|(int, _grd)| int)
+            .collect::<Vec<_>>()
     }
 
     /// Computes the stable models.
@@ -407,7 +458,7 @@ impl Adf {
 
     fn two_val_model_counts<H>(&mut self, interpr: &[Term], heuristic: H) -> Vec<Vec<Term>>
     where
-        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
+        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy + Sync,
     {
         self.two_val_model_counts_logic(interpr, &vec![Term::UND; interpr.len()], 0, heuristic)
     }
@@ -461,18 +512,18 @@ impl Adf {
     }
 
     fn two_val_model_counts_logic<H>(
-        &mut self,
+        &self,
         interpr: &[Term],
         will_be: &[Term],
         depth: usize,
         heuristic: H,
     ) -> Vec<Vec<Term>>
     where
-        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
+        H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy + Sync,
     {
         log::debug!("two_val_model_recursion_depth: {}/{}", depth, interpr.len());
         if let Some((idx, ac)) = interpr
-            .iter()
+            .par_iter()
             .enumerate()
             .filter(|(idx, val)| !(val.is_truth_value() || will_be[*idx].is_truth_value()))
             .min_by(|(idx_a, val_a), (idx_b, val_b)| {
@@ -484,7 +535,8 @@ impl Adf {
                 )
             })
         {
-            let mut result = Vec::new();
+            //            let mut result = Vec::new();
+            let result: Mutex<Vec<Vec<Term>>> = Mutex::new(Vec::new());
             let check_models = !self.bdd.paths(*ac, true).more_models();
             log::trace!(
                 "Identified Var({}) with ac {:?} to be {}",
@@ -521,17 +573,27 @@ impl Adf {
                         new_int[idx] = if check_models { Term::TOP } else { Term::BOT };
                         let upd_int = self.update_interpretation_fixpoint(&new_int);
                         if self.check_consistency(&upd_int, will_be) {
-                            result.append(&mut self.two_val_model_counts_logic(
+                            let mut append = self.two_val_model_counts_logic(
                                 &upd_int,
                                 will_be,
                                 depth + 1,
                                 heuristic,
-                            ));
+                            );
+                            result
+                                .lock()
+                                .expect("Failed to lock mutex for results")
+                                .append(&mut append);
                         }
                     }
                     res
                 });
-            log::trace!("results found so far:{}", result.len());
+            log::trace!(
+                "results found so far:{}",
+                result
+                    .lock()
+                    .expect("Failed to lock mutex for results")
+                    .len()
+            );
             // checked one alternative, we can now conclude that only the other option may work
             log::debug!("checked one alternative, concluding the other value");
             let new_int = interpr
@@ -546,15 +608,23 @@ impl Adf {
                 if new_int[idx].no_inf_inconsistency(&upd_int[idx]) {
                     let mut must_be_new = will_be.to_vec();
                     must_be_new[idx] = new_int[idx];
-                    result.append(&mut self.two_val_model_counts_logic(
+                    let mut append = self.two_val_model_counts_logic(
                         &upd_int,
                         &must_be_new,
                         depth + 1,
                         heuristic,
-                    ));
+                    );
+                    result
+                        .lock()
+                        .expect("Failed to lock mutex for results")
+                        .append(&mut append);
                 }
             }
-            result
+            let x = result
+                .lock()
+                .expect("Failed to lock mutex for results")
+                .clone();
+            x
         } else {
             // filter has created empty iterator
             let concluded = interpr
@@ -578,7 +648,7 @@ impl Adf {
         }
     }
 
-    fn update_interpretation_fixpoint(&mut self, interpretation: &[Term]) -> Vec<Term> {
+    fn update_interpretation_fixpoint(&self, interpretation: &[Term]) -> Vec<Term> {
         let mut cur_int = interpretation.to_vec();
         loop {
             let new_int = self.update_interpretation(interpretation);
@@ -590,11 +660,11 @@ impl Adf {
         }
     }
 
-    fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
+    fn update_interpretation(&self, interpretation: &[Term]) -> Vec<Term> {
         self.apply_interpretation(interpretation, interpretation)
     }
 
-    fn apply_interpretation(&mut self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
+    fn apply_interpretation(&self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
         ac.iter()
             .map(|ac| {
                 interpretation
@@ -611,7 +681,7 @@ impl Adf {
             .collect::<Vec<Term>>()
     }
 
-    fn check_consistency(&mut self, interpretation: &[Term], will_be: &[Term]) -> bool {
+    fn check_consistency(&self, interpretation: &[Term], will_be: &[Term]) -> bool {
         interpretation
             .iter()
             .zip(will_be.iter())
@@ -712,11 +782,41 @@ mod test {
         parser.parse()(input).unwrap();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "e");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "d");
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[0],
+            "a"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[1],
+            "c"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[2],
+            "b"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[3],
+            "e"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[4],
+            "d"
+        );
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(15), Term(12)]);
 
@@ -727,11 +827,41 @@ mod test {
         parser.varsort_alphanum();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "d");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "e");
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[0],
+            "a"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[1],
+            "b"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[2],
+            "c"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[3],
+            "d"
+        );
+        assert_eq!(
+            adf.ordering
+                .names()
+                .read()
+                .expect("Failed to gain read lock")[4],
+            "e"
+        );
 
         assert_eq!(adf.ac, vec![Term(3), Term(7), Term(2), Term(11), Term(13)]);
     }

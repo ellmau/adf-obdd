@@ -3,30 +3,36 @@
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
+
+const R_FAIL: &str = "Failed to gain read lock";
+const W_FAIL: &str = "Failed to gain write lock";
 
 /// Contains the data of (possibly) multiple roBDDs, managed over one collection of nodes.
 /// It has a couple of methods to instantiate, update, and query properties on a given roBDD.
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
-    nodes: Rc<RefCell<Vec<BddNode>>>,
+    nodes: Arc<RwLock<Vec<BddNode>>>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
-    var_deps: Rc<RefCell<Vec<HashSet<Var>>>>,
+    var_deps: Arc<RwLock<Vec<HashSet<Var>>>>,
     //#[serde(with = "vectorize")]
     #[serde(skip)]
-    cache: Rc<RefCell<HashMap<BddNode, Term>>>,
+    cache: Arc<RwLock<HashMap<BddNode, Term>>>,
     #[serde(skip, default = "Bdd::default_count_cache")]
-    count_cache: Rc<RefCell<HashMap<Term, CountNode>>>,
+    count_cache: Arc<RwLock<HashMap<Term, CountNode>>>,
 }
 
 impl Display for Bdd {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, " ")?;
-        for (idx, elem) in self.nodes.borrow().iter().enumerate() {
+        //        for (idx, elem) in self.nodes.borrow().iter().enumerate() {
+        for (idx, elem) in self.nodes.read().expect(R_FAIL).iter().enumerate() {
             writeln!(f, "{} {}", idx, *elem)?;
         }
         Ok(())
@@ -56,26 +62,28 @@ impl Bdd {
         #[cfg(feature = "adhoccounting")]
         {
             let result = Self {
-                nodes: Rc::new(RefCell::new(vec![BddNode::bot_node(), BddNode::top_node()])),
+                nodes: Arc::new(RwLock::new(vec![BddNode::bot_node(), BddNode::top_node()])),
                 #[cfg(feature = "variablelist")]
-                var_deps: Rc::new(RefCell::new(vec![HashSet::new(), HashSet::new()])),
-                cache: Rc::new(RefCell::new(HashMap::new())),
-                count_cache: Rc::new(RefCell::new(HashMap::new())),
+                var_deps: Arc::new(RwLock::new(vec![HashSet::new(), HashSet::new()])),
+                cache: Arc::new(RwLock::new(HashMap::new())),
+                count_cache: Arc::new(RwLock::new(HashMap::new())),
             };
             result
                 .count_cache
-                .borrow_mut()
+                .write()
+                .expect(W_FAIL)
                 .insert(Term::TOP, (ModelCounts::top(), ModelCounts::top(), 0));
             result
                 .count_cache
-                .borrow_mut()
+                .write()
+                .expect(W_FAIL)
                 .insert(Term::BOT, (ModelCounts::bot(), ModelCounts::bot(), 0));
             result
         }
     }
 
-    fn default_count_cache() -> Rc<RefCell<HashMap<Term, CountNode>>> {
-        Rc::new(RefCell::new(HashMap::new()))
+    fn default_count_cache() -> Arc<RwLock<HashMap<Term, CountNode>>> {
+        Arc::new(RwLock::new(HashMap::new()))
     }
 
     /// Instantiates a [variable][crate::datatypes::Var] and returns the representing roBDD as a [`Term`][crate::datatypes::Term].
@@ -136,7 +144,7 @@ impl Bdd {
         positive: &[Var],
     ) -> Vec<(Vec<Var>, Vec<Var>)> {
         let mut result = Vec::new();
-        let node = self.nodes.borrow()[tree.value()];
+        let node = self.nodes.read().expect(R_FAIL)[tree.value()];
         let var = node.var();
         if tree.is_truth_value() {
             return Vec::new();
@@ -178,10 +186,10 @@ impl Bdd {
 
     /// Restrict the value of a given [variable][crate::datatypes::Var] to **val**.
     pub fn restrict(&self, tree: Term, var: Var, val: bool) -> Term {
-        let node = self.nodes.borrow()[tree.0];
+        let node = self.nodes.read().expect("")[tree.0];
         #[cfg(feature = "variablelist")]
         {
-            if !self.var_deps.borrow()[tree.value()].contains(&var) {
+            if !self.var_deps.read().expect(R_FAIL)[tree.value()].contains(&var) {
                 return tree;
             }
         }
@@ -214,10 +222,10 @@ impl Bdd {
             i
         } else {
             let minvar = Var(min(
-                self.nodes.borrow()[i.value()].var().value(),
+                self.nodes.read().expect(R_FAIL)[i.value()].var().value(),
                 min(
-                    self.nodes.borrow()[t.value()].var().value(),
-                    self.nodes.borrow()[e.value()].var().value(),
+                    self.nodes.read().expect(R_FAIL)[t.value()].var().value(),
+                    self.nodes.read().expect(R_FAIL)[e.value()].var().value(),
                 ),
             ));
             let itop = self.restrict(i, minvar, true);
@@ -240,25 +248,30 @@ impl Bdd {
             lo
         } else {
             let node = BddNode::new(var, lo, hi);
-            if let Some(t) = self.cache.borrow().get(&node) {
+            if let Some(t) = self.cache.read().expect(R_FAIL).get(&node) {
                 return *t;
             }
-            let new_term = Term(self.nodes.borrow().len());
-            self.nodes.borrow_mut().push(node);
-            self.cache.borrow_mut().insert(node, new_term);
+            let mut nodes = self.nodes.write().expect(W_FAIL);
+            // check if we have some dangling updates
+            if let Some(t) = self.cache.read().expect(R_FAIL).get(&node) {
+                return *t;
+            }
+            let new_term = Term(nodes.len());
+            nodes.push(node);
+            self.cache.write().expect("W_FAIL").insert(node, new_term);
             #[cfg(feature = "variablelist")]
             {
-                let mut var_set: HashSet<Var> = self.var_deps.borrow()[lo.value()]
-                    .union(&self.var_deps.borrow()[hi.value()])
+                let mut var_set: HashSet<Var> = self.var_deps.read().expect(R_FAIL)[lo.value()]
+                    .union(&self.var_deps.read().expect(R_FAIL)[hi.value()])
                     .copied()
                     .collect();
                 var_set.insert(var);
-                self.var_deps.borrow_mut().push(var_set);
+                self.var_deps.write().expect("W_FAIL").push(var_set);
             }
             log::debug!("newterm: {} as {:?}", new_term, node);
             #[cfg(feature = "adhoccounting")]
             {
-                let mut count_cache = self.count_cache.borrow_mut();
+                let mut count_cache = self.count_cache.write().expect(W_FAIL);
                 let (lo_counts, lo_paths, lodepth) =
                     *count_cache.get(&lo).expect("Cache corrupted");
                 let (hi_counts, hi_paths, hidepth) =
@@ -312,7 +325,7 @@ impl Bdd {
     pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
-            return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").0;
+            return self.count_cache.read().expect(R_FAIL).get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").0;
         }
         #[cfg(not(feature = "adhoccounting"))]
         if _memoization {
@@ -328,7 +341,7 @@ impl Bdd {
     pub fn paths(&self, term: Term, _memoization: bool) -> ModelCounts {
         #[cfg(feature = "adhoccounting")]
         {
-            return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").1;
+            return self.count_cache.read().expect(R_FAIL).get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").1;
         }
         #[cfg(not(feature = "adhoccounting"))]
         if _memoization {
@@ -345,7 +358,7 @@ impl Bdd {
     pub fn max_depth(&self, term: Term) -> usize {
         #[cfg(feature = "adhoccounting")]
         {
-            return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").2;
+            return self.count_cache.read().expect(R_FAIL).get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").2;
         }
         #[cfg(not(feature = "adhoccounting"))]
         match self.count_cache.borrow().get(&term) {
@@ -369,7 +382,7 @@ impl Bdd {
         } else if term == Term::BOT {
             (ModelCounts::bot(), ModelCounts::bot(), 0)
         } else {
-            let node = &self.nodes.borrow()[term.0];
+            let node = &self.nodes.read().expect(R_FAIL)[term.0];
             let mut lo_exp = 0u32;
             let mut hi_exp = 0u32;
             let (lo_counts, lo_paths, lodepth) = self.modelcount_naive(node.lo());
@@ -401,11 +414,11 @@ impl Bdd {
         } else if term == Term::BOT {
             (ModelCounts::bot(), ModelCounts::bot(), 0)
         } else {
-            if let Some(result) = self.count_cache.borrow().get(&term) {
+            if let Some(result) = self.count_cache.read().expect(R_FAIL).get(&term) {
                 return *result;
             }
             let result = {
-                let node = &self.nodes.borrow()[term.0];
+                let node = &self.nodes.read().expect(R_FAIL)[term.0];
                 let mut lo_exp = 0u32;
                 let mut hi_exp = 0u32;
                 let (lo_counts, lo_paths, lodepth) = self.modelcount_memoization(node.lo());
@@ -431,7 +444,7 @@ impl Bdd {
                     std::cmp::max(lodepth, hidepth) + 1,
                 )
             };
-            self.count_cache.borrow_mut().insert(term, result);
+            self.count_cache.write().expect(W_FAIL).insert(term, result);
             result
         }
     }
@@ -442,12 +455,14 @@ impl Bdd {
         #[cfg(feature = "adhoccounting")]
         {
             self.count_cache
-                .borrow_mut()
+                .write()
+                .expect(W_FAIL)
                 .insert(Term::TOP, (ModelCounts::top(), ModelCounts::top(), 0));
             self.count_cache
-                .borrow_mut()
+                .write()
+                .expect(W_FAIL)
                 .insert(Term::BOT, (ModelCounts::bot(), ModelCounts::bot(), 0));
-            for i in 0..self.nodes.borrow().len() {
+            for i in 0..self.nodes.read().expect(R_FAIL).len() {
                 log::debug!("fixing Term({})", i);
                 self.modelcount_memoization(Term(i));
             }
@@ -456,16 +471,17 @@ impl Bdd {
 
     fn generate_var_dependencies(&self) {
         #[cfg(feature = "variablelist")]
-        self.nodes.borrow().iter().for_each(|node| {
+        self.nodes.read().expect(R_FAIL).iter().for_each(|node| {
             if node.var() >= Var::BOT {
-                self.var_deps.borrow_mut().push(HashSet::new());
+                self.var_deps.write().expect(W_FAIL).push(HashSet::new());
             } else {
-                let mut var_set: HashSet<Var> = self.var_deps.borrow()[node.lo().value()]
-                    .union(&self.var_deps.borrow()[node.hi().value()])
-                    .copied()
-                    .collect();
+                let mut var_set: HashSet<Var> = self.var_deps.read().expect(R_FAIL)
+                    [node.lo().value()]
+                .union(&self.var_deps.read().expect(R_FAIL)[node.hi().value()])
+                .copied()
+                .collect();
                 var_set.insert(node.var());
-                self.var_deps.borrow_mut().push(var_set);
+                self.var_deps.write().expect(W_FAIL).push(var_set);
             }
         });
     }
@@ -474,7 +490,7 @@ impl Bdd {
     pub fn var_dependencies(&self, tree: Term) -> HashSet<Var> {
         #[cfg(feature = "variablelist")]
         {
-            self.var_deps.borrow()[tree.value()].clone()
+            self.var_deps.read().expect(R_FAIL)[tree.value()].clone()
         }
         #[cfg(not(feature = "variablelist"))]
         {
@@ -525,7 +541,7 @@ mod test {
     #[test]
     fn newbdd() {
         let bdd = Bdd::new();
-        assert_eq!(bdd.nodes.borrow().len(), 2);
+        assert_eq!(bdd.nodes.read().expect(R_FAIL).len(), 2);
     }
 
     #[test]
@@ -534,7 +550,7 @@ mod test {
 
         assert_eq!(Bdd::constant(true), Term::TOP);
         assert_eq!(Bdd::constant(false), Term::BOT);
-        assert_eq!(bdd.nodes.borrow().len(), 2);
+        assert_eq!(bdd.nodes.read().expect(R_FAIL).len(), 2);
     }
 
     #[test]
@@ -645,13 +661,14 @@ mod test {
         assert_eq!(bdd.models(v1, false), (1, 1).into());
         let mut x = bdd
             .count_cache
-            .borrow_mut()
+            .write()
+            .expect(W_FAIL)
             .iter()
             .map(|(x, y)| (*x, *y))
             .collect::<Vec<_>>();
         x.sort();
         log::debug!("{:?}", formula1);
-        for x in bdd.nodes.borrow().iter().enumerate() {
+        for x in bdd.nodes.read().expect(R_FAIL).iter().enumerate() {
             log::debug!("{:?}", x);
         }
         log::debug!("{:?}", x);
@@ -762,13 +779,14 @@ mod test {
         bdd.not(formula4);
 
         let constructed = bdd.var_deps.clone();
-        bdd.var_deps = Rc::new(RefCell::new(Vec::new()));
+        bdd.var_deps = Arc::new(RwLock::new(Vec::new()));
         bdd.generate_var_dependencies();
 
         constructed
-            .borrow()
+            .read()
+            .expect(R_FAIL)
             .iter()
-            .zip(bdd.var_deps.borrow().iter())
+            .zip(bdd.var_deps.read().expect(R_FAIL).iter())
             .for_each(|(left, right)| {
                 assert!(*left == *right);
             });

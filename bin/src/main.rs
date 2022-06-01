@@ -216,7 +216,7 @@ impl App {
                 }
 
                 if self.stable {
-                    for model in naive_adf.stable() {
+                    for model in naive_adf.stable_par() {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }

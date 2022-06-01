@@ -2,27 +2,33 @@
 
 use super::{Term, Var};
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::Display,
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct VarContainer {
-    names: Rc<RefCell<Vec<String>>>,
-    mapping: Rc<RefCell<HashMap<String, usize>>>,
+    names: Arc<RwLock<Vec<String>>>,
+    mapping: Arc<RwLock<HashMap<String, usize>>>,
 }
 
 impl Default for VarContainer {
     fn default() -> Self {
         VarContainer {
-            names: Rc::new(RefCell::new(Vec::new())),
-            mapping: Rc::new(RefCell::new(HashMap::new())),
+            names: Arc::new(RwLock::new(Vec::new())),
+            mapping: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
 
 impl VarContainer {
     pub fn from_parser(
-        names: Rc<RefCell<Vec<String>>>,
-        mapping: Rc<RefCell<HashMap<String, usize>>>,
+        names: Arc<RwLock<Vec<String>>>,
+        mapping: Arc<RwLock<HashMap<String, usize>>>,
     ) -> VarContainer {
         VarContainer { names, mapping }
     }
@@ -35,16 +41,24 @@ impl VarContainer {
     }
 
     pub fn variable(&self, name: &str) -> Option<Var> {
-        self.mapping.borrow().get(name).map(|val| Var(*val))
+        self.mapping
+            .read()
+            .expect("Failed to gain read lock")
+            .get(name)
+            .map(|val| Var(*val))
     }
 
     pub fn name(&self, var: Var) -> Option<String> {
-        self.names.borrow().get(var.value()).cloned()
+        self.names
+            .read()
+            .expect("Failed to gain read lock")
+            .get(var.value())
+            .cloned()
     }
 
     #[allow(dead_code)]
-    pub fn names(&self) -> Rc<RefCell<Vec<String>>> {
-        Rc::clone(&self.names)
+    pub fn names(&self) -> Arc<RwLock<Vec<String>>> {
+        Arc::clone(&self.names)
     }
 }
 /// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations.
