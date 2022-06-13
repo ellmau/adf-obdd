@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Borrow,
-    ops::{BitAnd, BitXor},
+    ops::{BitAnd, BitOr, BitXor},
 };
 
 use crate::datatypes::Term;
@@ -42,14 +42,58 @@ impl NoGood {
         result
     }
 
+    /// Returns [None] if the pair contains inconsistent pairs.
+    /// Otherwise it returns a [NoGood] which represents the set values.
+    pub fn try_from_pair_iter(
+        pair_iter: &mut impl Iterator<Item = (usize, bool)>,
+    ) -> Option<NoGood> {
+        let mut result = Self::default();
+        let mut visit = false;
+        for (idx, val) in pair_iter {
+            visit = true;
+            let idx:u32 = idx.try_into().expect("no-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
+            let is_new = result.active.insert(idx);
+            let upd = if val {
+                result.value.insert(idx)
+            } else {
+                result.value.remove(idx)
+            };
+            // if the state is not new and the value is changed
+            if !is_new && upd {
+                return None;
+            }
+        }
+        if visit {
+            Some(result)
+        } else {
+            None
+        }
+    }
+
+    /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
+    pub fn update_term_vec(&self, term_vec: &[Term]) -> Vec<Term> {
+        term_vec.iter().enumerate().map(|(idx,val)|{
+	    let idx:u32 = idx.try_into().expect("no-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
+	    if self.active.contains(idx){
+		if self.value.contains(idx){
+		    Term::TOP
+		}else{
+		    Term::BOT
+		}
+	    }else{
+		*val
+	    }
+	}).collect()
+    }
+
     /// Given a [NoGood] and another one, conclude a non-conflicting value which can be concluded on basis of the given one.
     pub fn conclude(&self, other: &NoGood) -> Option<(usize, bool)> {
+        log::debug!("conclude: {:?} other {:?}", self, other);
         let implication = self
             .active
             .borrow()
             .bitxor(other.active.borrow())
             .bitand(self.active.borrow());
-        log::debug!("{:?}", implication);
         if implication.len() == 1 {
             let pos = implication
                 .min()
@@ -58,6 +102,12 @@ impl NoGood {
         } else {
             None
         }
+    }
+
+    /// Updates the [NoGood] and a second one in a disjunctive (bitor) manner.
+    pub fn disjunction(&mut self, other: &NoGood) {
+        self.active = self.active.borrow().bitor(&other.active);
+        self.value = self.value.borrow().bitor(&other.value);
     }
 
     /// Returns [true] if the other [NoGood] matches with all the assignments of the current [NoGood].
@@ -89,6 +139,7 @@ impl NoGood {
 }
 
 /// A structure to store [NoGoods][NoGood] and offer operations and deductions based on them.
+// TODO:make struct crate-private
 #[derive(Debug)]
 pub struct NoGoodStore {
     store: Vec<Vec<NoGood>>,
@@ -100,12 +151,12 @@ impl NoGoodStore {
     pub fn new(size: u32) -> NoGoodStore {
         Self {
             store: vec![Vec::new(); size as usize],
-            duplicates: DuplicateElemination::None,
+            duplicates: DuplicateElemination::Equiv,
         }
     }
 
     /// Tries to create a new [NoGoodStore].
-    /// Does not succeed if the size is too big for the underlying [NoGood] implementation
+    /// Does not succeed if the size is too big for the underlying [NoGood] implementation.
     pub fn try_new(size: usize) -> Option<NoGoodStore> {
         match TryInto::<u32>::try_into(size) {
             Ok(val) => Some(Self::new(val)),
@@ -113,7 +164,7 @@ impl NoGoodStore {
         }
     }
 
-    /// Sets the behaviour when managing duplicates
+    /// Sets the behaviour when managing duplicates.
     pub fn set_dup_elem(&mut self, mode: DuplicateElemination) {
         self.duplicates = mode;
     }
@@ -141,6 +192,44 @@ impl NoGoodStore {
                 self.store[idx].push(nogood);
             }
         }
+    }
+
+    /// Draws a (Conclusion)[NoGood], based on the [NoGoodstore] and the given [NoGood].
+    pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
+        let mut result = NoGood::default();
+        let mut concl = self
+            .store
+            .iter()
+            .enumerate()
+            .filter(|(len, _vec)| *len <= nogood.len())
+            .filter_map(|(_len, val)| {
+                NoGood::try_from_pair_iter(&mut val.iter().filter_map(|ng| ng.conclude(nogood)))
+            });
+        concl.try_fold(&mut result, |acc, ng| {
+            //            if let Some(ng) = val {
+            if ng.is_violating(acc) {
+                None
+            } else {
+                acc.disjunction(&ng);
+                Some(acc)
+            }
+            //          } else {
+            //            None
+            //   }
+        })?;
+        for (_, vec) in self
+            .store
+            .iter()
+            .enumerate()
+            .filter(|(len, _vec)| *len <= nogood.len())
+        {
+            for elem in vec {
+                if result.is_violating(elem) {
+                    return None;
+                }
+            }
+        }
+        Some(result)
     }
 }
 
@@ -183,14 +272,8 @@ mod test {
     #[test]
     fn conclude() {
         let ng1 = NoGood::from_term_vec(&[Term::TOP, Term(22), Term::TOP, Term::BOT, Term::TOP]);
-        let ng2 = NoGood::from_term_vec(&vec![
-            Term::TOP,
-            Term(22),
-            Term(13232),
-            Term::BOT,
-            Term::TOP,
-        ]);
-        let ng3 = NoGood::from_term_vec(&vec![
+        let ng2 = NoGood::from_term_vec(&[Term::TOP, Term(22), Term(13232), Term::BOT, Term::TOP]);
+        let ng3 = NoGood::from_term_vec(&[
             Term::TOP,
             Term(22),
             Term(13232),
@@ -215,19 +298,18 @@ mod test {
         assert_eq!(ng5.conclude(&ng6), Some((0, true)));
         assert_eq!(ng6.conclude(&ng5), None);
         assert_eq!(ng4.conclude(&ng5), None);
+
+        let ng_a = NoGood::from_term_vec(&[Term::BOT, Term(22)]);
+        let ng_b = NoGood::from_term_vec(&[Term(22), Term::TOP]);
+
+        assert_eq!(ng_a.conclude(&ng_b), Some((0, true)));
     }
 
     #[test]
     fn violate() {
         let ng1 = NoGood::from_term_vec(&[Term::TOP, Term(22), Term::TOP, Term::BOT, Term::TOP]);
-        let ng2 = NoGood::from_term_vec(&vec![
-            Term::TOP,
-            Term(22),
-            Term(13232),
-            Term::BOT,
-            Term::TOP,
-        ]);
-        let ng3 = NoGood::from_term_vec(&vec![
+        let ng2 = NoGood::from_term_vec(&[Term::TOP, Term(22), Term(13232), Term::BOT, Term::TOP]);
+        let ng3 = NoGood::from_term_vec(&[
             Term::TOP,
             Term(22),
             Term(13232),
@@ -316,5 +398,53 @@ mod test {
 
         assert!(NoGood::from_term_vec(&[Term(22), Term::BOT, Term(22)])
             .is_violating(&NoGood::from_term_vec(&[Term(22), Term::BOT, Term::BOT])));
+    }
+
+    #[test]
+    fn ng_store_conclusions() {
+        let mut ngs = NoGoodStore::new(5);
+
+        let ng1 = NoGood::from_term_vec(&[Term::BOT]);
+
+        ngs.add_ng(ng1.clone());
+        assert_eq!(ng1.conclude(&ng1), None);
+        assert_eq!(
+            ng1.conclude(&NoGood::from_term_vec(&[Term(33)])),
+            Some((0, true))
+        );
+        assert_eq!(ngs.conclusions(&ng1), None);
+        assert_ne!(ngs.conclusions(&NoGood::from_term_vec(&[Term(33)])), None);
+        assert_eq!(
+            ngs.conclusions(&NoGood::from_term_vec(&[Term(33)]))
+                .expect("just checked with prev assertion")
+                .update_term_vec(&[Term(33)]),
+            vec![Term::TOP]
+        );
+
+        let ng2 = NoGood::from_term_vec(&[Term(123), Term::TOP, Term(234), Term(345)]);
+        let ng3 = NoGood::from_term_vec(&[Term::TOP, Term::BOT, Term::TOP, Term(345)]);
+
+        ngs.add_ng(ng2);
+        ngs.add_ng(ng3);
+
+        log::debug!("issues start here");
+        assert!(ngs
+            .conclusions(&NoGood::from_term_vec(&[Term::TOP]))
+            .is_some());
+        assert_eq!(
+            ngs.conclusions(&NoGood::from_term_vec(&[Term::TOP]))
+                .expect("just checked with prev assertion")
+                .update_term_vec(&[Term::TOP, Term(4), Term(5), Term(6), Term(7)]),
+            vec![Term::TOP, Term::BOT, Term(5), Term(6), Term(7)]
+        );
+        assert!(ngs
+            .conclusions(&NoGood::from_term_vec(&[
+                Term::TOP,
+                Term::BOT,
+                Term(5),
+                Term(6),
+                Term(7)
+            ]))
+            .is_some());
     }
 }
