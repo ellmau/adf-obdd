@@ -138,6 +138,12 @@ impl NoGood {
     }
 }
 
+impl From<&[Term]> for NoGood {
+    fn from(term_vec: &[Term]) -> Self {
+        Self::from_term_vec(term_vec)
+    }
+}
+
 /// A structure to store [NoGoods][NoGood] and offer operations and deductions based on them.
 // TODO:make struct crate-private
 #[derive(Debug)]
@@ -197,37 +203,29 @@ impl NoGoodStore {
     /// Draws a (Conclusion)[NoGood], based on the [NoGoodstore] and the given [NoGood].
     pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
         let mut result = NoGood::default();
-        let mut concl = self
-            .store
+        self.store
             .iter()
             .enumerate()
             .filter(|(len, _vec)| *len <= nogood.len())
             .filter_map(|(_len, val)| {
                 NoGood::try_from_pair_iter(&mut val.iter().filter_map(|ng| ng.conclude(nogood)))
-            });
-        concl.try_fold(&mut result, |acc, ng| {
-            //            if let Some(ng) = val {
-            if ng.is_violating(acc) {
-                None
-            } else {
-                acc.disjunction(&ng);
-                Some(acc)
-            }
-            //          } else {
-            //            None
-            //   }
-        })?;
-        for (_, vec) in self
+            })
+            .try_fold(&mut result, |acc, ng| {
+                if ng.is_violating(acc) {
+                    None
+                } else {
+                    acc.disjunction(&ng);
+                    Some(acc)
+                }
+            })?;
+        if self
             .store
             .iter()
             .enumerate()
             .filter(|(len, _vec)| *len <= nogood.len())
+            .any(|(_, vec)| vec.iter().any(|elem| result.is_violating(elem)))
         {
-            for elem in vec {
-                if result.is_violating(elem) {
-                    return None;
-                }
-            }
+            return None;
         }
         Some(result)
     }
@@ -432,7 +430,7 @@ mod test {
             .conclusions(&NoGood::from_term_vec(&[Term::TOP]))
             .is_some());
         assert_eq!(
-            ngs.conclusions(&NoGood::from_term_vec(&[Term::TOP]))
+            ngs.conclusions(&[Term::TOP].as_slice().into())
                 .expect("just checked with prev assertion")
                 .update_term_vec(&[Term::TOP, Term(4), Term(5), Term(6), Term(7)]),
             vec![Term::TOP, Term::BOT, Term(5), Term(6), Term(7)]
