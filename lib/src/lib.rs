@@ -180,9 +180,8 @@ for model in adf.complete() {
 pub mod adf;
 pub mod adfbiodivine;
 pub mod datatypes;
+pub mod nogoods;
 pub mod obdd;
 pub mod parser;
-pub mod nogoods;
 #[cfg(test)]
 mod test;
-//pub mod obdd2;
