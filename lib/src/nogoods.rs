@@ -71,10 +71,14 @@ impl NoGood {
     }
 
     /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
-    pub fn update_term_vec(&self, term_vec: &[Term]) -> Vec<Term> {
+    pub fn update_term_vec(&self, term_vec: &[Term], update: &mut bool) -> Vec<Term> {
+        *update = false;
         term_vec.iter().enumerate().map(|(idx,val)|{
 	    let idx:u32 = idx.try_into().expect("no-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
 	    if self.active.contains(idx){
+		if !val.is_truth_value() {
+		    *update = true;
+		}
 		if self.value.contains(idx){
 		    Term::TOP
 		}else{
@@ -202,7 +206,7 @@ impl NoGoodStore {
 
     /// Draws a (Conclusion)[NoGood], based on the [NoGoodstore] and the given [NoGood].
     pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
-        let mut result = NoGood::default();
+        let mut result = nogood.clone();
         self.store
             .iter()
             .enumerate()
@@ -223,7 +227,10 @@ impl NoGoodStore {
             .iter()
             .enumerate()
             .filter(|(len, _vec)| *len <= nogood.len())
-            .any(|(_, vec)| vec.iter().any(|elem| result.is_violating(elem)))
+            .any(|(_, vec)| {
+                vec.iter()
+                    .any(|elem| result.is_violating(elem) || elem.is_violating(nogood))
+            })
         {
             return None;
         }
@@ -415,7 +422,7 @@ mod test {
         assert_eq!(
             ngs.conclusions(&NoGood::from_term_vec(&[Term(33)]))
                 .expect("just checked with prev assertion")
-                .update_term_vec(&[Term(33)]),
+                .update_term_vec(&[Term(33)], &mut false),
             vec![Term::TOP]
         );
 
@@ -432,7 +439,7 @@ mod test {
         assert_eq!(
             ngs.conclusions(&[Term::TOP].as_slice().into())
                 .expect("just checked with prev assertion")
-                .update_term_vec(&[Term::TOP, Term(4), Term(5), Term(6), Term(7)]),
+                .update_term_vec(&[Term::TOP, Term(4), Term(5), Term(6), Term(7)], &mut false),
             vec![Term::TOP, Term::BOT, Term(5), Term(6), Term(7)]
         );
         assert!(ngs
@@ -444,5 +451,138 @@ mod test {
                 Term(7)
             ]))
             .is_some());
+
+        ngs = NoGoodStore::new(10);
+        ngs.add_ng([Term::BOT].as_slice().into());
+        ngs.add_ng(
+            [Term::TOP, Term::BOT, Term(33), Term::TOP]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng(
+            [Term::TOP, Term::BOT, Term(33), Term(33), Term::BOT]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng([Term::TOP, Term::TOP].as_slice().into());
+
+        let interpr: Vec<Term> = vec![
+            Term(123),
+            Term(233),
+            Term(345),
+            Term(456),
+            Term(567),
+            Term(678),
+            Term(789),
+            Term(899),
+            Term(999),
+            Term(1000),
+        ];
+        let concl = ngs.conclusions(&interpr.as_slice().into());
+        assert_eq!(concl, Some(NoGood::from_term_vec(&[Term::TOP])));
+        let mut update = false;
+        let new_interpr = concl
+            .expect("just tested in assert")
+            .update_term_vec(&interpr, &mut update);
+        assert_eq!(
+            new_interpr,
+            vec![
+                Term::TOP,
+                Term(233),
+                Term(345),
+                Term(456),
+                Term(567),
+                Term(678),
+                Term(789),
+                Term(899),
+                Term(999),
+                Term(1000)
+            ]
+        );
+        assert!(update);
+
+        let new_int_2 = ngs
+            .conclusions(&new_interpr.as_slice().into())
+            .map(|val| val.update_term_vec(&new_interpr, &mut update))
+            .expect("Should return a value");
+        assert_eq!(
+            new_int_2,
+            vec![
+                Term::TOP,
+                Term::BOT,
+                Term(345),
+                Term(456),
+                Term(567),
+                Term(678),
+                Term(789),
+                Term(899),
+                Term(999),
+                Term(1000)
+            ]
+        );
+        assert!(update);
+
+        let new_int_3 = ngs
+            .conclusions(&new_int_2.as_slice().into())
+            .map(|val| val.update_term_vec(&new_int_2, &mut update))
+            .expect("Should return a value");
+
+        assert_eq!(
+            new_int_3,
+            vec![
+                Term::TOP,
+                Term::BOT,
+                Term(345),
+                Term::BOT,
+                Term::TOP,
+                Term(678),
+                Term(789),
+                Term(899),
+                Term(999),
+                Term(1000)
+            ]
+        );
+        assert!(update);
+
+        let concl4 = ngs.conclusions(&new_int_3.as_slice().into());
+        assert_ne!(concl4, None);
+
+        let new_int_4 = ngs
+            .conclusions(&new_int_3.as_slice().into())
+            .map(|val| val.update_term_vec(&new_int_3, &mut update))
+            .expect("Should return a value");
+
+        assert_eq!(
+            new_int_4,
+            vec![
+                Term::TOP,
+                Term::BOT,
+                Term(345),
+                Term::BOT,
+                Term::TOP,
+                Term(678),
+                Term(789),
+                Term(899),
+                Term(999),
+                Term(1000)
+            ]
+        );
+        assert!(!update);
+
+        // inconsistence
+        let interpr = vec![
+            Term::TOP,
+            Term::TOP,
+            Term::BOT,
+            Term::BOT,
+            Term(111),
+            Term(678),
+            Term(789),
+            Term(899),
+            Term(999),
+            Term(1000),
+        ];
+
+        assert_eq!(ngs.conclusions(&interpr.as_slice().into()), None);
     }
 }
