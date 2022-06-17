@@ -71,6 +71,7 @@ impl NoGood {
     }
 
     /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
+    /// The parameter _update_ is set to [`true`] if there has been an update and to [`false`] otherwise
     pub fn update_term_vec(&self, term_vec: &[Term], update: &mut bool) -> Vec<Term> {
         *update = false;
         term_vec.iter().enumerate().map(|(idx,val)|{
@@ -205,6 +206,7 @@ impl NoGoodStore {
     }
 
     /// Draws a (Conclusion)[NoGood], based on the [NoGoodstore] and the given [NoGood].
+    /// *Returns* [None] if there is a conflict
     pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
         let mut result = nogood.clone();
         self.store
@@ -236,6 +238,25 @@ impl NoGoodStore {
         }
         Some(result)
     }
+
+    /// Constructs the Closure of the conclusions drawn by the nogoods with respect to the given `interpretation`
+    pub(crate) fn conclusion_closure(&self, interpretation: &[Term]) -> ClosureResult {
+        let mut update = true;
+        let mut result = match self.conclusions(&interpretation.into()) {
+            Some(val) => val.update_term_vec(interpretation, &mut update),
+            None => return ClosureResult::Inconsistent,
+        };
+        if !update {
+            return ClosureResult::NoUpdate;
+        }
+        while update {
+            match self.conclusions(&result.as_slice().into()) {
+                Some(val) => result = val.update_term_vec(&result, &mut update),
+                None => return ClosureResult::Inconsistent,
+            }
+        }
+        ClosureResult::Update(result)
+    }
 }
 
 /// Allows to define how costly the DuplicateElemination is done.
@@ -247,6 +268,40 @@ pub enum DuplicateElemination {
     Equiv,
     /// Check for subsumptions
     Subsume,
+}
+
+/// If the closure had some issues, it is represented with this enum
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ClosureResult {
+    Update(Vec<Term>),
+    NoUpdate,
+    Inconsistent,
+}
+
+impl ClosureResult {
+    pub fn is_update(&self) -> bool {
+        matches!(self, Self::Update(_))
+    }
+
+    pub fn is_no_update(&self) -> bool {
+        matches!(self, Self::NoUpdate)
+    }
+
+    pub fn is_inconsistent(&self) -> bool {
+        matches!(self, Self::Inconsistent)
+    }
+}
+
+impl TryInto<Vec<Term>> for ClosureResult {
+    type Error = &'static str;
+
+    fn try_into(self) -> Result<Vec<Term>, Self::Error> {
+        match self {
+            ClosureResult::Update(val) => Ok(val),
+            ClosureResult::NoUpdate => Err("No update occurred, use the old value instead"),
+            ClosureResult::Inconsistent => Err("Inconsistency occurred"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -584,5 +639,83 @@ mod test {
         ];
 
         assert_eq!(ngs.conclusions(&interpr.as_slice().into()), None);
+    }
+
+    #[test]
+    fn conclusion_closure() {
+        let mut ngs = NoGoodStore::new(10);
+        ngs.add_ng([Term::BOT].as_slice().into());
+        ngs.add_ng(
+            [Term::TOP, Term::BOT, Term(33), Term::TOP]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng(
+            [Term::TOP, Term::BOT, Term(33), Term(33), Term::BOT]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng([Term::TOP, Term::TOP].as_slice().into());
+
+        let interpr: Vec<Term> = vec![
+            Term(123),
+            Term(233),
+            Term(345),
+            Term(456),
+            Term(567),
+            Term(678),
+            Term(789),
+            Term(899),
+            Term(999),
+            Term(1000),
+        ];
+
+        let result = ngs.conclusion_closure(&interpr);
+        assert!(result.is_update());
+        let resultint: Vec<Term> = result.try_into().expect("just checked conversion");
+        assert_eq!(
+            resultint,
+            vec![
+                Term::TOP,
+                Term::BOT,
+                Term(345),
+                Term::BOT,
+                Term::TOP,
+                Term(678),
+                Term(789),
+                Term(899),
+                Term(999),
+                Term(1000)
+            ]
+        );
+        let result_no_upd = ngs.conclusion_closure(&resultint);
+
+        assert!(result_no_upd.is_no_update());
+        assert_eq!(
+            <ClosureResult as TryInto<Vec<Term>>>::try_into(result_no_upd)
+                .expect_err("just checked that it is an error"),
+            "No update occurred, use the old value instead"
+        );
+
+        let inconsistent_interpr = vec![
+            Term::TOP,
+            Term::TOP,
+            Term::BOT,
+            Term::BOT,
+            Term(111),
+            Term(678),
+            Term(789),
+            Term(899),
+            Term(999),
+            Term(1000),
+        ];
+        let result_inconsistent = ngs.conclusion_closure(&inconsistent_interpr);
+
+        assert!(result_inconsistent.is_inconsistent());
+        assert_eq!(
+            <ClosureResult as TryInto<Vec<Term>>>::try_into(result_inconsistent)
+                .expect_err("just checked that it is an error"),
+            "Inconsistency occurred"
+        );
     }
 }
