@@ -42,6 +42,17 @@ impl NoGood {
         result
     }
 
+    /// Creates a [NoGood] representing an atomic assignment.
+    pub fn new_single_nogood(pos: usize, val: bool) -> NoGood {
+        let mut result = Self::default();
+        let pos:u32 = pos.try_into().expect("nog-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
+        result.active.insert(pos);
+        if val {
+            result.value.insert(pos);
+        }
+        result
+    }
+
     /// Returns [None] if the pair contains inconsistent pairs.
     /// Otherwise it returns a [NoGood] which represents the set values.
     pub fn try_from_pair_iter(
@@ -231,7 +242,7 @@ impl NoGoodStore {
             .filter(|(len, _vec)| *len <= nogood.len())
             .any(|(_, vec)| {
                 vec.iter()
-                    .any(|elem| result.is_violating(elem) || elem.is_violating(nogood))
+                    .any(|elem| elem.is_violating(&result) || elem.is_violating(nogood))
             })
         {
             return None;
@@ -383,6 +394,8 @@ mod test {
         assert!(!ng1.is_violating(&ng4));
         assert!(ng2.is_violating(&ng3));
         assert!(!ng3.is_violating(&ng2));
+
+        assert_eq!(ng4, NoGood::new_single_nogood(0, true));
     }
 
     #[test]
@@ -639,6 +652,35 @@ mod test {
         ];
 
         assert_eq!(ngs.conclusions(&interpr.as_slice().into()), None);
+
+        ngs = NoGoodStore::new(6);
+        ngs.add_ng(
+            [Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng(
+            [Term(1), Term(1), Term(8), Term(0), Term(0), Term(11)]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng([Term(22), Term(1)].as_slice().into());
+
+        assert_eq!(
+            ngs.conclusions(
+                &[Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)]
+                    .as_slice()
+                    .into(),
+            ),
+            Some(NoGood::from_term_vec(&[
+                Term(1),
+                Term(0),
+                Term(3),
+                Term(9),
+                Term(0),
+                Term(1)
+            ]))
+        );
     }
 
     #[test]
@@ -716,6 +758,24 @@ mod test {
             <ClosureResult as TryInto<Vec<Term>>>::try_into(result_inconsistent)
                 .expect_err("just checked that it is an error"),
             "Inconsistency occurred"
+        );
+
+        ngs = NoGoodStore::new(6);
+        ngs.add_ng(
+            [Term(1), Term(1), Term(1), Term(0), Term(0), Term(1)]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng(
+            [Term(1), Term(1), Term(8), Term(0), Term(0), Term(11)]
+                .as_slice()
+                .into(),
+        );
+        ngs.add_ng([Term(22), Term(1)].as_slice().into());
+
+        assert_eq!(
+            ngs.conclusion_closure(&[Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)]),
+            ClosureResult::Update(vec![Term(1), Term(0), Term(0), Term(1), Term(0), Term(1)])
         );
     }
 }

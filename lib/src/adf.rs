@@ -5,6 +5,10 @@ This module describes the abstract dialectical framework.
  - computing fixpoints
 */
 
+pub mod heuristics;
+
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,6 +19,7 @@ use crate::{
         },
         FacetCounts, ModelCounts, Term, Var,
     },
+    nogoods::{NoGood, NoGoodStore},
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
@@ -405,6 +410,10 @@ impl Adf {
         true
     }
 
+    fn is_two_valued(&self, interpretation: &[Term]) -> bool {
+        interpretation.iter().all(|t| t.is_truth_value())
+    }
+
     fn two_val_model_counts<H>(&mut self, interpr: &[Term], heuristic: H) -> Vec<Vec<Term>>
     where
         H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
@@ -590,6 +599,26 @@ impl Adf {
         }
     }
 
+    /// Constructs the fixpoint of the given interpretation with respect to the ADF.
+    /// sets _update_ to [`true`] if the value has been updated and to [`false`] otherwise.
+    fn update_interpretation_fixpoint_upd(
+        &mut self,
+        interpretation: &[Term],
+        update: &mut bool,
+    ) -> Vec<Term> {
+        let mut cur_int = interpretation.to_vec();
+        *update = false;
+        loop {
+            let new_int = self.update_interpretation(interpretation);
+            if cur_int == new_int {
+                return cur_int;
+            } else {
+                cur_int = new_int;
+                *update = true;
+            }
+        }
+    }
+
     fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
         self.apply_interpretation(interpretation, interpretation)
     }
@@ -696,6 +725,101 @@ impl Adf {
                 (mcs, (cfc, fc))
             })
             .collect::<Vec<_>>()
+    }
+
+    fn stable_nogood<H>(&mut self, interpretation: &[Term], heuristic: H) -> Vec<Vec<Term>>
+    where
+        H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
+    {
+        let mut result = Vec::new();
+        let mut cur_interpr = interpretation.to_vec();
+        let mut ng_store = NoGoodStore::new(
+            self.ac
+                .len()
+                .try_into()
+                .expect("Expecting only u32 many statements"),
+        );
+        let mut stack: Vec<(bool, NoGood)> = Vec::new();
+        let mut interpr_history: Vec<Vec<Term>> = Vec::new();
+        let mut backtrack = false;
+        let mut update_ng = true;
+        let mut update_fp = false;
+        let mut choice = false;
+
+        log::debug!("start learning loop");
+        loop {
+            log::trace!("interpr: {:?}", cur_interpr);
+            log::trace!("choice: {}", choice);
+            if choice {
+                choice = false;
+                if let Some((var, term)) = heuristic(&*self, &cur_interpr) {
+                    log::trace!("choose {}->{}", var, term.is_true());
+                    interpr_history.push(cur_interpr.to_vec());
+                    cur_interpr[var.value()] = term;
+                    stack.push((true, cur_interpr.as_slice().into()));
+                } else {
+                    backtrack = true;
+                }
+            }
+            update_ng = true;
+            log::trace!("backtrack: {}", backtrack);
+            if backtrack {
+                backtrack = false;
+                if stack.is_empty() {
+                    break;
+                }
+                while let Some((choice, ng)) = stack.pop() {
+                    log::trace!("adding ng: {:?}", ng);
+                    ng_store.add_ng(ng);
+
+                    if choice {
+                        cur_interpr = interpr_history.pop().expect("both stacks (interpr_history and `stack`) should always be synchronous");
+                        log::trace!(
+                            "choice found, reverting interpretation to {:?}",
+                            cur_interpr
+                        );
+                        break;
+                    }
+                }
+            }
+            match ng_store.conclusion_closure(&cur_interpr) {
+                crate::nogoods::ClosureResult::Update(new_int) => {
+                    cur_interpr = new_int;
+                    log::trace!("ng update: {:?}", cur_interpr);
+                    stack.push((false, cur_interpr.as_slice().into()));
+                }
+                crate::nogoods::ClosureResult::NoUpdate => {
+                    log::trace!("no update");
+                    update_ng = false;
+                }
+                crate::nogoods::ClosureResult::Inconsistent => {
+                    log::trace!("inconsistency");
+                    backtrack = true;
+                    continue;
+                }
+            }
+
+            cur_interpr = self.update_interpretation_fixpoint_upd(&cur_interpr, &mut update_fp);
+            if update_fp {
+                log::trace!("fixpount updated");
+                stack.push((false, cur_interpr.as_slice().into()));
+            } else if !update_ng {
+                // No updates done this loop
+                if !self.is_two_valued(&cur_interpr) {
+                    choice = true;
+                } else if self.stability_check(&cur_interpr) {
+                    // stable model found
+                    stack.push((false, cur_interpr.as_slice().into()));
+                    result.push(cur_interpr.clone());
+                    backtrack = true;
+                } else {
+                    // not stable
+                    stack.push((false, cur_interpr.as_slice().into()));
+                    backtrack = true;
+                }
+            }
+        }
+        result
     }
 }
 
@@ -880,6 +1004,29 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
         assert_eq!(adf.stable_count_optimisation_heu_a().next(), None);
         assert_eq!(adf.stable_count_optimisation_heu_b().next(), None);
+    }
+
+    #[test]
+    fn stable_nogood() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let grounded = adf.grounded();
+        let stable = adf.stable_nogood(&grounded, crate::adf::heuristics::heu_simple);
+
+        assert_eq!(
+            stable,
+            vec![vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ]]
+        );
     }
 
     #[test]
