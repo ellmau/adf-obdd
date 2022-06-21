@@ -21,3 +21,6 @@ tramp
 *_flymake*
 
 /tests/out/
+
+# Ignore direnv data
+/.direnv/
