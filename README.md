@@ -139,7 +139,7 @@ the Bundesministerium für Bildung und Forschung (BMBF, Federal Ministry of Educ
 and by the [Center for Advancing Electronics Dresden](https://cfaed.tu-dresden.de) (cfaed).
 
 # Affiliation 
-This work has been party developed by the [Knowledge-Based Systems Group](http://kbs.inf.tu-dresden.de/), [Faculty of Computer Science](https://tu-dresden.de/ing/informatik)  of [TU Dresden](https://tu-dresden.de).
+This work has been partly developed by the [Knowledge-Based Systems Group](http://kbs.inf.tu-dresden.de/), [Faculty of Computer Science](https://tu-dresden.de/ing/informatik)  of [TU Dresden](https://tu-dresden.de).
 
 # Disclaimer
 Hosting content here does not establish any formal or legal relation to TU Dresden
