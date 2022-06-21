@@ -24,3 +24,6 @@ tramp
 
 # Ignore direnv data
 /.direnv/
+
+# ignore perfdata
+perf.data
