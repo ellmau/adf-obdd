@@ -1066,6 +1066,19 @@ mod test {
             stable.collect::<Vec<_>>(),
             vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
         );
+
+        let stable = adf.stable_nogood(Heuristic::Custom(&|_adf, interpr| {
+            for (idx, term) in interpr.iter().enumerate() {
+                if !term.is_truth_value() {
+                    return Some((Var(idx), Term::BOT));
+                }
+            }
+            None
+        }));
+        assert_eq!(
+            stable.collect::<Vec<_>>(),
+            vec![vec![Term(0), Term(1)], vec![Term(1), Term(0)]]
+        );
     }
 
     #[test]
