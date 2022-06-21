@@ -85,24 +85,28 @@ impl NoGood {
     /// The parameter _update_ is set to [`true`] if there has been an update and to [`false`] otherwise
     pub fn update_term_vec(&self, term_vec: &[Term], update: &mut bool) -> Vec<Term> {
         *update = false;
-        term_vec.iter().enumerate().map(|(idx,val)|{
+        term_vec
+            .iter()
+            .enumerate()
+            .map(|(idx, val)| {
                 let idx: u32 = idx.try_into().expect(
                     "no-good learner implementation is based on the assumption \
                      that only u32::MAX-many variables are in place",
                 );
-	    if self.active.contains(idx){
-		if !val.is_truth_value() {
-		    *update = true;
-		}
-		if self.value.contains(idx){
-		    Term::TOP
-		}else{
-		    Term::BOT
-		}
-	    }else{
-		*val
-	    }
-	}).collect()
+                if self.active.contains(idx) {
+                    if !val.is_truth_value() {
+                        *update = true;
+                    }
+                    if self.value.contains(idx) {
+                        Term::TOP
+                    } else {
+                        Term::BOT
+                    }
+                } else {
+                    *val
+                }
+            })
+            .collect()
     }
 
     /// Given a [NoGood] and another one, conclude a non-conflicting value which can be concluded on basis of the given one.
