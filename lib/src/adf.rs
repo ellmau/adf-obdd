@@ -7,8 +7,6 @@ This module describes the abstract dialectical framework.
 
 pub mod heuristics;
 
-use std::cmp::Ordering;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,6 +21,8 @@ use crate::{
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
+
+use self::heuristics::Heuristic;
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary which relates statements to numbers, a binary decision diagram, and a list of acceptance conditions in [`Term`][crate::datatypes::Term] representation.
@@ -727,7 +727,20 @@ impl Adf {
             .collect::<Vec<_>>()
     }
 
-    fn stable_nogood<H>(&mut self, interpretation: &[Term], heuristic: H) -> Vec<Vec<Term>>
+    /// Computes the stable extensions of a given [`Adf`], using the [`NoGood`]-learner
+    pub fn stable_nogood<'a, 'c>(
+        &'a mut self,
+        heuristic: Heuristic,
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+    {
+        let grounded = self.grounded();
+        let heu = heuristic.get_heuristic();
+        self.stable_nogood_internal(&grounded, heu).into_iter()
+    }
+
+    fn stable_nogood_internal<H>(&mut self, interpretation: &[Term], heuristic: H) -> Vec<Vec<Term>>
     where
         H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
     {
@@ -742,7 +755,7 @@ impl Adf {
         let mut stack: Vec<(bool, NoGood)> = Vec::new();
         let mut interpr_history: Vec<Vec<Term>> = Vec::new();
         let mut backtrack = false;
-        let mut update_ng = true;
+        let mut update_ng;
         let mut update_fp = false;
         let mut choice = false;
 
@@ -1014,7 +1027,7 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
 
         let grounded = adf.grounded();
-        let stable = adf.stable_nogood(&grounded, crate::adf::heuristics::heu_simple);
+        let stable = adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple);
 
         assert_eq!(
             stable,
@@ -1026,6 +1039,32 @@ mod test {
                 Term::BOT,
                 Term::TOP
             ]]
+        );
+        let mut stable_iter = adf.stable_nogood(Heuristic::Simple);
+        assert_eq!(
+            stable_iter.next(),
+            Some(vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ])
+        );
+
+        assert_eq!(stable_iter.next(), None);
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        let grounded = adf.grounded();
+        let stable = adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple);
+        assert_eq!(stable, vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]);
+
+        let stable = adf.stable_nogood(Heuristic::Simple);
+        assert_eq!(
+            stable.collect::<Vec<_>>(),
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
         );
     }
 

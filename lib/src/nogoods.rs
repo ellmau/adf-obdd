@@ -290,14 +290,18 @@ pub(crate) enum ClosureResult {
 }
 
 impl ClosureResult {
+    /// Dead_code due to (currently) unused utility function for the [ClosureResult] enum.
+    #[allow(dead_code)]
     pub fn is_update(&self) -> bool {
         matches!(self, Self::Update(_))
     }
-
+    /// Dead_code due to (currently) unused utility function for the [ClosureResult] enum.
+    #[allow(dead_code)]
     pub fn is_no_update(&self) -> bool {
         matches!(self, Self::NoUpdate)
     }
-
+    /// Dead_code due to (currently) unused utility function for the [ClosureResult] enum.
+    #[allow(dead_code)]
     pub fn is_inconsistent(&self) -> bool {
         matches!(self, Self::Inconsistent)
     }
