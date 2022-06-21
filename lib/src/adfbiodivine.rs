@@ -319,6 +319,7 @@ impl Adf {
             .collect::<Vec<Vec<Term>>>()
     }
 
+    /// compute the stable representation
     fn stable_representation(&self) -> Bdd {
         log::debug!("[Start] stable representation rewriting");
         self.ac.iter().enumerate().fold(
