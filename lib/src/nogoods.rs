@@ -86,7 +86,10 @@ impl NoGood {
     pub fn update_term_vec(&self, term_vec: &[Term], update: &mut bool) -> Vec<Term> {
         *update = false;
         term_vec.iter().enumerate().map(|(idx,val)|{
-	    let idx:u32 = idx.try_into().expect("no-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
+                let idx: u32 = idx.try_into().expect(
+                    "no-good learner implementation is based on the assumption \
+                     that only u32::MAX-many variables are in place",
+                );
 	    if self.active.contains(idx){
 		if !val.is_truth_value() {
 		    *update = true;
