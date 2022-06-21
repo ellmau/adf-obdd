@@ -327,15 +327,17 @@ impl Adf {
                 &biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
             ),
             |acc, (idx, formula)| {
-                acc.and(&formula.iff(
-                    &self.varset.eval_expression(
-                        &biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(
-                            self.ordering
-                                .name(crate::datatypes::Var(idx))
-                                .expect("Variable should exist"),
+                acc.and(
+                    &formula.iff(
+                        &self.varset.eval_expression(
+                            &biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(
+                                self.ordering
+                                    .name(crate::datatypes::Var(idx))
+                                    .expect("Variable should exist"),
+                            ),
                         ),
                     ),
-                ))
+                )
             },
         )
     }
