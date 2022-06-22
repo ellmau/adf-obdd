@@ -74,6 +74,7 @@ use adf_bdd::adfbiodivine::Adf as BdAdf;
 
 use adf_bdd::parser::AdfParser;
 use clap::Parser;
+use strum::VariantNames;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
@@ -84,7 +85,7 @@ struct App {
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
     #[clap(long = "rust_log", env)]
     rust_log: Option<String>,
-    /// choose the bdd implementation of either 'biodivine', 'naive', or hybrid
+    /// Choose the bdd implementation of either 'biodivine', 'naive', or hybrid
     #[clap(long = "lib", default_value = "hybrid")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
@@ -120,6 +121,12 @@ struct App {
     /// Compute the stable models with a single-formula rewriting on internal representation(only hybrid lib-mode)
     #[clap(long = "stmrew2")]
     stable_rew2: bool,
+    /// Compute the stable models with the nogood-learning based approach
+    #[clap(long = "stmng")]
+    stable_ng: bool,
+    /// Choose which heuristics shall be used by the nogood-learning approach
+    #[clap(long, possible_values = adf_bdd::adf::heuristics::Heuristic::VARIANTS.iter().filter(|&v| v != &"Custom"))]
+    heu: Option<adf_bdd::adf::heuristics::Heuristic<'static>>,
     /// Compute the complete models
     #[clap(long = "com")]
     complete: bool,
@@ -241,6 +248,12 @@ impl App {
 
                 if self.stable_rew || self.stable_rew2 {
                     for model in naive_adf.stable_bdd_representation(&adf) {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_ng {
+                    for model in naive_adf.stable_nogood(self.heu.unwrap_or_default()) {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }

@@ -815,7 +815,7 @@ impl Adf {
             cur_interpr = self.update_interpretation_fixpoint_upd(&cur_interpr, &mut update_fp);
             if update_fp {
                 log::trace!("fixpount updated");
-                stack.push((false, cur_interpr.as_slice().into()));
+                //stack.push((false, cur_interpr.as_slice().into()));
             } else if !update_ng {
                 // No updates done this loop
                 if !self.is_two_valued(&cur_interpr) {
@@ -832,6 +832,7 @@ impl Adf {
                 }
             }
         }
+        log::info!("{ng_store}");
         result
     }
 }

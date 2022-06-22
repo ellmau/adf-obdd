@@ -25,6 +25,16 @@ impl From<usize> for Term {
     }
 }
 
+impl From<bool> for Term {
+    fn from(val: bool) -> Self {
+        if val {
+            Self::TOP
+        } else {
+            Self::BOT
+        }
+    }
+}
+
 impl From<&biodivine_lib_bdd::Bdd> for Term {
     fn from(val: &biodivine_lib_bdd::Bdd) -> Self {
         if val.is_true() {

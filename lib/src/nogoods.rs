@@ -2,7 +2,8 @@
 
 use std::{
     borrow::Borrow,
-    ops::{BitAnd, BitOr, BitXor},
+    fmt::Display,
+    ops::{BitAnd, BitOr, BitXor, BitXorAssign},
 };
 
 use crate::datatypes::Term;
@@ -117,12 +118,22 @@ impl NoGood {
             .borrow()
             .bitxor(other.active.borrow())
             .bitand(self.active.borrow());
-        if implication.len() == 1 {
+
+        let bothactive = self.active.borrow().bitand(other.active.borrow());
+        let mut no_matches = bothactive.borrow().bitand(other.value.borrow());
+        no_matches.bitxor_assign(bothactive.bitand(self.value.borrow()));
+
+        if implication.len() == 1 && no_matches.is_empty() {
             let pos = implication
                 .min()
                 .expect("just checked that there is one element to be found");
+            log::trace!(
+                "Conclude {:?}",
+                Some((pos as usize, !self.value.contains(pos)))
+            );
             Some((pos as usize, !self.value.contains(pos)))
         } else {
+            log::trace!("Nothing to Conclude");
             None
         }
     }
@@ -173,6 +184,16 @@ impl From<&[Term]> for NoGood {
 pub struct NoGoodStore {
     store: Vec<Vec<NoGood>>,
     duplicates: DuplicateElemination,
+}
+
+impl Display for NoGoodStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "NoGoodStats: [")?;
+        for (arity, vec) in self.store.iter().enumerate() {
+            writeln!(f, "{arity}: {}", vec.len())?;
+        }
+        write!(f, "]")
+    }
 }
 
 impl NoGoodStore {
@@ -227,6 +248,7 @@ impl NoGoodStore {
     /// *Returns* [None] if there is a conflict
     pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
         let mut result = nogood.clone();
+        log::trace!("ng-store: {:?}", self.store);
         self.store
             .iter()
             .enumerate()
@@ -236,6 +258,7 @@ impl NoGoodStore {
             })
             .try_fold(&mut result, |acc, ng| {
                 if ng.is_violating(acc) {
+                    log::trace!("ng conclusion violating");
                     None
                 } else {
                     acc.disjunction(&ng);
@@ -261,7 +284,15 @@ impl NoGoodStore {
     pub(crate) fn conclusion_closure(&self, interpretation: &[Term]) -> ClosureResult {
         let mut update = true;
         let mut result = match self.conclusions(&interpretation.into()) {
-            Some(val) => val.update_term_vec(interpretation, &mut update),
+            Some(val) => {
+                log::trace!(
+                    "conclusion-closure step 1: val:{:?} -> {:?}",
+                    val,
+                    val.update_term_vec(interpretation, &mut update)
+                );
+                val.update_term_vec(interpretation, &mut update)
+            }
+
             None => return ClosureResult::Inconsistent,
         };
         if !update {
@@ -786,7 +817,7 @@ mod test {
 
         assert_eq!(
             ngs.conclusion_closure(&[Term(1), Term(3), Term(3), Term(9), Term(0), Term(1)]),
-            ClosureResult::Update(vec![Term(1), Term(0), Term(0), Term(1), Term(0), Term(1)])
+            ClosureResult::Update(vec![Term(1), Term(0), Term(3), Term(9), Term(0), Term(1)])
         );
     }
 }

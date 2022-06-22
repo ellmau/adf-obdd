@@ -1,6 +1,6 @@
 [package]
 name = "adf_bdd-solver"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 license = "MIT"
@@ -14,12 +14,13 @@ name = "adf-bdd"
 path = "src/main.rs"
 
 [dependencies]
-adf_bdd = { version="0.2.4", default-features = false }
-clap = {version = "3.1.18", features = [ "derive", "cargo", "env" ]}
+adf_bdd = { version="0.2.5", path="../lib", default-features = false }
+clap = {version = "3.2.6", features = [ "derive", "cargo", "env" ]}
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }
 serde_json = "1.0"
 env_logger = "0.9"
+strum = { version = "0.24" }
 
 [dev-dependencies]
 assert_cmd = "2.0"
