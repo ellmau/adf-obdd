@@ -33,3 +33,4 @@ adhoccounting = ["adf_bdd/adhoccounting"]    # count models ad-hoc - disable if 
 importexport = ["adf_bdd/importexport"]
 variablelist = [ "HashSet", "adf_bdd/variablelist" ]
 HashSet = ["adf_bdd/HashSet"]
+adhoccountmodels = ["adf_bdd/adhoccountmodels"]

@@ -277,11 +277,14 @@ impl Bdd {
                             hi_paths.models,
                             hidepth
                         );
+                        #[cfg(feature = "adhoccountmodels")]
                         let (lo_exp, hi_exp) = if lodepth > hidepth {
                             (1, 2usize.pow((lodepth - hidepth) as u32))
                         } else {
                             (2usize.pow((hidepth - lodepth) as u32), 1)
                         };
+                        #[cfg(not(feature = "adhoccountmodels"))]
+                        let (lo_exp, hi_exp) = (0, 0);
                         log::debug!("lo_exp {}, hi_exp {}", lo_exp, hi_exp);
                         count_cache.insert(
                             new_term,
@@ -310,11 +313,11 @@ impl Bdd {
     ///
     /// Use the flag `_memoization` to choose between using the memoization approach or not. (This flag does nothing, if the feature `adhoccounting` is used)
     pub fn models(&self, term: Term, _memoization: bool) -> ModelCounts {
-        #[cfg(feature = "adhoccounting")]
+        #[cfg(feature = "adhoccountmodels")]
         {
             return self.count_cache.borrow().get(&term).expect("The term should be originating from this bdd, otherwise the result would be inconsistent anyways").0;
         }
-        #[cfg(not(feature = "adhoccounting"))]
+        #[cfg(not(feature = "adhoccountmodels"))]
         if _memoization {
             self.modelcount_memoization(term).0
         } else {

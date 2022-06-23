@@ -41,7 +41,8 @@ quickcheck_macros = "1"
 
 [features]
 default = ["adhoccounting", "variablelist" ]   
-adhoccounting = []    # count models ad-hoc - disable if counting is not needed
+adhoccounting = []    # count paths ad-hoc - disable if counting is not needed
 importexport = []
 variablelist = [ "HashSet" ]
 HashSet = []
+adhoccountmodels = [ "adhoccounting" ] # count models as well as paths ad-hoc

@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Borrow,
-    fmt::Display,
+    fmt::{Debug, Display},
     ops::{BitAnd, BitOr, BitXor, BitXorAssign},
 };
 
@@ -191,6 +191,7 @@ impl Display for NoGoodStore {
         writeln!(f, "NoGoodStats: [")?;
         for (arity, vec) in self.store.iter().enumerate() {
             writeln!(f, "{arity}: {}", vec.len())?;
+            log::debug!("Nogoods:\n {:?}", vec);
         }
         write!(f, "]")
     }

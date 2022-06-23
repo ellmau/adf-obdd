@@ -136,6 +136,8 @@ impl Adf {
                     }
                 }
             });
+        log::trace!("ordering: {:?}", result.ordering);
+        log::trace!("adf {:?} instantiated with bdd {}", result.ac, result.bdd);
         result
     }
 
@@ -812,6 +814,24 @@ impl Adf {
                 }
             }
 
+            let ac_consistent_interpr = self.apply_interpretation(&self.ac.clone(), &cur_interpr);
+            log::trace!(
+                "checking consistency of {:?} against {:?}",
+                ac_consistent_interpr,
+                cur_interpr
+            );
+            if cur_interpr
+                .iter()
+                .zip(ac_consistent_interpr.iter())
+                .any(|(cur, ac)| {
+                    cur.is_truth_value() && ac.is_truth_value() && cur.is_true() != ac.is_true()
+                })
+            {
+                log::trace!("ac_inconsistency");
+                backtrack = true;
+                continue;
+            }
+
             cur_interpr = self.update_interpretation_fixpoint_upd(&cur_interpr, &mut update_fp);
             if update_fp {
                 log::trace!("fixpount updated");
@@ -827,12 +847,14 @@ impl Adf {
                     backtrack = true;
                 } else {
                     // not stable
+                    log::trace!("2 val not stable");
                     stack.push((false, cur_interpr.as_slice().into()));
                     backtrack = true;
                 }
             }
         }
         log::info!("{ng_store}");
+        log::debug!("{:?}", ng_store);
         result
     }
 }
