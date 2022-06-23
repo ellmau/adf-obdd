@@ -645,6 +645,7 @@ mod test {
         let formula3 = bdd.xor(v1, v2);
         let formula4 = bdd.and(v3, formula2);
 
+        #[cfg(feature = "adhoccountmodels")]
         assert_eq!(bdd.models(v1, false), (1, 1).into());
         let mut x = bdd.count_cache.get_mut().iter().collect::<Vec<_>>();
         x.sort();
@@ -653,20 +654,23 @@ mod test {
             log::debug!("{:?}", x);
         }
         log::debug!("{:?}", x);
-        assert_eq!(bdd.models(formula1, false), (3, 1).into());
-        assert_eq!(bdd.models(formula2, false), (1, 3).into());
-        assert_eq!(bdd.models(formula3, false), (2, 2).into());
-        assert_eq!(bdd.models(formula4, false), (5, 3).into());
-        assert_eq!(bdd.models(Term::TOP, false), (0, 1).into());
-        assert_eq!(bdd.models(Term::BOT, false), (1, 0).into());
+        #[cfg(feature = "adhoccountmodels")]
+        {
+            assert_eq!(bdd.models(formula1, false), (3, 1).into());
+            assert_eq!(bdd.models(formula2, false), (1, 3).into());
+            assert_eq!(bdd.models(formula3, false), (2, 2).into());
+            assert_eq!(bdd.models(formula4, false), (5, 3).into());
+            assert_eq!(bdd.models(Term::TOP, false), (0, 1).into());
+            assert_eq!(bdd.models(Term::BOT, false), (1, 0).into());
 
-        assert_eq!(bdd.models(v1, true), (1, 1).into());
-        assert_eq!(bdd.models(formula1, true), (3, 1).into());
-        assert_eq!(bdd.models(formula2, true), (1, 3).into());
-        assert_eq!(bdd.models(formula3, true), (2, 2).into());
-        assert_eq!(bdd.models(formula4, true), (5, 3).into());
-        assert_eq!(bdd.models(Term::TOP, true), (0, 1).into());
-        assert_eq!(bdd.models(Term::BOT, true), (1, 0).into());
+            assert_eq!(bdd.models(v1, true), (1, 1).into());
+            assert_eq!(bdd.models(formula1, true), (3, 1).into());
+            assert_eq!(bdd.models(formula2, true), (1, 3).into());
+            assert_eq!(bdd.models(formula3, true), (2, 2).into());
+            assert_eq!(bdd.models(formula4, true), (5, 3).into());
+            assert_eq!(bdd.models(Term::TOP, true), (0, 1).into());
+            assert_eq!(bdd.models(Term::BOT, true), (1, 0).into());
+        }
 
         assert_eq!(bdd.paths(formula1, false), (2, 1).into());
         assert_eq!(bdd.paths(formula2, false), (1, 2).into());
@@ -709,32 +713,35 @@ mod test {
             ((1, 0).into(), (1, 0).into(), 0)
         );
 
-        assert_eq!(
-            bdd.modelcount_naive(formula4),
-            bdd.modelcount_memoization(formula4)
-        );
+        #[cfg(feature = "adhoccountmodels")]
+        {
+            assert_eq!(
+                bdd.modelcount_naive(formula4),
+                bdd.modelcount_memoization(formula4)
+            );
 
-        assert_eq!(bdd.modelcount_naive(v1), bdd.modelcount_memoization(v1));
-        assert_eq!(
-            bdd.modelcount_naive(formula1),
-            bdd.modelcount_memoization(formula1)
-        );
-        assert_eq!(
-            bdd.modelcount_naive(formula2),
-            bdd.modelcount_memoization(formula2)
-        );
-        assert_eq!(
-            bdd.modelcount_naive(formula3),
-            bdd.modelcount_memoization(formula3)
-        );
-        assert_eq!(
-            bdd.modelcount_naive(Term::TOP),
-            bdd.modelcount_memoization(Term::TOP)
-        );
-        assert_eq!(
-            bdd.modelcount_naive(Term::BOT),
-            bdd.modelcount_memoization(Term::BOT)
-        );
+            assert_eq!(bdd.modelcount_naive(v1), bdd.modelcount_memoization(v1));
+            assert_eq!(
+                bdd.modelcount_naive(formula1),
+                bdd.modelcount_memoization(formula1)
+            );
+            assert_eq!(
+                bdd.modelcount_naive(formula2),
+                bdd.modelcount_memoization(formula2)
+            );
+            assert_eq!(
+                bdd.modelcount_naive(formula3),
+                bdd.modelcount_memoization(formula3)
+            );
+            assert_eq!(
+                bdd.modelcount_naive(Term::TOP),
+                bdd.modelcount_memoization(Term::TOP)
+            );
+            assert_eq!(
+                bdd.modelcount_naive(Term::BOT),
+                bdd.modelcount_memoization(Term::BOT)
+            );
+        }
 
         assert_eq!(bdd.max_depth(Term::BOT), 0);
         assert_eq!(bdd.max_depth(v1), 1);
