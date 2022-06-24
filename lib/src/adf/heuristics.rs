@@ -43,7 +43,7 @@ pub(crate) fn heu_mc_minpaths_maxvarimp(adf: &Adf, interpr: &[Term]) -> Option<(
         .map(|(var, term)| {
             (
                 Var::from(var),
-                (!adf.bdd.paths(*term, true).more_models()).into(),
+                adf.bdd.paths(*term, true).more_models().into(),
             )
         })
 }
@@ -71,7 +71,7 @@ pub(crate) fn heu_mc_maxvarimp_minpaths(adf: &Adf, interpr: &[Term]) -> Option<(
         .map(|(var, term)| {
             (
                 Var::from(var),
-                (!adf.bdd.paths(*term, true).more_models()).into(),
+                adf.bdd.paths(*term, true).more_models().into(),
             )
         })
 }
@@ -84,10 +84,10 @@ pub enum Heuristic<'a> {
     /// This will just take the first not decided variable and maps it value to (`true`)[Term::TOP].   
     Simple,
     /// Implementation of a heuristic, which which uses minimal number of [paths][crate::obdd::Bdd::paths] and maximal [variable-impact][crate::obdd::Bdd::passive_var_impact to identify the variable to be set.
-    /// As the value of the variable value with the minimal model-path is chosen.
+    /// As the value of the variable value with the maximal model-path is chosen.
     MinModMinPathsMaxVarImp,
     /// Implementation of a heuristic, which which uses maximal [variable-impact][crate::obdd::Bdd::passive_var_impact] and minimal number of [paths][crate::obdd::Bdd::paths] to identify the variable to be set.
-    /// As the value of the variable value with the minimal model-path is chosen.
+    /// As the value of the variable value with the maximal model-path is chosen.
     MinModMaxVarImpMinPaths,
     /// Allow passing in an externally-defined custom heuristic.
     #[strum(disabled)]
@@ -104,8 +104,8 @@ impl std::fmt::Debug for Heuristic<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Simple => write!(f, "Simple"),
-	    Self::MinModMinPathsMaxVarImp => write!(f, "Minimal model count as value and minimum paths with maximal variable impact as variable choice"),
-	    Self::MinModMaxVarImpMinPaths => write!(f, "Minimal model count as value and maximal variable impact with minimum paths as variable choice"),
+	    Self::MinModMinPathsMaxVarImp => write!(f, "Maximal model-path  count as value and minimum paths with maximal variable impact as variable choice"),
+	    Self::MinModMaxVarImpMinPaths => write!(f, "Maximal model-path  count as value and maximal variable impact with minimum paths as variable choice"),
             Self::Custom(_) => f.debug_tuple("Custom function").finish(),
         }
     }
@@ -121,18 +121,3 @@ impl Heuristic<'_> {
         }
     }
 }
-
-// impl FromStr for Heuristic<'_> {
-//     type Err = ();
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s {
-//             "simple" => Ok(Self::Simple),
-//             "MinmcMinpathsMaxvarimp" => Ok(Self::MinModMinPathsMaxVarImp),
-//             _ => {
-//                 log::info!("Unknown heuristic {s}");
-//                 Err(())
-//             }
-//         }
-//     }
-// }
