@@ -48,6 +48,34 @@ pub(crate) fn heu_mc_minpaths_maxvarimp(adf: &Adf, interpr: &[Term]) -> Option<(
         })
 }
 
+pub(crate) fn heu_mc_maxvarimp_minpaths(adf: &Adf, interpr: &[Term]) -> Option<(Var, Term)> {
+    interpr
+        .iter()
+        .enumerate()
+        .filter(|(_var, term)| !term.is_truth_value())
+        .min_by(|(vara, &terma), (varb, &termb)| {
+            match adf
+                .bdd
+                .passive_var_impact(Var::from(*vara), interpr)
+                .cmp(&adf.bdd.passive_var_impact(Var::from(*varb), interpr))
+            {
+                std::cmp::Ordering::Equal => adf
+                    .bdd
+                    .paths(terma, true)
+                    .minimum()
+                    .cmp(&adf.bdd.paths(termb, true).minimum()),
+
+                value => value,
+            }
+        })
+        .map(|(var, term)| {
+            (
+                Var::from(var),
+                (!adf.bdd.paths(*term, true).more_models()).into(),
+            )
+        })
+}
+
 /// Enumeration of all currently implemented heuristics.
 /// It represents a public view on the crate-view implementations of heuristics.
 #[derive(EnumString, EnumVariantNames, Copy, Clone)]
@@ -58,6 +86,9 @@ pub enum Heuristic<'a> {
     /// Implementation of a heuristic, which which uses minimal number of [paths][crate::obdd::Bdd::paths] and maximal [variable-impact][crate::obdd::Bdd::passive_var_impact to identify the variable to be set.
     /// As the value of the variable value with the minimal model-path is chosen.
     MinModMinPathsMaxVarImp,
+    /// Implementation of a heuristic, which which uses maximal [variable-impact][crate::obdd::Bdd::passive_var_impact] and minimal number of [paths][crate::obdd::Bdd::paths] to identify the variable to be set.
+    /// As the value of the variable value with the minimal model-path is chosen.
+    MinModMaxVarImpMinPaths,
     /// Allow passing in an externally-defined custom heuristic.
     #[strum(disabled)]
     Custom(&'a HeuristicFn),
@@ -74,6 +105,7 @@ impl std::fmt::Debug for Heuristic<'_> {
         match self {
             Self::Simple => write!(f, "Simple"),
 	    Self::MinModMinPathsMaxVarImp => write!(f, "Minimal model count as value and minimum paths with maximal variable impact as variable choice"),
+	    Self::MinModMaxVarImpMinPaths => write!(f, "Minimal model count as value and maximal variable impact with minimum paths as variable choice"),
             Self::Custom(_) => f.debug_tuple("Custom function").finish(),
         }
     }
@@ -84,6 +116,7 @@ impl Heuristic<'_> {
         match self {
             Heuristic::Simple => &heu_simple,
             Heuristic::MinModMinPathsMaxVarImp => &heu_mc_minpaths_maxvarimp,
+            Heuristic::MinModMaxVarImpMinPaths => &heu_mc_maxvarimp_minpaths,
             Self::Custom(f) => f,
         }
     }
