@@ -121,3 +121,19 @@ impl Heuristic<'_> {
         }
     }
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::datatypes::Term;
+    use crate::datatypes::Var;
+
+    #[test]
+    fn debug_out() {
+        dbg!(Heuristic::Simple);
+        dbg!(Heuristic::MinModMaxVarImpMinPaths);
+        dbg!(Heuristic::MinModMinPathsMaxVarImp);
+        dbg!(Heuristic::Custom(&|_adf: &Adf,
+                                 _int: &[Term]|
+         -> Option<(Var, Term)> { None }));
+    }
+}

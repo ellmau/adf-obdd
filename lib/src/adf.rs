@@ -1137,7 +1137,7 @@ mod test {
             vec![vec![Term(0), Term(1)], vec![Term(1), Term(0)]]
         );
 
-        adf.stable_nogood_channel(Heuristic::Simple, s);
+        adf.stable_nogood_channel(Heuristic::default(), s);
         assert_eq!(
             r.iter().collect::<Vec<_>>(),
             vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
