@@ -6,9 +6,6 @@ This module describes the abstract dialectical framework.
 */
 
 pub mod heuristics;
-
-use serde::{Deserialize, Serialize};
-
 use crate::{
     datatypes::{
         adf::{
@@ -21,6 +18,7 @@ use crate::{
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
+use serde::{Deserialize, Serialize};
 
 use self::heuristics::Heuristic;
 
@@ -729,7 +727,7 @@ impl Adf {
             .collect::<Vec<_>>()
     }
 
-    /// Computes the stable extensions of a given [`Adf`], using the [`NoGood`]-learner
+    /// Computes the stable extensions of a given [`Adf`], using the [`NoGood`]-learner.
     pub fn stable_nogood<'a, 'c>(
         &'a mut self,
         heuristic: Heuristic,
@@ -739,14 +737,43 @@ impl Adf {
     {
         let grounded = self.grounded();
         let heu = heuristic.get_heuristic();
-        self.stable_nogood_internal(&grounded, heu).into_iter()
+        let (s, r) = crossbeam_channel::unbounded::<Vec<Term>>();
+        self.stable_nogood_get_vec(&grounded, heu, s, r).into_iter()
     }
 
-    fn stable_nogood_internal<H>(&mut self, interpretation: &[Term], heuristic: H) -> Vec<Vec<Term>>
+    /// Computes the stable extension of a given [`Adf`], using the [`NoGood`]-learner.
+    /// Needs a [`Sender`][crossbeam_channel::Sender<Vec<crate::datatypes::Term>>] where the results of the computation can be put to.
+    pub fn stable_nogood_channel(
+        &mut self,
+        heuristic: Heuristic,
+        sender: crossbeam_channel::Sender<Vec<Term>>,
+    ) {
+        let grounded = self.grounded();
+        self.stable_nogood_internal(&grounded, heuristic.get_heuristic(), sender);
+    }
+
+    fn stable_nogood_get_vec<H>(
+        &mut self,
+        interpretation: &[Term],
+        heuristic: H,
+        s: crossbeam_channel::Sender<Vec<Term>>,
+        r: crossbeam_channel::Receiver<Vec<Term>>,
+    ) -> Vec<Vec<Term>>
     where
         H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
     {
-        let mut result = Vec::new();
+        self.stable_nogood_internal(interpretation, heuristic, s);
+        r.iter().collect()
+    }
+
+    fn stable_nogood_internal<H>(
+        &mut self,
+        interpretation: &[Term],
+        heuristic: H,
+        s: crossbeam_channel::Sender<Vec<Term>>,
+    ) where
+        H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
+    {
         let mut cur_interpr = interpretation.to_vec();
         let mut ng_store = NoGoodStore::new(
             self.ac
@@ -843,7 +870,8 @@ impl Adf {
                 } else if self.stability_check(&cur_interpr) {
                     // stable model found
                     stack.push((false, cur_interpr.as_slice().into()));
-                    result.push(cur_interpr.clone());
+                    s.send(cur_interpr.clone())
+                        .expect("Sender should accept results");
                     backtrack = true;
                 } else {
                     // not stable
@@ -855,13 +883,13 @@ impl Adf {
         }
         log::info!("{ng_store}");
         log::debug!("{:?}", ng_store);
-        result
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crossbeam_channel::unbounded;
     use test_log::test;
 
     #[test]
@@ -1050,10 +1078,11 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
 
         let grounded = adf.grounded();
-        let stable = adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple);
+        let (s, r) = unbounded();
+        adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple, s);
 
         assert_eq!(
-            stable,
+            r.iter().collect::<Vec<_>>(),
             vec![vec![
                 Term::TOP,
                 Term::BOT,
@@ -1081,8 +1110,13 @@ mod test {
         parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
         let mut adf = Adf::from_parser(&parser);
         let grounded = adf.grounded();
-        let stable = adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple);
-        assert_eq!(stable, vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]);
+        let (s, r) = unbounded();
+        adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple, s.clone());
+        let stable_result = r.try_iter().collect::<Vec<_>>();
+        assert_eq!(
+            stable_result,
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
+        );
 
         let stable = adf.stable_nogood(Heuristic::Simple);
         assert_eq!(
@@ -1101,6 +1135,12 @@ mod test {
         assert_eq!(
             stable.collect::<Vec<_>>(),
             vec![vec![Term(0), Term(1)], vec![Term(1), Term(0)]]
+        );
+
+        adf.stable_nogood_channel(Heuristic::Simple, s);
+        assert_eq!(
+            r.iter().collect::<Vec<_>>(),
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
         );
     }
 

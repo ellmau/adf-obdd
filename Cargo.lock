@@ -7,6 +7,7 @@ name = "adf_bdd"
 version = "0.2.5"
 dependencies = [
  "biodivine-lib-bdd",
+ "crossbeam-channel",
  "derivative",
  "env_logger 0.9.0",
  "lexical-sort",
@@ -180,6 +181,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
 dependencies = [
  "os_str_bytes",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
 ]
 
 [[package]]
