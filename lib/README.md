@@ -122,6 +122,34 @@ for model in adf.complete() {
 }
 ```
 
+use the new `NoGood`-based algorithm and utilise the new interface with channels:
+```rust
+use adf_bdd::parser::AdfParser;
+use adf_bdd::adf::Adf;
+use adf_bdd::adf::heuristics::Heuristic;
+use adf_bdd::datatypes::Term;
+// create a channel
+let (s, r) = crossbeam_channel::unbounded();
+// spawn a solver thread
+let solving = std::thread::spawn(move || {
+   // use the above example as input
+   let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+   let parser = AdfParser::default();
+   parser.parse()(&input).expect("parsing worked well");
+   // use hybrid approach
+   let mut adf = adf_bdd::adfbiodivine::Adf::from_parser(&parser).hybrid_step();
+   // compute stable with the simple heuristic
+   adf.stable_nogood_channel(Heuristic::Simple, s);
+});
+
+// print results as they are computed
+while let Ok(result) = r.recv() {
+   println!("stable model: {:?}", result);
+}
+// waiting for the other thread to close
+solving.join().unwrap();
+```
+
 # Acknowledgements
 This work is partly supported by Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) in projects number 389792660 (TRR 248, [Center for Perspicuous Systems](https://www.perspicuous-computing.science/)), 
 the Bundesministerium für Bildung und Forschung (BMBF, Federal Ministry of Education and Research) in the
