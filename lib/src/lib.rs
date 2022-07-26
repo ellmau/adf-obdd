@@ -160,6 +160,39 @@ for model in adf.complete() {
     print!("{}", printer.print_interpretation(&model));
 }
 ```
+
+### Using the [`NoGood`]-learner approach, together with the [`crossbeam-channel`] implementation
+This can be used to have a worker and a consumer thread to print the results as they are computed.
+Please note that the [`NoGood`]-learner needs a heuristics function to work.
+The enum [`Heuristic`][adf_bdd::adf::heuristics::Heuristic] allows one to choose a pre-defined heuristic, or implement a `Custom` one.
+```rust
+use adf_bdd::parser::AdfParser;
+use adf_bdd::adf::Adf;
+use adf_bdd::adf::heuristics::Heuristic;
+use adf_bdd::datatypes::Term;
+// create a channel
+let (s, r) = crossbeam_channel::unbounded();
+// spawn a solver thread
+let solving = std::thread::spawn(move || {
+   // use the above example as input
+   let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+   let parser = AdfParser::default();
+   parser.parse()(&input).expect("parsing worked well");
+   // use hybrid approach
+   let mut adf = adf_bdd::adfbiodivine::Adf::from_parser(&parser).hybrid_step();
+   // compute stable with the simple heuristic
+   adf.stable_nogood_channel(Heuristic::Simple, s);
+});
+
+// print results as they are computed
+while let Ok(result) = r.recv() {
+   println!("stable model: {:?}", result);
+#  assert_eq!(result, vec![Term(1),Term(1),Term(0),Term(0)]);
+}
+// waiting for the other thread to close
+solving.join().unwrap();
+
+```
 */
 #![deny(
     missing_debug_implementations,

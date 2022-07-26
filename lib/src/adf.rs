@@ -1142,6 +1142,44 @@ mod test {
             r.iter().collect::<Vec<_>>(),
             vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
         );
+
+        // multi-threaded usage
+        let (s, r) = unbounded();
+        let solving = std::thread::spawn(move || {
+            let parser = AdfParser::default();
+            parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+            let mut adf = Adf::from_parser(&parser);
+            adf.stable_nogood_channel(Heuristic::MinModMaxVarImpMinPaths, s.clone());
+            adf.stable_nogood_channel(Heuristic::MinModMinPathsMaxVarImp, s);
+        });
+
+        let mut result_vec = Vec::new();
+        while let Ok(result) = r.recv() {
+            result_vec.push(result);
+        }
+        assert_eq!(
+            result_vec,
+            vec![
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ],
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ]
+            ]
+        );
+        solving.join().unwrap();
     }
 
     #[test]
