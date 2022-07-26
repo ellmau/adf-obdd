@@ -710,7 +710,7 @@ impl Adf {
         interpretation
             .iter()
             .map(|t| {
-                let mcs = self.bdd.models(*t, true);
+                let mcs = self.bdd.models(*t, false);
 
                 let n_vdps = { |t| self.bdd.var_dependencies(t).len() };
 
@@ -1239,7 +1239,7 @@ mod test {
     fn adf_default() {
         let _adf = Adf::default();
     }
-    #[cfg(feature = "adhoccountmodels")]
+    //#[cfg(feature = "adhoccountmodels")]
     #[test]
     fn facet_counts() {
         let parser = AdfParser::default();
