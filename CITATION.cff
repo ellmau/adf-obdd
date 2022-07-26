@@ -1,0 +1,62 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  Abstract Dialectical Frameworks solved by Binary
+  Decision Diagrams; developed in Dresden (ADF-BDD)
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file. Note that related conference papers are accepted will appear soon. 
+type: software
+authors:
+  - given-names: Stefan
+    family-names: Ellmauthaler
+    email: stefan.ellmauthaler@tu-dresden.de
+    affiliation: 'KBS, TU Dresden'
+    orcid: 'https://orcid.org/0000-0003-3882-4286'
+repository-code: 'https://github.com/ellmau/adf-obdd'
+url: 'https://ellmau.github.io/adf-obdd/'
+abstract: >-
+  Solver for ADFs grounded, complete, and stable
+  semantics by utilising OBDDs - ordered binary
+
+  decision diagrams.
+keywords:
+  - binary decision diagrams
+  - argumentation frameworks
+  - argumentation tools
+license: MIT
+commit: 35bb36bfc5ee47b2ad864ead48907fdca5fc5ec4
+version: v0.2.4-beta.1
+date-released: '2022-04-22'
+preferred-citation:
+  authors:
+  - given-names: Stefan
+    family-names: Ellmauthaler
+    email: stefan.ellmauthaler@tu-dresden.de
+    affiliation: 'KBS, TU Dresden'
+    orcid: 'https://orcid.org/0000-0003-3882-4286'
+  - given-names: Sarah Allice
+    family-names: Gaggl
+    email: sarah.gaggl@tu-dresden.de
+    affiliation: 'TU Dresden'
+    orcid: 'https://orcid.org/0000-0003-2425-6089'
+  - given-names: Dominik
+    family-names: Rusovac
+    email: dominik.rusovac@tu-dresden.de
+    affiliation: 'TU Dresden'
+    orcid: 'https://orcid.org/0000-0002-3172-5827'
+  - given-names: Johannes Peter
+    family-names: Wallner
+    email: wallner@ist.tugraz.at
+    affiliation: 'TU Graz'
+    orcid: 'https://orcid.org/0000-0002-3051-1966'
+  title: "ADF-BDD: An ADF Solver Based on Binary Decision Diagrams"
+  type: conference
+  conference:
+    name: 9th International Conference on Computational Models of Argument
+    location: Cardiff
+    alias: COMMA
+    website: 'https://comma22.cs.cf.ac.uk/'
+  year: 2022
