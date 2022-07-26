@@ -47,3 +47,4 @@ importexport = []
 variablelist = [ "HashSet" ]
 HashSet = []
 adhoccountmodels = [ "adhoccounting" ] # count models as well as paths ad-hoc note that facet methods will need this feature too
+benchmark = ["adhoccounting", "variablelist"] # set of features for speed benchmarks

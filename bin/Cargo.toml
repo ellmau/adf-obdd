@@ -3,8 +3,10 @@ name = "adf_bdd-solver"
 version = "0.2.5"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
+homepage = "https://ellmau.github.io/adf-obdd"
+repository = "https://github.com/ellmau/adf-obdd"
 license = "MIT"
-exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
+exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml", "tarpaulin-report.*", "*~"]
 description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -34,3 +36,4 @@ importexport = ["adf_bdd/importexport"]
 variablelist = [ "HashSet", "adf_bdd/variablelist" ]
 HashSet = ["adf_bdd/HashSet"]
 adhoccountmodels = ["adf_bdd/adhoccountmodels"]
+benchmark = ["adf_bdd/benchmark"]
