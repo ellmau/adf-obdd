@@ -161,10 +161,10 @@ for model in adf.complete() {
 }
 ```
 
-### Using the [`NoGood`]-learner approach, together with the [`crossbeam-channel`] implementation
+### Using the [`NoGood`][crate::nogoods::NoGood]-learner approach, together with the [`crossbeam-channel`] implementation
 This can be used to have a worker and a consumer thread to print the results as they are computed.
-Please note that the [`NoGood`]-learner needs a heuristics function to work.
-The enum [`Heuristic`][adf_bdd::adf::heuristics::Heuristic] allows one to choose a pre-defined heuristic, or implement a `Custom` one.
+Please note that the [`NoGood`][crate::nogoods::NoGood]-learner needs a heuristics function to work.
+The enum [`Heuristic`][crate::adf::heuristics::Heuristic] allows one to choose a pre-defined heuristic, or implement a `Custom` one.
 ```rust
 use adf_bdd::parser::AdfParser;
 use adf_bdd::adf::Adf;

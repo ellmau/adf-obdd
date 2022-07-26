@@ -245,7 +245,7 @@ impl NoGoodStore {
         }
     }
 
-    /// Draws a (Conclusion)[NoGood], based on the [NoGoodstore] and the given [NoGood].
+    /// Draws a (Conclusion)[NoGood], based on the [NoGoodStore] and the given [NoGood].
     /// *Returns* [None] if there is a conflict
     pub fn conclusions(&self, nogood: &NoGood) -> Option<NoGood> {
         let mut result = nogood.clone();
