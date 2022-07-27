@@ -169,14 +169,16 @@ The enum [`Heuristic`][crate::adf::heuristics::Heuristic] allows one to choose a
 use adf_bdd::parser::AdfParser;
 use adf_bdd::adf::Adf;
 use adf_bdd::adf::heuristics::Heuristic;
-use adf_bdd::datatypes::Term;
+use adf_bdd::datatypes::{Term, adf::VarContainer};
 // create a channel
 let (s, r) = crossbeam_channel::unbounded();
+let variables = VarContainer::default();
+let variables_worker = variables.clone();
 // spawn a solver thread
 let solving = std::thread::spawn(move || {
    // use the above example as input
    let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
-   let parser = AdfParser::default();
+   let parser = AdfParser::with_var_container(variables_worker);
    parser.parse()(&input).expect("parsing worked well");
    // use hybrid approach
    let mut adf = adf_bdd::adfbiodivine::Adf::from_parser(&parser).hybrid_step();
@@ -184,9 +186,12 @@ let solving = std::thread::spawn(move || {
    adf.stable_nogood_channel(Heuristic::Simple, s);
 });
 
+let printer = variables.print_dictionary();
 // print results as they are computed
 while let Ok(result) = r.recv() {
-   println!("stable model: {:?}", result);
+   print!("stable model: {:?} \n", result);
+   // use dictionary
+   print!("stable model with variable names: {}", printer.print_interpretation(&result));
 #  assert_eq!(result, vec![Term(1),Term(1),Term(0),Term(0)]);
 }
 // waiting for the other thread to close

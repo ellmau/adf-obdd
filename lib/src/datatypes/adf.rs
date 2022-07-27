@@ -2,49 +2,63 @@
 
 use super::{Term, Var};
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::HashMap, fmt::Display, sync::Arc, sync::RwLock};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct VarContainer {
-    names: Rc<RefCell<Vec<String>>>,
-    mapping: Rc<RefCell<HashMap<String, usize>>>,
+/// A container which acts as a dictionary as well as an ordering of variables.
+/// *names* is a list of variable-names and the sequence of the values is inducing the order of variables.
+/// *mapping* allows to search for a variable name and to receive the corresponding position in the variable list (`names`).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VarContainer {
+    names: Arc<RwLock<Vec<String>>>,
+    mapping: Arc<RwLock<HashMap<String, usize>>>,
 }
 
 impl Default for VarContainer {
     fn default() -> Self {
         VarContainer {
-            names: Rc::new(RefCell::new(Vec::new())),
-            mapping: Rc::new(RefCell::new(HashMap::new())),
+            names: Arc::new(RwLock::new(Vec::new())),
+            mapping: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
 
 impl VarContainer {
-    pub fn from_parser(
-        names: Rc<RefCell<Vec<String>>>,
-        mapping: Rc<RefCell<HashMap<String, usize>>>,
+    pub(crate) fn from_parser(
+        names: Arc<RwLock<Vec<String>>>,
+        mapping: Arc<RwLock<HashMap<String, usize>>>,
     ) -> VarContainer {
         VarContainer { names, mapping }
     }
 
-    pub fn copy(from: &Self) -> Self {
-        VarContainer {
-            names: from.names.clone(),
-            mapping: from.mapping.clone(),
-        }
-    }
-
+    /// Get the [Var] used by the `Bdd` which corresponds to the given [&str].
+    /// Returns [None] if no matching value is found.
     pub fn variable(&self, name: &str) -> Option<Var> {
-        self.mapping.borrow().get(name).map(|val| Var(*val))
+        self.mapping
+            .read()
+            .ok()
+            .and_then(|map| map.get(name).map(|val| Var(*val)))
     }
 
+    /// Get the name which corresponds to the given [Var].
+    /// Returns [None] if no matching value is found.
     pub fn name(&self, var: Var) -> Option<String> {
-        self.names.borrow().get(var.value()).cloned()
+        self.names
+            .read()
+            .ok()
+            .and_then(|name| name.get(var.value()).cloned())
     }
 
-    #[allow(dead_code)]
-    pub fn names(&self) -> Rc<RefCell<Vec<String>>> {
-        Rc::clone(&self.names)
+    pub(crate) fn names(&self) -> Arc<RwLock<Vec<String>>> {
+        Arc::clone(&self.names)
+    }
+
+    pub(crate) fn mappings(&self) -> Arc<RwLock<HashMap<String, usize>>> {
+        Arc::clone(&self.mapping)
+    }
+
+    /// Creates a [PrintDictionary] for output purposes.
+    pub fn print_dictionary(&self) -> PrintDictionary {
+        PrintDictionary::new(self)
     }
 }
 /// A struct which holds the dictionary to print interpretations and allows to instantiate printable interpretations.
@@ -56,7 +70,7 @@ pub struct PrintDictionary {
 impl PrintDictionary {
     pub(crate) fn new(order: &VarContainer) -> Self {
         Self {
-            ordering: VarContainer::copy(order),
+            ordering: order.clone(),
         }
     }
     /// creates a [PrintableInterpretation] for output purposes

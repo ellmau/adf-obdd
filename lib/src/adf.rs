@@ -47,19 +47,14 @@ impl Adf {
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
         let mut result = Self {
-            ordering: VarContainer::from_parser(
-                parser.namelist_rc_refcell(),
-                parser.dict_rc_refcell(),
-            ),
+            ordering: parser.var_container(),
             bdd: Bdd::new(),
-            ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
+            ac: vec![Term(0); parser.dict_size()],
         };
-        (0..parser.namelist_rc_refcell().borrow().len())
-            .into_iter()
-            .for_each(|value| {
-                log::trace!("adding variable {}", Var(value));
-                result.bdd.variable(Var(value));
-            });
+        (0..parser.dict_size()).into_iter().for_each(|value| {
+            log::trace!("adding variable {}", Var(value));
+            result.bdd.variable(Var(value));
+        });
         log::debug!("[Start] adding acs");
         parser
             .formula_order()
@@ -87,7 +82,7 @@ impl Adf {
         bio_ac: &[biodivine_lib_bdd::Bdd],
     ) -> Self {
         let mut result = Self {
-            ordering: VarContainer::copy(ordering),
+            ordering: ordering.clone(),
             bdd: Bdd::new(),
             ac: vec![Term(0); bio_ac.len()],
         };
@@ -900,11 +895,16 @@ mod test {
         parser.parse()(input).unwrap();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "e");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "d");
+        assert_eq!(adf.ordering.name(Var(0)), Some("a".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[0], "a");
+        assert_eq!(adf.ordering.name(Var(1)), Some("c".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[1], "c");
+        assert_eq!(adf.ordering.name(Var(2)), Some("b".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[2], "b");
+        assert_eq!(adf.ordering.name(Var(3)), Some("e".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[3], "e");
+        assert_eq!(adf.ordering.name(Var(4)), Some("d".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[4], "d");
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(15), Term(12)]);
 
@@ -915,11 +915,11 @@ mod test {
         parser.varsort_alphanum();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "d");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "e");
+        assert_eq!(adf.ordering.names().read().unwrap()[0], "a");
+        assert_eq!(adf.ordering.names().read().unwrap()[1], "b");
+        assert_eq!(adf.ordering.names().read().unwrap()[2], "c");
+        assert_eq!(adf.ordering.names().read().unwrap()[3], "d");
+        assert_eq!(adf.ordering.names().read().unwrap()[4], "e");
 
         assert_eq!(adf.ac, vec![Term(3), Term(7), Term(2), Term(11), Term(13)]);
     }

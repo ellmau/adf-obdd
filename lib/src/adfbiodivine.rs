@@ -40,19 +40,17 @@ impl Adf {
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
         let mut bdd_var_builder = biodivine_lib_bdd::BddVariableSetBuilder::new();
-        let namelist = parser.namelist_rc_refcell().as_ref().borrow().clone();
+        let namelist = parser
+            .namelist()
+            .read()
+            .expect("ReadLock on namelist failed")
+            .clone();
         let slice_vec: Vec<&str> = namelist.iter().map(<_>::as_ref).collect();
         bdd_var_builder.make_variables(&slice_vec);
         let bdd_variables = bdd_var_builder.build();
         let mut result = Self {
-            ordering: VarContainer::from_parser(
-                parser.namelist_rc_refcell(),
-                parser.dict_rc_refcell(),
-            ),
-            ac: vec![
-                bdd_variables.mk_false();
-                parser.namelist_rc_refcell().as_ref().borrow().len()
-            ],
+            ordering: parser.var_container(),
+            ac: vec![bdd_variables.mk_false(); parser.dict_size()],
             vars: bdd_variables.variables(),
             varset: bdd_variables,
             rewrite: None,
