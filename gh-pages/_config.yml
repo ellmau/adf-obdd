@@ -1,0 +1,10 @@
+theme: jekyll-theme-architect
+show_downloads: false
+markdown: kramdown
+defaults:
+  - scope:
+      path = ""
+      type = docs
+    values:
+      sidebar:
+        nav: docs
