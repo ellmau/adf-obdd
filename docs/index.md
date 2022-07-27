@@ -14,6 +14,11 @@ This project is currently split into two parts:
 - a [binary (adf-bdd)](adf-bdd.md), which allows one to easily answer semantics questions on abstract dialectical frameworks
 - a [library (adf_bdd)](adf_bdd.md), which contains all the necessary algorithms and an open API which compute the answers to the semantics questions
 
+Latest documentation of the API can be found [here](https://docs.rs/adf_bdd/latest/adf_bdd/).
+The current version of the binary can be downloaded [here](https://github.com/ellmau/adf-obdd/releases).
+
+Do not hesitate to report bugs or ask about features in the [issues-section](https://github.com/ellmau/adf-obdd/issues) or have a conversation about anything of the project in the [discussion space](https://github.com/ellmau/adf-obdd/discussions)
+
 
 ## Abstract Dialectical Frameworks
 An abstract dialectical framework (ADF) consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration. 
