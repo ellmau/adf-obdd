@@ -1,7 +1,0 @@
-docs:
-  - title: "Getting started"
-    url: index.md
-  - title: "Binary"
-    url: adf-bdd.md
-  - title: "Library"
-    url: adf_bdd.md
