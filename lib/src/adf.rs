@@ -744,7 +744,28 @@ impl Adf {
         sender: crossbeam_channel::Sender<Vec<Term>>,
     ) {
         let grounded = self.grounded();
-        self.stable_nogood_internal(&grounded, heuristic.get_heuristic(), sender);
+        self.stable_nogood_internal(
+            &grounded,
+            heuristic.get_heuristic(),
+            Self::stability_check,
+            sender,
+        );
+    }
+
+    /// Computes the two valued  extension of a given [`Adf`], using the [`NoGood`]-learner.
+    /// Needs a [`Sender`][crossbeam_channel::Sender<Vec<crate::datatypes::Term>>] where the results of the computation can be put to.
+    pub fn two_val_nogood_channel(
+        &mut self,
+        heuristic: Heuristic,
+        sender: crossbeam_channel::Sender<Vec<Term>>,
+    ) {
+        let grounded = self.grounded();
+        self.stable_nogood_internal(
+            &grounded,
+            heuristic.get_heuristic(),
+            |_self: &mut Self, _int: &[Term]| true,
+            sender,
+        )
     }
 
     fn stable_nogood_get_vec<H>(
@@ -757,17 +778,19 @@ impl Adf {
     where
         H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
     {
-        self.stable_nogood_internal(interpretation, heuristic, s);
+        self.stable_nogood_internal(interpretation, heuristic, Self::stability_check, s);
         r.iter().collect()
     }
 
-    fn stable_nogood_internal<H>(
+    fn stable_nogood_internal<H, I>(
         &mut self,
         interpretation: &[Term],
         heuristic: H,
+        stability_check: I,
         s: crossbeam_channel::Sender<Vec<Term>>,
     ) where
         H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
+        I: Fn(&mut Self, &[Term]) -> bool,
     {
         let mut cur_interpr = interpretation.to_vec();
         let mut ng_store = NoGoodStore::new(
@@ -862,7 +885,7 @@ impl Adf {
                 // No updates done this loop
                 if !self.is_two_valued(&cur_interpr) {
                     choice = true;
-                } else if self.stability_check(&cur_interpr) {
+                } else if stability_check(self, &cur_interpr) {
                     // stable model found
                     stack.push((false, cur_interpr.as_slice().into()));
                     s.send(cur_interpr.clone())
@@ -1079,7 +1102,12 @@ mod test {
 
         let grounded = adf.grounded();
         let (s, r) = unbounded();
-        adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple, s);
+        adf.stable_nogood_internal(
+            &grounded,
+            crate::adf::heuristics::heu_simple,
+            crate::adf::Adf::stability_check,
+            s,
+        );
 
         assert_eq!(
             r.iter().collect::<Vec<_>>(),
@@ -1111,7 +1139,12 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
         let grounded = adf.grounded();
         let (s, r) = unbounded();
-        adf.stable_nogood_internal(&grounded, crate::adf::heuristics::heu_simple, s.clone());
+        adf.stable_nogood_internal(
+            &grounded,
+            crate::adf::heuristics::heu_simple,
+            crate::adf::Adf::stability_check,
+            s.clone(),
+        );
         let stable_result = r.try_iter().collect::<Vec<_>>();
         assert_eq!(
             stable_result,
@@ -1151,7 +1184,8 @@ mod test {
             .unwrap();
             let mut adf = Adf::from_parser(&parser);
             adf.stable_nogood_channel(Heuristic::MinModMaxVarImpMinPaths, s.clone());
-            adf.stable_nogood_channel(Heuristic::MinModMinPathsMaxVarImp, s);
+            adf.stable_nogood_channel(Heuristic::MinModMinPathsMaxVarImp, s.clone());
+            adf.two_val_nogood_channel(Heuristic::Simple, s)
         });
 
         let mut result_vec = Vec::new();
@@ -1176,7 +1210,23 @@ mod test {
                     Term::TOP,
                     Term::BOT,
                     Term::TOP
-                ]
+                ],
+                vec![
+                    Term::TOP,
+                    Term::TOP,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP
+                ],
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ],
             ]
         );
         solving.join().unwrap();
