@@ -3,6 +3,23 @@
 version = 3
 
 [[package]]
+name = "adf-bdd-solver"
+version = "0.2.5"
+dependencies = [
+ "adf_bdd",
+ "assert_cmd",
+ "assert_fs",
+ "clap",
+ "crossbeam-channel",
+ "env_logger 0.9.0",
+ "log",
+ "predicates",
+ "serde",
+ "serde_json",
+ "strum",
+]
+
+[[package]]
 name = "adf_bdd"
 version = "0.2.5"
 dependencies = [
@@ -20,22 +37,6 @@ dependencies = [
  "serde_json",
  "strum",
  "test-log",
-]
-
-[[package]]
-name = "adf_bdd-solver"
-version = "0.2.5"
-dependencies = [
- "adf_bdd",
- "assert_cmd",
- "assert_fs",
- "clap",
- "env_logger 0.9.0",
- "log",
- "predicates",
- "serde",
- "serde_json",
- "strum",
 ]
 
 [[package]]

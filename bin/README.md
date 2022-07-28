@@ -11,7 +11,7 @@ An ordered binary decision diagram is a normalised representation of binary func
 ## Usage
 ```
 USAGE:
-    adf_bdd [OPTIONS] <INPUT>
+    adf-bdd [OPTIONS] <INPUT>
 
 ARGS:
     <INPUT>    Input filename
@@ -26,8 +26,11 @@ OPTIONS:
                                   the given filename
         --grd                     Compute the grounded model
     -h, --help                    Print help information
+        --heu <HEU>               Choose which heuristics shall be used by the nogood-learning
+                                  approach [possible values: Simple, MinModMinPathsMaxVarImp,
+                                  MinModMaxVarImpMinPaths]
         --import                  Import an adf- bdd state instead of an adf
-        --lib <IMPLEMENTATION>    choose the bdd implementation of either 'biodivine', 'naive', or
+        --lib <IMPLEMENTATION>    Choose the bdd implementation of either 'biodivine', 'naive', or
                                   hybrid [default: hybrid]
         --lx                      Sorts variables in an lexicographic manner
     -q                            Sets log verbosity to only errors
@@ -38,11 +41,14 @@ OPTIONS:
                                   heuristics a
         --stmcb                   Compute the stable models with the help of modelcounting using
                                   heuristics b
+        --stmng                   Compute the stable models with the nogood-learning based approach
         --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
         --stmrew                  Compute the stable models with a single-formula rewriting (only
                                   hybrid lib-mode)
         --stmrew2                 Compute the stable models with a single-formula rewriting on
                                   internal representation(only hybrid lib-mode)
+        --twoval                  Compute the two valued models with the nogood-learning based
+                                  approach
     -v                            Sets log verbosity (multiple times means more verbose)
     -V, --version                 Print version information
 ```
