@@ -744,7 +744,7 @@ impl Adf {
         sender: crossbeam_channel::Sender<Vec<Term>>,
     ) {
         let grounded = self.grounded();
-        self.stable_nogood_internal(
+        self.nogood_internal(
             &grounded,
             heuristic.get_heuristic(),
             Self::stability_check,
@@ -760,7 +760,7 @@ impl Adf {
         sender: crossbeam_channel::Sender<Vec<Term>>,
     ) {
         let grounded = self.grounded();
-        self.stable_nogood_internal(
+        self.nogood_internal(
             &grounded,
             heuristic.get_heuristic(),
             |_self: &mut Self, _int: &[Term]| true,
@@ -778,11 +778,11 @@ impl Adf {
     where
         H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
     {
-        self.stable_nogood_internal(interpretation, heuristic, Self::stability_check, s);
+        self.nogood_internal(interpretation, heuristic, Self::stability_check, s);
         r.iter().collect()
     }
 
-    fn stable_nogood_internal<H, I>(
+    fn nogood_internal<H, I>(
         &mut self,
         interpretation: &[Term],
         heuristic: H,
@@ -1102,7 +1102,7 @@ mod test {
 
         let grounded = adf.grounded();
         let (s, r) = unbounded();
-        adf.stable_nogood_internal(
+        adf.nogood_internal(
             &grounded,
             crate::adf::heuristics::heu_simple,
             crate::adf::Adf::stability_check,
@@ -1139,7 +1139,7 @@ mod test {
         let mut adf = Adf::from_parser(&parser);
         let grounded = adf.grounded();
         let (s, r) = unbounded();
-        adf.stable_nogood_internal(
+        adf.nogood_internal(
             &grounded,
             crate::adf::heuristics::heu_simple,
             crate::adf::Adf::stability_check,
