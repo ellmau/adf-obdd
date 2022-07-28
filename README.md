@@ -11,8 +11,8 @@
 # Abstract Dialectical Frameworks solved by (ordered) Binary Decision Diagrams; developed in Dresden (ADF-oBDD project)
 
 This project is currently split into two parts:
-- a [binary (adf-bdd)](bin/README.md), which allows one to easily answer semantics questions on abstract dialectical frameworks
-- a [library (adf_bdd)](lib/README.md), which contains all the necessary algorithms and an open API which compute the answers to the semantics questions
+- a [binary (adf-bdd)](bin), which allows one to easily answer semantics questions on abstract dialectical frameworks
+- a [library (adf_bdd)](lib), which contains all the necessary algorithms and an open API which compute the answers to the semantics questions
 
 Latest documentation of the API can be found [here](https://docs.rs/adf_bdd/latest/adf_bdd/).
 The current version of the binary can be downloaded [here](https://github.com/ellmau/adf-obdd/releases).
