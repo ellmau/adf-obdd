@@ -17,7 +17,7 @@ In addition some further features, like counter-model counting is not supported 
 # Usage
 ```plain
 USAGE:
-    adf_bdd [OPTIONS] <INPUT>
+    adf-bdd [OPTIONS] <INPUT>
 
 ARGS:
     <INPUT>    Input filename
@@ -32,20 +32,29 @@ OPTIONS:
                                   the given filename
         --grd                     Compute the grounded model
     -h, --help                    Print help information
+        --heu <HEU>               Choose which heuristics shall be used by the nogood-learning
+                                  approach [possible values: Simple, MinModMinPathsMaxVarImp,
+                                  MinModMaxVarImpMinPaths]
         --import                  Import an adf- bdd state instead of an adf
-        --lib <IMPLEMENTATION>    choose the bdd implementation of either 'biodivine', 'naive', or
+        --lib <IMPLEMENTATION>    Choose the bdd implementation of either 'biodivine', 'naive', or
                                   hybrid [default: hybrid]
         --lx                      Sorts variables in an lexicographic manner
     -q                            Sets log verbosity to only errors
         --rust_log <RUST_LOG>     Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and
                                   -q are not use [env: RUST_LOG=debug]
         --stm                     Compute the stable models
-        --stmc                    Compute the stable models with the help of modelcounting
+        --stmca                   Compute the stable models with the help of modelcounting using
+                                  heuristics a
+        --stmcb                   Compute the stable models with the help of modelcounting using
+                                  heuristics b
+        --stmng                   Compute the stable models with the nogood-learning based approach
         --stmpre                  Compute the stable models with a pre-filter (only hybrid lib-mode)
         --stmrew                  Compute the stable models with a single-formula rewriting (only
                                   hybrid lib-mode)
         --stmrew2                 Compute the stable models with a single-formula rewriting on
                                   internal representation(only hybrid lib-mode)
+        --twoval                  Compute the two valued models with the nogood-learning based
+                                  approach
     -v                            Sets log verbosity (multiple times means more verbose)
     -V, --version                 Print version information
 ```
@@ -74,6 +83,8 @@ use adf_bdd::adfbiodivine::Adf as BdAdf;
 
 use adf_bdd::parser::AdfParser;
 use clap::Parser;
+use crossbeam_channel::unbounded;
+use strum::VariantNames;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
@@ -84,7 +95,7 @@ struct App {
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
     #[clap(long = "rust_log", env)]
     rust_log: Option<String>,
-    /// choose the bdd implementation of either 'biodivine', 'naive', or hybrid
+    /// Choose the bdd implementation of either 'biodivine', 'naive', or hybrid
     #[clap(long = "lib", default_value = "hybrid")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
@@ -120,6 +131,15 @@ struct App {
     /// Compute the stable models with a single-formula rewriting on internal representation(only hybrid lib-mode)
     #[clap(long = "stmrew2")]
     stable_rew2: bool,
+    /// Compute the stable models with the nogood-learning based approach
+    #[clap(long = "stmng")]
+    stable_ng: bool,
+    /// Choose which heuristics shall be used by the nogood-learning approach
+    #[clap(long, possible_values = adf_bdd::adf::heuristics::Heuristic::VARIANTS.iter().filter(|&v| v != &"Custom"))]
+    heu: Option<adf_bdd::adf::heuristics::Heuristic<'static>>,
+    /// Compute the two valued models with the nogood-learning based approach
+    #[clap(long = "twoval")]
+    two_val: bool,
     /// Compute the complete models
     #[clap(long = "com")]
     complete: bool,
@@ -215,6 +235,14 @@ impl App {
                     }
                 }
 
+                if self.two_val {
+                    let (sender, receiver) = unbounded();
+                    naive_adf.two_val_nogood_channel(self.heu.unwrap_or_default(), sender);
+                    for model in receiver.into_iter() {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
                 if self.stable {
                     for model in naive_adf.stable() {
                         print!("{}", printer.print_interpretation(&model));
@@ -241,6 +269,12 @@ impl App {
 
                 if self.stable_rew || self.stable_rew2 {
                     for model in naive_adf.stable_bdd_representation(&adf) {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
+
+                if self.stable_ng {
+                    for model in naive_adf.stable_nogood(self.heu.unwrap_or_default()) {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }

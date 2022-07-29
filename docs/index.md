@@ -8,11 +8,14 @@
 ![Crates.io](https://img.shields.io/crates/l/adf_bdd)
 [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
+| [Home](index.md) | [Binary](adf-bdd.md) | [Library](adf_bdd.md)| [Repository](https://github.com/ellmau/adf-obdd) |
+|--- | --- | --- | --- |
+
 # Abstract Dialectical Frameworks solved by (ordered) Binary Decision Diagrams; developed in Dresden (ADF-oBDD project)
 
 This project is currently split into two parts:
-- a [binary (adf-bdd)](bin), which allows one to easily answer semantics questions on abstract dialectical frameworks
-- a [library (adf_bdd)](lib), which contains all the necessary algorithms and an open API which compute the answers to the semantics questions
+- a [binary (adf-bdd)](adf-bdd.md), which allows one to easily answer semantics questions on abstract dialectical frameworks
+- a [library (adf_bdd)](adf_bdd.md), which contains all the necessary algorithms and an open API which compute the answers to the semantics questions
 
 Latest documentation of the API can be found [here](https://docs.rs/adf_bdd/latest/adf_bdd/).
 The current version of the binary can be downloaded [here](https://github.com/ellmau/adf-obdd/releases).

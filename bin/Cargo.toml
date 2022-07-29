@@ -1,10 +1,12 @@
 [package]
-name = "adf_bdd-solver"
-version = "0.2.4"
+name = "adf-bdd-solver"
+version = "0.3.0"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
+homepage = "https://ellmau.github.io/adf-obdd"
+repository = "https://github.com/ellmau/adf-obdd"
 license = "MIT"
-exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml"]
+exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml", "tarpaulin-report.*", "*~"]
 description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,12 +16,14 @@ name = "adf-bdd"
 path = "src/main.rs"
 
 [dependencies]
-adf_bdd = { version="0.2.4", default-features = false }
+adf_bdd = { version="0.3.0", path="../lib", default-features = false }
 clap = {version = "3.2.12", features = [ "derive", "cargo", "env" ]}
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }
 serde_json = "1.0"
 env_logger = "0.9"
+strum = { version = "0.24" }
+crossbeam-channel = "0.5"
 
 [dev-dependencies]
 assert_cmd = "2.0"
@@ -32,3 +36,5 @@ adhoccounting = ["adf_bdd/adhoccounting"]    # count models ad-hoc - disable if 
 importexport = ["adf_bdd/importexport"]
 variablelist = [ "HashSet", "adf_bdd/variablelist" ]
 HashSet = ["adf_bdd/HashSet"]
+adhoccountmodels = ["adf_bdd/adhoccountmodels"]
+benchmark = ["adf_bdd/benchmark"]
