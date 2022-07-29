@@ -8,6 +8,9 @@
 ![Crates.io](https://img.shields.io/crates/l/adf_bdd)
 [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
+| [Home](index.md) | [Binary](adf-bdd.md) | [Library](adf_bdd.md)| [Repository](https://github.com/ellmau/adf-obdd) |
+|--- | --- | --- | --- |
+
 # Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden (ADF-BDD) 
 This is the readme for the executable solver.
 
