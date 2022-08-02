@@ -1,4 +1,5 @@
-[![Crates.io](https://img.shields.io/crates/v/adf_bdd)](https://crates.io/crates/adf_bdd)
+[![Crates.io](https://img.shields.io/crates/v/adf-bdd-bin?label=crates.io%20%28bin%29)](https://crates.io/crates/adf-bdd-bin)
+[![Crates.io](https://img.shields.io/crates/v/adf_bdd?label=crates.io%20%28lib%29)](https://crates.io/crates/adf_bdd)
 [![docs.rs](https://img.shields.io/docsrs/adf_bdd?label=docs.rs)](https://docs.rs/adf_bdd/latest/adf_bdd/)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin)
 [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd)

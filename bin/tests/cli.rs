@@ -27,7 +27,7 @@ fn arguments() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--version");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("adf-bdd-solver "));
+        .stdout(predicate::str::contains("adf-bdd-bin "));
     Ok(())
 }
 
@@ -148,16 +148,19 @@ fn runs_naive() -> Result<(), Box<dyn std::error::Error>> {
         "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
     ));
 
-    cmd = Command::cargo_bin("adf-bdd")?;
-    cmd.arg(tempdir.path().with_file_name("test.json"))
-        .arg("--an")
-        .arg("--grd")
-        .arg("--import")
-        .arg("--lib")
-        .arg("naive");
-    cmd.assert().success().stdout(predicate::str::contains(
-        "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
-    ));
+    #[cfg(feature = "importexport")]
+    {
+        cmd = Command::cargo_bin("adf-bdd")?;
+        cmd.arg(tempdir.path().with_file_name("test.json"))
+            .arg("--an")
+            .arg("--grd")
+            .arg("--import")
+            .arg("--lib")
+            .arg("naive");
+        cmd.assert().success().stdout(predicate::str::contains(
+            "u(1) u(2) u(3) F(4) F(5) u(6) u(7) u(8) u(9) u(10) \n",
+        ));
+    }
 
     cmd = Command::cargo_bin("adf-bdd")?;
     cmd.arg(file.path())

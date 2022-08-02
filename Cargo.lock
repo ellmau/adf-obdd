@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "adf-bdd-solver"
+name = "adf-bdd-bin"
 version = "0.3.0"
 dependencies = [
  "adf_bdd",

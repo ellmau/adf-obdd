@@ -1,5 +1,5 @@
 [package]
-name = "adf-bdd-solver"
+name = "adf-bdd-bin"
 version = "0.3.0"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
