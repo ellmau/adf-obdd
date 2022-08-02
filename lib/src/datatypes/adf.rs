@@ -7,6 +7,9 @@ use std::{collections::HashMap, fmt::Display, sync::Arc, sync::RwLock};
 /// A container which acts as a dictionary as well as an ordering of variables.
 /// *names* is a list of variable-names and the sequence of the values is inducing the order of variables.
 /// *mapping* allows to search for a variable name and to receive the corresponding position in the variable list (`names`).
+///
+/// # Important note
+/// If one [VarContainer] is used to instantiate an [Adf][crate::adf::Adf] (resp. [Biodivine Adf][crate::adfbiodivine::Adf]) a revision (other than adding more information) might result in wrong variable-name mapping when trying to print the output using the [PrintDictionary].
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VarContainer {
     names: Arc<RwLock<Vec<String>>>,
