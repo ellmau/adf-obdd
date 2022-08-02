@@ -1,5 +1,5 @@
 [package]
-name = "adf-bdd-solver"
+name = "adf-bdd-bin"
 version = "0.3.0"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
@@ -7,7 +7,7 @@ homepage = "https://ellmau.github.io/adf-obdd"
 repository = "https://github.com/ellmau/adf-obdd"
 license = "MIT"
 exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml", "tarpaulin-report.*", "*~"]
-description = "Solver for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
+description = "Solver-binaries for ADFs grounded, complete, and stable semantics by utilising OBDDs - ordered binary decision diagrams"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
