@@ -21,3 +21,9 @@ tramp
 *_flymake*
 
 /tests/out/
+
+# Ignore direnv data
+/.direnv/
+
+# ignore perfdata
+perf.data

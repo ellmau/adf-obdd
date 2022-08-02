@@ -8,14 +8,13 @@
 ![Crates.io](https://img.shields.io/crates/l/adf_bdd)
 [![GitHub Discussions](https://img.shields.io/github/discussions/ellmau/adf-obdd)](https://github.com/ellmau/adf-obdd/discussions) ![rust-edition](https://img.shields.io/badge/Rust--edition-2021-blue?logo=rust)
 
-# Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden (ADF-BDD) 
+| [Home](index.md) | [Binary](adf-bdd.md) | [Library](adf_bdd.md)| [Repository](https://github.com/ellmau/adf-obdd) |
+|--- | --- | --- | --- |
+
+# Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden (ADF_BDD) 
 This library contains an efficient representation of Abstract Dialectical Frameworks (ADf) by utilising an implementation of Ordered Binary Decision Diagrams (OBDD)
 
-## Abstract Dialectical Frameworks
-
-An abstract dialectical framework consists of abstract statements. Each statement has an unique label and might be related to other statements (s) in the ADF. This relation is defined by a so-called acceptance condition (ac), which intuitively is a propositional formula, where the variable symbols are the labels of the statements. An interpretation is a three valued function which maps to each statement a truth value (true, false, undecided). We call such an interpretation a model, if each acceptance condition agrees to the interpration.
-
-### Noteworthy relations between semantics
+## Noteworthy relations between ADF semantics
 
 They can be easily identified though:
 
@@ -143,13 +142,13 @@ let solving = std::thread::spawn(move || {
    // compute stable with the simple heuristic
    adf.stable_nogood_channel(Heuristic::Simple, s);
 });
+
 let printer = variables.print_dictionary();
 // print results as they are computed
 while let Ok(result) = r.recv() {
    print!("stable model: {:?} \n", result);
    // use dictionary
    print!("stable model with variable names: {}", printer.print_interpretation(&result));
-#  assert_eq!(result, vec![Term(1),Term(1),Term(0),Term(0)]);
 }
 // waiting for the other thread to close
 solving.join().unwrap();

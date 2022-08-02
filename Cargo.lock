@@ -3,10 +3,28 @@
 version = 3
 
 [[package]]
-name = "adf_bdd"
-version = "0.2.4"
+name = "adf-bdd-solver"
+version = "0.3.0"
 dependencies = [
- "biodivine-lib-bdd 0.4.0",
+ "adf_bdd",
+ "assert_cmd",
+ "assert_fs",
+ "clap",
+ "crossbeam-channel",
+ "env_logger 0.9.0",
+ "log",
+ "predicates",
+ "serde",
+ "serde_json",
+ "strum",
+]
+
+[[package]]
+name = "adf_bdd"
+version = "0.3.0"
+dependencies = [
+ "biodivine-lib-bdd",
+ "crossbeam-channel",
  "derivative",
  "env_logger 0.9.0",
  "lexical-sort",
@@ -14,39 +32,11 @@ dependencies = [
  "nom",
  "quickcheck",
  "quickcheck_macros",
+ "roaring",
  "serde",
  "serde_json",
+ "strum",
  "test-log",
-]
-
-[[package]]
-name = "adf_bdd"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e781519ea5434514f014476c02ccee777b28e600ad58fadca195715acb194c69"
-dependencies = [
- "biodivine-lib-bdd 0.3.0",
- "derivative",
- "lexical-sort",
- "log",
- "nom",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "adf_bdd-solver"
-version = "0.2.4"
-dependencies = [
- "adf_bdd 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "assert_cmd",
- "assert_fs",
- "clap",
- "env_logger 0.9.0",
- "log",
- "predicates",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -111,16 +101,6 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "biodivine-lib-bdd"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bddcfb460c1131729ec8d797ce0be49ec102506e764ce62f20a40056516851c5"
-dependencies = [
- "fxhash",
- "rand 0.7.3",
-]
-
-[[package]]
-name = "biodivine-lib-bdd"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14fb5784ccc3dc18b08286a0c58ff584fdecf8d3c38e011d61120adedc1986df"
@@ -146,6 +126,12 @@ dependencies = [
  "memchr",
  "regex-automata",
 ]
+
+[[package]]
+name = "bytemuck"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdead85bdec19c194affaeeb670c0e41fe23de31459efd1c174d049269cf02cc"
 
 [[package]]
 name = "byteorder"
@@ -196,6 +182,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
 dependencies = [
  "os_str_bytes",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -719,6 +715,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "retain_mut"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
+
+[[package]]
+name = "roaring"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd539cab4e32019956fe7e0cf160bb6d4802f4be2b52c4253d76d3bb0f85a5f7"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "retain_mut",
+]
+
+[[package]]
+name = "rustversion"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0a5f7c728f5d284929a1cccb5bc19884422bfe6ef4d6c409da2c41838983fcf"
+
+[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -769,6 +788,28 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "strum"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6878079b17446e4d3eba6192bb0a2950d5b14f0ed8424b852310e5a94345d0ef"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn",
+]
 
 [[package]]
 name = "syn"

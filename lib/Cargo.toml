@@ -1,6 +1,6 @@
 [package]
 name = "adf_bdd"
-version = "0.2.4"
+version = "0.3.0"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 homepage = "https://ellmau.github.io/adf-obdd/"
@@ -30,6 +30,9 @@ serde = { version = "1.0", features = ["derive","rc"] }
 serde_json = "1.0"
 biodivine-lib-bdd = "0.4.0"
 derivative = "2.2.0"
+roaring = "0.9.0"
+strum = { version = "0.24", features = ["derive"] }
+crossbeam-channel = "0.5"
 
 [dev-dependencies]
 test-log = "0.2"
@@ -39,7 +42,9 @@ quickcheck_macros = "1"
 
 [features]
 default = ["adhoccounting", "variablelist" ]   
-adhoccounting = []    # count models ad-hoc - disable if counting is not needed
+adhoccounting = []    # count paths ad-hoc - disable if counting is not needed
 importexport = []
 variablelist = [ "HashSet" ]
 HashSet = []
+adhoccountmodels = [ "adhoccounting" ] # count models as well as paths ad-hoc note that facet methods will need this feature too
+benchmark = ["adhoccounting", "variablelist"] # set of features for speed benchmarks

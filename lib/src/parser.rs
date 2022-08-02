@@ -10,7 +10,13 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::collections::HashMap;
+use std::{
+    cell::RefCell,
+    sync::{Arc, RwLock},
+};
+
+use crate::datatypes::adf::VarContainer;
 
 /// A representation of a formula, still using the strings from the input.
 #[derive(Clone, PartialEq, Eq)]
@@ -127,8 +133,8 @@ impl std::fmt::Debug for Formula<'_> {
 /// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
 pub struct AdfParser<'a> {
-    namelist: Rc<RefCell<Vec<String>>>,
-    dict: Rc<RefCell<HashMap<String, usize>>>,
+    namelist: Arc<RwLock<Vec<String>>>,
+    dict: Arc<RwLock<HashMap<String, usize>>>,
     formulae: RefCell<Vec<Formula<'a>>>,
     formulaname: RefCell<Vec<String>>,
 }
@@ -136,8 +142,8 @@ pub struct AdfParser<'a> {
 impl Default for AdfParser<'_> {
     fn default() -> Self {
         AdfParser {
-            namelist: Rc::new(RefCell::new(Vec::new())),
-            dict: Rc::new(RefCell::new(HashMap::new())),
+            namelist: Arc::new(RwLock::new(Vec::new())),
+            dict: Arc::new(RwLock::new(HashMap::new())),
             formulae: RefCell::new(Vec::new()),
             formulaname: RefCell::new(Vec::new()),
         }
@@ -176,8 +182,14 @@ where
 
     fn parse_statement(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
         |input| {
-            let mut dict = self.dict.borrow_mut();
-            let mut namelist = self.namelist.borrow_mut();
+            let mut dict = self
+                .dict
+                .write()
+                .expect("RwLock of dict could not get write access");
+            let mut namelist = self
+                .namelist
+                .write()
+                .expect("RwLock of namelist could not get write access");
             let (remain, statement) =
                 terminated(AdfParser::statement, terminated(tag("."), multispace0))(input)?;
             if !dict.contains_key(statement) {
@@ -200,16 +212,31 @@ where
     }
 }
 
+impl<'a> AdfParser<'a> {
+    /// Creates a new parser, utilising the already existing [VarContainer]
+    pub fn with_var_container(var_container: VarContainer) -> AdfParser<'a> {
+        AdfParser {
+            namelist: var_container.names(),
+            dict: var_container.mappings(),
+            formulae: RefCell::new(Vec::new()),
+            formulaname: RefCell::new(Vec::new()),
+        }
+    }
+}
+
 impl AdfParser<'_> {
     /// after an update to the namelist, all indizes are updated
     fn regenerate_indizes(&self) {
         self.namelist
-            .as_ref()
-            .borrow()
+            .read()
+            .expect("ReadLock on namelist failed")
             .iter()
             .enumerate()
             .for_each(|(i, elem)| {
-                self.dict.as_ref().borrow_mut().insert(elem.clone(), i);
+                self.dict
+                    .write()
+                    .expect("WriteLock on dict failed")
+                    .insert(elem.clone(), i);
             });
     }
 
@@ -217,7 +244,10 @@ impl AdfParser<'_> {
     /// Results, which got used before might become corrupted.
     /// Ensure that all used data is physically copied.
     pub fn varsort_lexi(&self) -> &Self {
-        self.namelist.as_ref().borrow_mut().sort_unstable();
+        self.namelist
+            .write()
+            .expect("WriteLock on namelist failed")
+            .sort_unstable();
         self.regenerate_indizes();
         self
     }
@@ -227,8 +257,8 @@ impl AdfParser<'_> {
     /// Ensure that all used data is physically copied.
     pub fn varsort_alphanum(&self) -> &Self {
         self.namelist
-            .as_ref()
-            .borrow_mut()
+            .write()
+            .expect("WriteLock on namelist failed")
             .string_sort_unstable(natural_lexical_cmp);
         self.regenerate_indizes();
         self
@@ -343,14 +373,18 @@ impl AdfParser<'_> {
     /// Allows insight of the number of parsed statements.
     pub fn dict_size(&self) -> usize {
         //self.dict.borrow().len()
-        self.dict.as_ref().borrow().len()
+        self.dict.read().expect("ReadLock on dict failed").len()
     }
 
     /// Returns the number-representation and position of a given statement in string-representation.
     ///
     /// Will return [None] if the string does no occur in the dictionary.
     pub fn dict_value(&self, value: &str) -> Option<usize> {
-        self.dict.as_ref().borrow().get(value).copied()
+        self.dict
+            .read()
+            .expect("ReadLock on dict failed")
+            .get(value)
+            .copied()
     }
 
     /// Returns the acceptance condition of a statement at the given position.
@@ -360,12 +394,17 @@ impl AdfParser<'_> {
         self.formulae.borrow().get(idx).cloned()
     }
 
-    pub(crate) fn dict_rc_refcell(&self) -> Rc<RefCell<HashMap<String, usize>>> {
-        Rc::clone(&self.dict)
+    pub(crate) fn dict(&self) -> Arc<RwLock<HashMap<String, usize>>> {
+        Arc::clone(&self.dict)
     }
 
-    pub(crate) fn namelist_rc_refcell(&self) -> Rc<RefCell<Vec<String>>> {
-        Rc::clone(&self.namelist)
+    pub(crate) fn namelist(&self) -> Arc<RwLock<Vec<String>>> {
+        Arc::clone(&self.namelist)
+    }
+
+    /// Returns a [`VarContainer`][crate::datatypes::adf::VarContainer] which allows to access the variable information gathered by the parser
+    pub fn var_container(&self) -> VarContainer {
+        VarContainer::from_parser(self.namelist(), self.dict())
     }
 
     pub(crate) fn formula_count(&self) -> usize {
@@ -379,8 +418,8 @@ impl AdfParser<'_> {
             .map(|name| {
                 *self
                     .dict
-                    .as_ref()
-                    .borrow()
+                    .read()
+                    .expect("ReadLock on dict failed")
                     .get(name)
                     .expect("Dictionary should contain all the used formulanames")
             })

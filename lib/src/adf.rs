@@ -5,8 +5,7 @@ This module describes the abstract dialectical framework.
  - computing fixpoints
 */
 
-use serde::{Deserialize, Serialize};
-
+pub mod heuristics;
 use crate::{
     datatypes::{
         adf::{
@@ -15,9 +14,13 @@ use crate::{
         },
         FacetCounts, ModelCounts, Term, Var,
     },
+    nogoods::{NoGood, NoGoodStore},
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
+use serde::{Deserialize, Serialize};
+
+use self::heuristics::Heuristic;
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Representation of an ADF, with an ordering and dictionary which relates statements to numbers, a binary decision diagram, and a list of acceptance conditions in [`Term`][crate::datatypes::Term] representation.
@@ -44,19 +47,14 @@ impl Adf {
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
         let mut result = Self {
-            ordering: VarContainer::from_parser(
-                parser.namelist_rc_refcell(),
-                parser.dict_rc_refcell(),
-            ),
+            ordering: parser.var_container(),
             bdd: Bdd::new(),
-            ac: vec![Term(0); parser.namelist_rc_refcell().as_ref().borrow().len()],
+            ac: vec![Term(0); parser.dict_size()],
         };
-        (0..parser.namelist_rc_refcell().borrow().len())
-            .into_iter()
-            .for_each(|value| {
-                log::trace!("adding variable {}", Var(value));
-                result.bdd.variable(Var(value));
-            });
+        (0..parser.dict_size()).into_iter().for_each(|value| {
+            log::trace!("adding variable {}", Var(value));
+            result.bdd.variable(Var(value));
+        });
         log::debug!("[Start] adding acs");
         parser
             .formula_order()
@@ -84,7 +82,7 @@ impl Adf {
         bio_ac: &[biodivine_lib_bdd::Bdd],
     ) -> Self {
         let mut result = Self {
-            ordering: VarContainer::copy(ordering),
+            ordering: ordering.clone(),
             bdd: Bdd::new(),
             ac: vec![Term(0); bio_ac.len()],
         };
@@ -131,6 +129,8 @@ impl Adf {
                     }
                 }
             });
+        log::trace!("ordering: {:?}", result.ordering);
+        log::trace!("adf {:?} instantiated with bdd {}", result.ac, result.bdd);
         result
     }
 
@@ -405,6 +405,10 @@ impl Adf {
         true
     }
 
+    fn is_two_valued(&self, interpretation: &[Term]) -> bool {
+        interpretation.iter().all(|t| t.is_truth_value())
+    }
+
     fn two_val_model_counts<H>(&mut self, interpr: &[Term], heuristic: H) -> Vec<Vec<Term>>
     where
         H: Fn(&Self, (Var, Term), (Var, Term), &[Term]) -> std::cmp::Ordering + Copy,
@@ -590,6 +594,26 @@ impl Adf {
         }
     }
 
+    /// Constructs the fixpoint of the given interpretation with respect to the ADF.
+    /// sets _update_ to [`true`] if the value has been updated and to [`false`] otherwise.
+    fn update_interpretation_fixpoint_upd(
+        &mut self,
+        interpretation: &[Term],
+        update: &mut bool,
+    ) -> Vec<Term> {
+        let mut cur_int = interpretation.to_vec();
+        *update = false;
+        loop {
+            let new_int = self.update_interpretation(interpretation);
+            if cur_int == new_int {
+                return cur_int;
+            } else {
+                cur_int = new_int;
+                *update = true;
+            }
+        }
+    }
+
     fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
         self.apply_interpretation(interpretation, interpretation)
     }
@@ -681,7 +705,7 @@ impl Adf {
         interpretation
             .iter()
             .map(|t| {
-                let mcs = self.bdd.models(*t, true);
+                let mcs = self.bdd.models(*t, false);
 
                 let n_vdps = { |t| self.bdd.var_dependencies(t).len() };
 
@@ -697,11 +721,193 @@ impl Adf {
             })
             .collect::<Vec<_>>()
     }
+
+    /// Computes the stable extensions of a given [`Adf`], using the [`NoGood`]-learner.
+    pub fn stable_nogood<'a, 'c>(
+        &'a mut self,
+        heuristic: Heuristic,
+    ) -> impl Iterator<Item = Vec<Term>> + 'c
+    where
+        'a: 'c,
+    {
+        let grounded = self.grounded();
+        let heu = heuristic.get_heuristic();
+        let (s, r) = crossbeam_channel::unbounded::<Vec<Term>>();
+        self.stable_nogood_get_vec(&grounded, heu, s, r).into_iter()
+    }
+
+    /// Computes the stable extension of a given [`Adf`], using the [`NoGood`]-learner.
+    /// Needs a [`Sender`][crossbeam_channel::Sender<Vec<crate::datatypes::Term>>] where the results of the computation can be put to.
+    pub fn stable_nogood_channel(
+        &mut self,
+        heuristic: Heuristic,
+        sender: crossbeam_channel::Sender<Vec<Term>>,
+    ) {
+        let grounded = self.grounded();
+        self.nogood_internal(
+            &grounded,
+            heuristic.get_heuristic(),
+            Self::stability_check,
+            sender,
+        );
+    }
+
+    /// Computes the two valued  extension of a given [`Adf`], using the [`NoGood`]-learner.
+    /// Needs a [`Sender`][crossbeam_channel::Sender<Vec<crate::datatypes::Term>>] where the results of the computation can be put to.
+    pub fn two_val_nogood_channel(
+        &mut self,
+        heuristic: Heuristic,
+        sender: crossbeam_channel::Sender<Vec<Term>>,
+    ) {
+        let grounded = self.grounded();
+        self.nogood_internal(
+            &grounded,
+            heuristic.get_heuristic(),
+            |_self: &mut Self, _int: &[Term]| true,
+            sender,
+        )
+    }
+
+    fn stable_nogood_get_vec<H>(
+        &mut self,
+        interpretation: &[Term],
+        heuristic: H,
+        s: crossbeam_channel::Sender<Vec<Term>>,
+        r: crossbeam_channel::Receiver<Vec<Term>>,
+    ) -> Vec<Vec<Term>>
+    where
+        H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
+    {
+        self.nogood_internal(interpretation, heuristic, Self::stability_check, s);
+        r.iter().collect()
+    }
+
+    fn nogood_internal<H, I>(
+        &mut self,
+        interpretation: &[Term],
+        heuristic: H,
+        stability_check: I,
+        s: crossbeam_channel::Sender<Vec<Term>>,
+    ) where
+        H: Fn(&Self, &[Term]) -> Option<(Var, Term)>,
+        I: Fn(&mut Self, &[Term]) -> bool,
+    {
+        let mut cur_interpr = interpretation.to_vec();
+        let mut ng_store = NoGoodStore::new(
+            self.ac
+                .len()
+                .try_into()
+                .expect("Expecting only u32 many statements"),
+        );
+        let mut stack: Vec<(bool, NoGood)> = Vec::new();
+        let mut interpr_history: Vec<Vec<Term>> = Vec::new();
+        let mut backtrack = false;
+        let mut update_ng;
+        let mut update_fp = false;
+        let mut choice = false;
+
+        log::debug!("start learning loop");
+        loop {
+            log::trace!("interpr: {:?}", cur_interpr);
+            log::trace!("choice: {}", choice);
+            if choice {
+                choice = false;
+                if let Some((var, term)) = heuristic(&*self, &cur_interpr) {
+                    log::trace!("choose {}->{}", var, term.is_true());
+                    interpr_history.push(cur_interpr.to_vec());
+                    cur_interpr[var.value()] = term;
+                    stack.push((true, cur_interpr.as_slice().into()));
+                } else {
+                    backtrack = true;
+                }
+            }
+            update_ng = true;
+            log::trace!("backtrack: {}", backtrack);
+            if backtrack {
+                backtrack = false;
+                if stack.is_empty() {
+                    break;
+                }
+                while let Some((choice, ng)) = stack.pop() {
+                    log::trace!("adding ng: {:?}", ng);
+                    ng_store.add_ng(ng);
+
+                    if choice {
+                        cur_interpr = interpr_history.pop().expect("both stacks (interpr_history and `stack`) should always be synchronous");
+                        log::trace!(
+                            "choice found, reverting interpretation to {:?}",
+                            cur_interpr
+                        );
+                        break;
+                    }
+                }
+            }
+            match ng_store.conclusion_closure(&cur_interpr) {
+                crate::nogoods::ClosureResult::Update(new_int) => {
+                    cur_interpr = new_int;
+                    log::trace!("ng update: {:?}", cur_interpr);
+                    stack.push((false, cur_interpr.as_slice().into()));
+                }
+                crate::nogoods::ClosureResult::NoUpdate => {
+                    log::trace!("no update");
+                    update_ng = false;
+                }
+                crate::nogoods::ClosureResult::Inconsistent => {
+                    log::trace!("inconsistency");
+                    backtrack = true;
+                    continue;
+                }
+            }
+
+            let ac_consistent_interpr = self.apply_interpretation(&self.ac.clone(), &cur_interpr);
+            log::trace!(
+                "checking consistency of {:?} against {:?}",
+                ac_consistent_interpr,
+                cur_interpr
+            );
+            if cur_interpr
+                .iter()
+                .zip(ac_consistent_interpr.iter())
+                .any(|(cur, ac)| {
+                    cur.is_truth_value() && ac.is_truth_value() && cur.is_true() != ac.is_true()
+                })
+            {
+                log::trace!("ac_inconsistency");
+                backtrack = true;
+                continue;
+            }
+
+            cur_interpr = self.update_interpretation_fixpoint_upd(&cur_interpr, &mut update_fp);
+            if update_fp {
+                log::trace!("fixpount updated");
+                //stack.push((false, cur_interpr.as_slice().into()));
+            } else if !update_ng {
+                // No updates done this loop
+                if !self.is_two_valued(&cur_interpr) {
+                    choice = true;
+                } else if stability_check(self, &cur_interpr) {
+                    // stable model found
+                    stack.push((false, cur_interpr.as_slice().into()));
+                    s.send(cur_interpr.clone())
+                        .expect("Sender should accept results");
+                    backtrack = true;
+                } else {
+                    // not stable
+                    log::trace!("2 val not stable");
+                    stack.push((false, cur_interpr.as_slice().into()));
+                    backtrack = true;
+                }
+            }
+        }
+        log::info!("{ng_store}");
+        log::debug!("{:?}", ng_store);
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crossbeam_channel::unbounded;
     use test_log::test;
 
     #[test]
@@ -712,11 +918,16 @@ mod test {
         parser.parse()(input).unwrap();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "e");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "d");
+        assert_eq!(adf.ordering.name(Var(0)), Some("a".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[0], "a");
+        assert_eq!(adf.ordering.name(Var(1)), Some("c".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[1], "c");
+        assert_eq!(adf.ordering.name(Var(2)), Some("b".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[2], "b");
+        assert_eq!(adf.ordering.name(Var(3)), Some("e".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[3], "e");
+        assert_eq!(adf.ordering.name(Var(4)), Some("d".to_string()));
+        assert_eq!(adf.ordering.names().read().unwrap()[4], "d");
 
         assert_eq!(adf.ac, vec![Term(4), Term(2), Term(7), Term(15), Term(12)]);
 
@@ -727,11 +938,11 @@ mod test {
         parser.varsort_alphanum();
 
         let adf = Adf::from_parser(&parser);
-        assert_eq!(adf.ordering.names().as_ref().borrow()[0], "a");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[1], "b");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[2], "c");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[3], "d");
-        assert_eq!(adf.ordering.names().as_ref().borrow()[4], "e");
+        assert_eq!(adf.ordering.names().read().unwrap()[0], "a");
+        assert_eq!(adf.ordering.names().read().unwrap()[1], "b");
+        assert_eq!(adf.ordering.names().read().unwrap()[2], "c");
+        assert_eq!(adf.ordering.names().read().unwrap()[3], "d");
+        assert_eq!(adf.ordering.names().read().unwrap()[4], "e");
 
         assert_eq!(adf.ac, vec![Term(3), Term(7), Term(2), Term(11), Term(13)]);
     }
@@ -883,6 +1094,145 @@ mod test {
     }
 
     #[test]
+    fn stable_nogood() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+        let mut adf = Adf::from_parser(&parser);
+
+        let grounded = adf.grounded();
+        let (s, r) = unbounded();
+        adf.nogood_internal(
+            &grounded,
+            crate::adf::heuristics::heu_simple,
+            crate::adf::Adf::stability_check,
+            s,
+        );
+
+        assert_eq!(
+            r.iter().collect::<Vec<_>>(),
+            vec![vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ]]
+        );
+        let mut stable_iter = adf.stable_nogood(Heuristic::Simple);
+        assert_eq!(
+            stable_iter.next(),
+            Some(vec![
+                Term::TOP,
+                Term::BOT,
+                Term::BOT,
+                Term::TOP,
+                Term::BOT,
+                Term::TOP
+            ])
+        );
+
+        assert_eq!(stable_iter.next(), None);
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        let grounded = adf.grounded();
+        let (s, r) = unbounded();
+        adf.nogood_internal(
+            &grounded,
+            crate::adf::heuristics::heu_simple,
+            crate::adf::Adf::stability_check,
+            s.clone(),
+        );
+        let stable_result = r.try_iter().collect::<Vec<_>>();
+        assert_eq!(
+            stable_result,
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
+        );
+
+        let stable = adf.stable_nogood(Heuristic::Simple);
+        assert_eq!(
+            stable.collect::<Vec<_>>(),
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
+        );
+
+        let stable = adf.stable_nogood(Heuristic::Custom(&|_adf, interpr| {
+            for (idx, term) in interpr.iter().enumerate() {
+                if !term.is_truth_value() {
+                    return Some((Var(idx), Term::BOT));
+                }
+            }
+            None
+        }));
+        assert_eq!(
+            stable.collect::<Vec<_>>(),
+            vec![vec![Term(0), Term(1)], vec![Term(1), Term(0)]]
+        );
+
+        adf.stable_nogood_channel(Heuristic::default(), s);
+        assert_eq!(
+            r.iter().collect::<Vec<_>>(),
+            vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]
+        );
+
+        // multi-threaded usage
+        let (s, r) = unbounded();
+        let solving = std::thread::spawn(move || {
+            let parser = AdfParser::default();
+            parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
+            .unwrap();
+            let mut adf = Adf::from_parser(&parser);
+            adf.stable_nogood_channel(Heuristic::MinModMaxVarImpMinPaths, s.clone());
+            adf.stable_nogood_channel(Heuristic::MinModMinPathsMaxVarImp, s.clone());
+            adf.two_val_nogood_channel(Heuristic::Simple, s)
+        });
+
+        let mut result_vec = Vec::new();
+        while let Ok(result) = r.recv() {
+            result_vec.push(result);
+        }
+        assert_eq!(
+            result_vec,
+            vec![
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ],
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ],
+                vec![
+                    Term::TOP,
+                    Term::TOP,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP
+                ],
+                vec![
+                    Term::TOP,
+                    Term::BOT,
+                    Term::BOT,
+                    Term::TOP,
+                    Term::BOT,
+                    Term::TOP
+                ],
+            ]
+        );
+        solving.join().unwrap();
+    }
+
+    #[test]
     fn complete() {
         let parser = AdfParser::default();
         parser.parse()("s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,b).ac(c,and(a,b)).ac(d,neg(b)).\ns(e).ac(e,and(b,or(neg(b),c(f)))).s(f).\n\nac(f,xor(a,e)).")
@@ -924,6 +1274,7 @@ mod test {
         }
     }
 
+    #[cfg(feature = "adhoccountmodels")]
     #[test]
     fn formulacounts() {
         let parser = AdfParser::default();
