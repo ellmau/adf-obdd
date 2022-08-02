@@ -9,6 +9,10 @@ use std::{
 use crate::datatypes::Term;
 use roaring::RoaringBitmap;
 
+/// A [NoGood] and an [Interpretation] can be represented by the same structure.
+/// Moreover this duality (i.e. an [Interpretation] becomes a [NoGood] is reflected by this type alias.
+pub type Interpretation = NoGood;
+
 /// Representation of a nogood by a pair of [Bitmaps][RoaringBitmap]
 #[derive(Debug, Default, Clone)]
 pub struct NoGood {
@@ -28,8 +32,8 @@ impl PartialEq for NoGood {
 }
 
 impl NoGood {
-    /// Creates a [NoGood] from a given Vector of [Terms][Term].
-    pub fn from_term_vec(term_vec: &[Term]) -> NoGood {
+    /// Creates an [Interpretation] from a given Vector of [Terms][Term].
+    pub fn from_term_vec(term_vec: &[Term]) -> Interpretation {
         let mut result = Self::default();
         term_vec.iter().enumerate().for_each(|(idx, val)| {
 	    let idx:u32 = idx.try_into().expect("no-good learner implementation is based on the assumption that only u32::MAX-many variables are in place");
@@ -55,10 +59,10 @@ impl NoGood {
     }
 
     /// Returns [None] if the pair contains inconsistent pairs.
-    /// Otherwise it returns a [NoGood] which represents the set values.
+    /// Otherwise it returns an [Interpretation] which represents the set values.
     pub fn try_from_pair_iter(
         pair_iter: &mut impl Iterator<Item = (usize, bool)>,
-    ) -> Option<NoGood> {
+    ) -> Option<Interpretation> {
         let mut result = Self::default();
         let mut visit = false;
         for (idx, val) in pair_iter {
@@ -144,8 +148,8 @@ impl NoGood {
         self.value = self.value.borrow().bitor(&other.value);
     }
 
-    /// Returns [true] if the other [NoGood] matches with all the assignments of the current [NoGood].
-    pub fn is_violating(&self, other: &NoGood) -> bool {
+    /// Returns [true] if the other [Interpretation] matches with all the assignments of the current [NoGood].
+    pub fn is_violating(&self, other: &Interpretation) -> bool {
         let active = self.active.borrow().bitand(other.active.borrow());
         if self.active.len() == active.len() {
             let lhs = active.borrow().bitand(self.value.borrow());
@@ -179,7 +183,6 @@ impl From<&[Term]> for NoGood {
 }
 
 /// A structure to store [NoGoods][NoGood] and offer operations and deductions based on them.
-// TODO:make struct crate-private
 #[derive(Debug)]
 pub struct NoGoodStore {
     store: Vec<Vec<NoGood>>,
