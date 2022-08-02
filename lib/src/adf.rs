@@ -1289,7 +1289,7 @@ mod test {
     fn adf_default() {
         let _adf = Adf::default();
     }
-    //#[cfg(feature = "adhoccountmodels")]
+
     #[test]
     fn facet_counts() {
         let parser = AdfParser::default();

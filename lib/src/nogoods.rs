@@ -79,11 +79,7 @@ impl NoGood {
                 return None;
             }
         }
-        if visit {
-            Some(result)
-        } else {
-            None
-        }
+        visit.then_some(result)
     }
 
     /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
@@ -212,10 +208,7 @@ impl NoGoodStore {
     /// Tries to create a new [NoGoodStore].
     /// Does not succeed if the size is too big for the underlying [NoGood] implementation.
     pub fn try_new(size: usize) -> Option<NoGoodStore> {
-        match TryInto::<u32>::try_into(size) {
-            Ok(val) => Some(Self::new(val)),
-            Err(_) => None,
-        }
+        Some(Self::new(size.try_into().ok()?))
     }
 
     /// Sets the behaviour when managing duplicates.
