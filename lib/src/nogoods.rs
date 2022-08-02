@@ -79,7 +79,7 @@ impl NoGood {
                 return None;
             }
         }
-        visit.then_some(result)
+        visit.then(|| result)
     }
 
     /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
