@@ -91,6 +91,7 @@ impl Bdd {
     }
 
     /// Updates the currently used [sender][crossbeam::Sender]
+    #[cfg(feature = "frontend")]
     pub fn set_sender(&mut self, sender: crossbeam_channel::Sender<BddNode>) {
         self.sender = sender;
     }
