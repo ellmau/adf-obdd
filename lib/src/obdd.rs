@@ -19,6 +19,9 @@ pub struct Bdd {
     cache: HashMap<BddNode, Term>,
     #[serde(skip, default = "Bdd::default_count_cache")]
     count_cache: RefCell<HashMap<Term, CountNode>>,
+    #[cfg(feature = "frontend")]
+    #[serde(skip, default = "Bdd::default_crossbeam_sender")]
+    sender: crossbeam_channel::Sender<BddNode>,
 }
 
 impl Display for Bdd {
@@ -38,7 +41,7 @@ impl Default for Bdd {
 }
 
 impl Bdd {
-    /// Instantiate a new roBDD structures.
+    /// Instantiate a new roBDD structure.
     /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
     pub fn new() -> Self {
         #[cfg(not(feature = "adhoccounting"))]
@@ -49,6 +52,8 @@ impl Bdd {
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
+                #[cfg(feature = "frontend")]
+                sender: Self::default_crossbeam_sender(),
             }
         }
         #[cfg(feature = "adhoccounting")]
@@ -59,6 +64,8 @@ impl Bdd {
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
+                #[cfg(feature = "frontend")]
+                sender: Self::default_crossbeam_sender(),
             };
             result
                 .count_cache
@@ -72,8 +79,29 @@ impl Bdd {
         }
     }
 
+    /// Instantiate a new [roBDD][Bdd] structure.
+    /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
+    /// Note that the Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd] structure.
+    #[cfg(feature = "frontend")]
+    pub fn with_sender(sender: crossbeam_channel::Sender<BddNode>) -> Self {
+        // TODO nicer handling of the initialisation though overhead is not an issue here
+        let mut result = Self::new();
+        result.set_sender(sender);
+        result
+    }
+
+    /// Updates the currently used [sender][crossbeam::Sender]
+    pub fn set_sender(&mut self, sender: crossbeam_channel::Sender<BddNode>) {
+        self.sender = sender;
+    }
+
     fn default_count_cache() -> RefCell<HashMap<Term, CountNode>> {
         RefCell::new(HashMap::new())
+    }
+
+    #[cfg(feature = "frontend")]
+    fn default_crossbeam_sender() -> crossbeam_channel::Sender<BddNode> {
+        crossbeam_channel::unbounded().0
     }
 
     /// Instantiates a [variable][crate::datatypes::Var] and returns the representing roBDD as a [`Term`][crate::datatypes::Term].
@@ -244,6 +272,11 @@ impl Bdd {
                     let new_term = Term(self.nodes.len());
                     self.nodes.push(node);
                     self.cache.insert(node, new_term);
+                    #[cfg(feature = "frontend")]
+                    match self.sender.send(node) {
+                        Ok(_) => log::trace!("Write {:?} to update-stream", node),
+                        Err(e) => log::error!("Could not send node {:?}, error: {}", node, e),
+                    }
                     #[cfg(feature = "variablelist")]
                     {
                         let mut var_set: HashSet<Var> = self.var_deps[lo.value()]
@@ -616,6 +649,63 @@ mod test {
         log::debug!("Restrict test: restrict({},{},false)", end, Var(1));
         let x = bdd.restrict(end, Var(1), false);
         assert_eq!(x, Term(2));
+    }
+
+    #[cfg(feature = "frontend")]
+    #[test]
+    fn get_bdd_updates() {
+        let (send, recv) = crossbeam_channel::unbounded();
+        let mut bdd = Bdd::with_sender(send);
+
+        let solving = std::thread::spawn(move || {
+            let v1 = bdd.variable(Var(0));
+            let v2 = bdd.variable(Var(1));
+
+            assert_eq!(v1, Term(2));
+            assert_eq!(v2, Term(3));
+
+            let t1 = bdd.and(v1, v2);
+            let nt1 = bdd.not(t1);
+            let ft = bdd.or(v1, nt1);
+
+            assert_eq!(ft, Term::TOP);
+
+            let v3 = bdd.variable(Var(2));
+            let nv3 = bdd.not(v3);
+            assert_eq!(bdd.and(v3, nv3), Term::BOT);
+
+            let conj = bdd.and(v1, v2);
+            assert_eq!(bdd.restrict(conj, Var(0), false), Term::BOT);
+            assert_eq!(bdd.restrict(conj, Var(0), true), v2);
+
+            let a = bdd.and(v3, v2);
+            let b = bdd.or(v2, v1);
+
+            let con1 = bdd.and(a, conj);
+
+            let end = bdd.or(con1, b);
+            log::debug!("Restrict test: restrict({},{},false)", end, Var(1));
+            let x = bdd.restrict(end, Var(1), false);
+            assert_eq!(x, Term(2));
+        });
+
+        let updates: Vec<BddNode> = recv.iter().collect();
+        assert_eq!(
+            updates,
+            vec![
+                BddNode::new(Var(0), Term(0), Term(1)),
+                BddNode::new(Var(1), Term(0), Term(1)),
+                BddNode::new(Var(0), Term(0), Term(3)),
+                BddNode::new(Var(1), Term(1), Term(0)),
+                BddNode::new(Var(0), Term(1), Term(5)),
+                BddNode::new(Var(2), Term(0), Term(1)),
+                BddNode::new(Var(2), Term(1), Term(0)),
+                BddNode::new(Var(1), Term(0), Term(7)),
+                BddNode::new(Var(0), Term(3), Term(1)),
+                BddNode::new(Var(0), Term(0), Term(9)),
+            ]
+        );
+        solving.join().expect("Both threads should terminate");
     }
 
     #[test]

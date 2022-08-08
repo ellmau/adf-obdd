@@ -145,7 +145,7 @@ impl Var {
 /// Intuitively this is a binary tree structure, where the diagram is allowed to
 /// pool same values to the same Node.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct BddNode {
+pub struct BddNode {
     var: Var,
     lo: Term,
     hi: Term,
@@ -154,6 +154,12 @@ pub(crate) struct BddNode {
 impl Display for BddNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BddNode: {}, lo: {}, hi: {}", self.var, self.lo, self.hi)
+    }
+}
+
+impl Default for BddNode {
+    fn default() -> Self {
+        Self::top_node()
     }
 }
 
