@@ -61,7 +61,7 @@ impl super::Bdd {
     /// - [`false`] if neither the [Bdd][super::Bdd] nor the channel contains the [term][crate::datatypes::Term].
     pub fn recv(&mut self, term: Term) -> bool {
         if term.value() < self.nodes.len() {
-            return true;
+            true
         } else if let Some(recv) = &self.receiver {
             loop {
                 match recv.try_recv() {
@@ -88,7 +88,7 @@ impl super::Bdd {
                 }
             }
         } else {
-            return false;
+            false
         }
     }
 }
