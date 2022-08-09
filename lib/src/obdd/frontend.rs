@@ -1,12 +1,14 @@
 //! Implementation of frontend-feature related methods and functions
+//! See the Structs in the [obdd-module][super] for most of the implementations
 
 use crate::datatypes::Term;
 
 use super::BddNode;
 impl super::Bdd {
-    /// Instantiate a new [roBDD][Bdd] structure.
+    /// Instantiate a new [roBDD][super::Bdd] structure.
     /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
-    /// Note that the Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd] structure.
+    /// # Attention
+    /// Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd][super::Bdd] structure.
     pub fn with_sender(sender: crossbeam_channel::Sender<BddNode>) -> Self {
         // TODO nicer handling of the initialisation though overhead is not an issue here
         let mut result = Self::new();
@@ -14,11 +16,11 @@ impl super::Bdd {
         result
     }
 
-    /// Instantiate a new [roBDD][Bdd] structure.
+    /// Instantiate a new [roBDD][super::Bdd] structure.
     /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
     /// # Attention
-    /// Note that mixing manipulating operations and utilising the communication channel for a receiving [roBDD][Bdd] may end up in inconsistent data.
-    /// So far, only manipulate the [roBDD][Bdd] if no further [recv][Self::recv] will be called.
+    /// Note that mixing manipulating operations and utilising the communication channel for a receiving [roBDD][super::Bdd] may end up in inconsistent data.
+    /// So far, only manipulate the [roBDD][super::Bdd] if no further [recv][Self::recv] will be called.
     pub fn with_receiver(receiver: crossbeam_channel::Receiver<BddNode>) -> Self {
         // TODO nicer handling of the initialisation though overhead is not an issue here
         let mut result = Self::new();
@@ -26,9 +28,12 @@ impl super::Bdd {
         result
     }
 
-    /// Instantiate a new [roBDD][Bdd] structure.
+    /// Instantiate a new [roBDD][super::Bdd] structure.
     /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
-    /// Note that the Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd] structure.
+    /// # Attention
+    /// - Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd][super::Bdd] structure.
+    /// - Mixing manipulating operations and utilising the communication channel for a receiving [roBDD][super::Bdd] may end up in inconsistent data.
+    /// So far, only manipulate the [roBDD][super::Bdd] if no further [recv][Self::recv] will be called.
     pub fn with_sender_receiver(
         sender: crossbeam_channel::Sender<BddNode>,
         receiver: crossbeam_channel::Receiver<BddNode>,
@@ -39,21 +44,21 @@ impl super::Bdd {
         result
     }
 
-    /// Updates the currently used [sender][crossbeam::Sender]
+    /// Updates the currently used [sender][crossbeam_channel::Sender]
     pub fn set_sender(&mut self, sender: crossbeam_channel::Sender<BddNode>) {
         self.sender = Some(sender);
     }
 
-    /// Updates the currently used [receiver][crossbeam::Receiver]
+    /// Updates the currently used [receiver][crossbeam_channel::Receiver]
     pub fn set_receiver(&mut self, receiver: crossbeam_channel::Receiver<BddNode>) {
         self.receiver = Some(receiver);
     }
 
     /// Receives all information till the looked for [`Term`][crate::datatypes::Term] is either found or all data is read.
-    /// Note that the values are read, consumed, and added to the [Bdd].
+    /// Note that the values are read, consumed, and added to the [Bdd][super::Bdd].
     /// # Returns
-    /// - [`true`] if the [term][crate::datatypes::Term] is found (either in the [Bdd] or in the channel.
-    /// - [`false`] if neither the [Bdd] nor the channel contains the [term][crate::datatypes::Term].
+    /// - [`true`] if the [term][crate::datatypes::Term] is found (either in the [Bdd][super::Bdd] or in the channel.
+    /// - [`false`] if neither the [Bdd][super::Bdd] nor the channel contains the [term][crate::datatypes::Term].
     pub fn recv(&mut self, term: Term) -> bool {
         if term.value() < self.nodes.len() {
             return true;
