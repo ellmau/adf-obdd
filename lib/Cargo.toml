@@ -33,6 +33,7 @@ derivative = "2.2.0"
 roaring = "0.9.0"
 strum = { version = "0.24", features = ["derive"] }
 crossbeam-channel = "0.5"
+rand = {version = "0.8.5", features = ["std_rng"]}
 
 [dev-dependencies]
 test-log = "0.2"
