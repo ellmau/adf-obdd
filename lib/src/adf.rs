@@ -146,9 +146,15 @@ impl Adf {
         RefCell::new(StdRng::from_entropy())
     }
 
-    /// sets a seed based on a [u64] value
+    /// Sets a seed based on a [u64] value
+    /// Do *not* use in serious conditions - use [`crypto_seed`][Adf::crypto_seed] instead
     pub fn seed(&mut self, seed: u64) {
         self.rng = RefCell::new(StdRng::seed_from_u64(seed));
+    }
+
+    /// Sets a cryptographiclly strong seed
+    pub fn crypto_seed(&mut self, seed: [u8; 32]) {
+        self.rng = RefCell::new(StdRng::from_seed(seed))
     }
 
     /// Instantiates a new ADF, based on a [biodivine adf][crate::adfbiodivine::Adf].
@@ -1263,6 +1269,14 @@ mod test {
         adf.seed(55120);
         let result = adf.stable_nogood(Heuristic::Rand).collect::<Vec<_>>();
         assert_eq!(result, vec![vec![Term(0), Term(1)], vec![Term(1), Term(0)]]);
+
+        let mut adf = Adf::from_parser(&parser);
+        adf.crypto_seed([
+            122, 186, 240, 42, 235, 102, 89, 81, 187, 203, 127, 188, 167, 198, 126, 156, 25, 205,
+            204, 132, 112, 93, 23, 193, 21, 108, 166, 231, 158, 250, 128, 135,
+        ]);
+        let result = adf.stable_nogood(Heuristic::Rand).collect::<Vec<_>>();
+        assert_eq!(result, vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]);
     }
 
     #[test]
