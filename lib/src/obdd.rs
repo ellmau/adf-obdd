@@ -1,5 +1,7 @@
 //! Module which represents obdds.
 //!
+#[cfg(feature = "frontend")]
+pub mod frontend;
 pub mod vectorize;
 use crate::datatypes::*;
 use serde::{Deserialize, Serialize};
@@ -19,6 +21,12 @@ pub struct Bdd {
     cache: HashMap<BddNode, Term>,
     #[serde(skip, default = "Bdd::default_count_cache")]
     count_cache: RefCell<HashMap<Term, CountNode>>,
+    #[cfg(feature = "frontend")]
+    #[serde(skip)]
+    sender: Option<crossbeam_channel::Sender<BddNode>>,
+    #[cfg(feature = "frontend")]
+    #[serde(skip)]
+    receiver: Option<crossbeam_channel::Receiver<BddNode>>,
     #[serde(skip)]
     ite_cache: HashMap<(Term, Term, Term), Term>,
     #[serde(skip)]
@@ -42,7 +50,7 @@ impl Default for Bdd {
 }
 
 impl Bdd {
-    /// Instantiate a new roBDD structures.
+    /// Instantiate a new roBDD structure.
     /// Constants for the [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are prepared in that step too.
     pub fn new() -> Self {
         #[cfg(not(feature = "adhoccounting"))]
@@ -53,6 +61,10 @@ impl Bdd {
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
+                #[cfg(feature = "frontend")]
+                sender: None,
+                #[cfg(feature = "frontend")]
+                receiver: None,
                 ite_cache: HashMap::new(),
                 restrict_cache: HashMap::new(),
             }
@@ -65,6 +77,10 @@ impl Bdd {
                 var_deps: vec![HashSet::new(), HashSet::new()],
                 cache: HashMap::new(),
                 count_cache: RefCell::new(HashMap::new()),
+                #[cfg(feature = "frontend")]
+                sender: None,
+                #[cfg(feature = "frontend")]
+                receiver: None,
                 ite_cache: HashMap::new(),
                 restrict_cache: HashMap::new(),
             };
@@ -264,6 +280,15 @@ impl Bdd {
                     let new_term = Term(self.nodes.len());
                     self.nodes.push(node);
                     self.cache.insert(node, new_term);
+                    #[cfg(feature = "frontend")]
+                    if let Some(send) = &self.sender {
+                        match send.send(node) {
+                            Ok(_) => log::trace!("Sent {node} to the channel."),
+                            Err(e) => {
+                                log::error!("Error {e} occurred when sending {node} to {:?}", send)
+                            }
+                        }
+                    }
                     #[cfg(feature = "variablelist")]
                     {
                         let mut var_set: HashSet<Var> = self.var_deps[lo.value()]

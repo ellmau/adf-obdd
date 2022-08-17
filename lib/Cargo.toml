@@ -1,6 +1,6 @@
 [package]
 name = "adf_bdd"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>"]
 edition = "2021"
 homepage = "https://ellmau.github.io/adf-obdd/"
@@ -42,10 +42,11 @@ quickcheck = "1"
 quickcheck_macros = "1"
 
 [features]
-default = ["adhoccounting", "variablelist" ]   
+default = ["adhoccounting", "variablelist", "frontend" ]   
 adhoccounting = []    # count paths ad-hoc - disable if counting is not needed
 importexport = []
 variablelist = [ "HashSet" ]
 HashSet = []
 adhoccountmodels = [ "adhoccounting" ] # count models as well as paths ad-hoc note that facet methods will need this feature too
 benchmark = ["adhoccounting", "variablelist"] # set of features for speed benchmarks
+frontend = []

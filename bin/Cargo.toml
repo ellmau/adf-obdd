@@ -16,7 +16,7 @@ name = "adf-bdd"
 path = "src/main.rs"
 
 [dependencies]
-adf_bdd = { version="0.3.0", path="../lib", default-features = false }
+adf_bdd = { version="0.3.1", path="../lib", default-features = false }
 clap = {version = "3.2.16", features = [ "derive", "cargo", "env" ]}
 log = { version = "0.4", features = [ "max_level_trace", "release_max_level_info" ] }
 serde = { version = "1.0", features = ["derive","rc"] }
@@ -31,10 +31,11 @@ predicates = "2.1"
 assert_fs = "1.0"
 
 [features]
-default = ["adhoccounting", "variablelist", "adf_bdd/default" ]   
+default = ["adhoccounting", "variablelist", "adf_bdd/default", "frontend"]   
 adhoccounting = ["adf_bdd/adhoccounting"]    # count models ad-hoc - disable if counting is not needed
 importexport = ["adf_bdd/importexport"]
 variablelist = [ "HashSet", "adf_bdd/variablelist" ]
 HashSet = ["adf_bdd/HashSet"]
 adhoccountmodels = ["adf_bdd/adhoccountmodels"]
 benchmark = ["adf_bdd/benchmark"]
+frontend = ["adf_bdd/frontend"]
