@@ -5,6 +5,7 @@ In addition there is the public enum [Heuristic], which allows to set a heuristi
 use super::Adf;
 use crate::datatypes::{Term, Var};
 
+use rand::{Rng, RngCore};
 use strum::{EnumString, EnumVariantNames};
 
 /// Return value for heuristics.
@@ -76,6 +77,23 @@ pub(crate) fn heu_mc_maxvarimp_minpaths(adf: &Adf, interpr: &[Term]) -> Option<(
         })
 }
 
+pub(crate) fn heu_rand(adf: &Adf, interpr: &[Term]) -> Option<(Var, Term)> {
+    let possible = interpr
+        .iter()
+        .enumerate()
+        .filter(|(_var, term)| !term.is_truth_value())
+        .collect::<Vec<_>>();
+    if possible.is_empty() {
+        return None;
+    }
+    let mut rng = adf.rng.borrow_mut();
+    if let Ok(position) = usize::try_from(rng.next_u64() % (possible.len() as u64)) {
+        Some((Var::from(position), rng.gen_bool(0.5).into()))
+    } else {
+        None
+    }
+}
+
 /// Enumeration of all currently implemented heuristics.
 /// It represents a public view on the crate-view implementations of heuristics.
 #[derive(EnumString, EnumVariantNames, Copy, Clone)]
@@ -89,6 +107,8 @@ pub enum Heuristic<'a> {
     /// Implementation of a heuristic, which which uses maximal [variable-impact][crate::obdd::Bdd::passive_var_impact] and minimal number of [paths][crate::obdd::Bdd::paths] to identify the variable to be set.
     /// As the value of the variable value with the maximal model-path is chosen.
     MinModMaxVarImpMinPaths,
+    /// Implementation of a heuristic, which chooses random values.
+    Rand,
     /// Allow passing in an externally-defined custom heuristic.
     #[strum(disabled)]
     Custom(&'a HeuristicFn),
@@ -106,6 +126,7 @@ impl std::fmt::Debug for Heuristic<'_> {
             Self::Simple => write!(f, "Simple"),
 	    Self::MinModMinPathsMaxVarImp => write!(f, "Maximal model-path  count as value and minimum paths with maximal variable impact as variable choice"),
 	    Self::MinModMaxVarImpMinPaths => write!(f, "Maximal model-path  count as value and maximal variable impact with minimum paths as variable choice"),
+	    Self::Rand => write!(f, "Random heuristics"),
             Self::Custom(_) => f.debug_tuple("Custom function").finish(),
         }
     }
@@ -117,6 +138,7 @@ impl Heuristic<'_> {
             Heuristic::Simple => &heu_simple,
             Heuristic::MinModMinPathsMaxVarImp => &heu_mc_minpaths_maxvarimp,
             Heuristic::MinModMaxVarImpMinPaths => &heu_mc_maxvarimp_minpaths,
+            Heuristic::Rand => &heu_rand,
             Self::Custom(f) => f,
         }
     }
@@ -132,6 +154,7 @@ mod test {
         dbg!(Heuristic::Simple);
         dbg!(Heuristic::MinModMaxVarImpMinPaths);
         dbg!(Heuristic::MinModMinPathsMaxVarImp);
+        dbg!(Heuristic::Rand);
         dbg!(Heuristic::Custom(&|_adf: &Adf,
                                  _int: &[Term]|
          -> Option<(Var, Term)> { None }));
