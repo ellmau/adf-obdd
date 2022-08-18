@@ -20,6 +20,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "adf-bdd-server"
+version = "0.3.0"
+dependencies = [
+ "adf_bdd",
+]
+
+[[package]]
 name = "adf_bdd"
 version = "0.3.1"
 dependencies = [
