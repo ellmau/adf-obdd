@@ -414,6 +414,13 @@ impl App {
                         print!("{}", printer.print_interpretation(&model));
                     }
                 }
+
+                if self.stable_ng {
+                    let printer = adf.print_dictionary();
+                    for model in adf.stable_nogood(self.heu.unwrap_or_default()) {
+                        print!("{}", printer.print_interpretation(&model));
+                    }
+                }
             }
         }
     }
