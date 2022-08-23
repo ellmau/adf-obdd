@@ -1,5 +1,5 @@
 #[test]
-fn {name}() {{
+fn {name}_biodivine() {{
     let resource = "{path}";
     log::debug!("resource: {{}}", resource);
     let grounded = "{grounded}";
@@ -11,6 +11,26 @@ fn {name}() {{
     parser.parse()(&input).unwrap();
     parser.varsort_alphanum();
     let adf = Adf::from_parser(&parser);
+    let grounded = adf.grounded();
+    assert_eq!(
+        format!("{{}}", adf.print_interpretation(&grounded)),
+        format!("{{}}\n",expected_result.unwrap())
+    );
+}}
+
+#[test]
+fn {name}_naive() {{
+    let resource = "{path}";
+    log::debug!("resource: {{}}", resource);
+    let grounded = "{grounded}";
+    log::debug!("Grounded: {{}}", grounded);
+    let parser = AdfParser::default();
+    let expected_result = std::fs::read_to_string(grounded);
+    assert!(expected_result.is_ok());
+    let input = std::fs::read_to_string(resource).unwrap();
+    parser.parse()(&input).unwrap();
+    parser.varsort_alphanum();
+    let mut adf = adf_bdd::adf::Adf::from_parser(&parser);
     let grounded = adf.grounded();
     assert_eq!(
         format!("{{}}", adf.print_interpretation(&grounded)),
