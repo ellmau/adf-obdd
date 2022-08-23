@@ -6,6 +6,8 @@ This module describes the abstract dialectical framework.
 */
 
 pub mod heuristics;
+use std::cell::RefCell;
+
 use crate::{
     datatypes::{
         adf::{
@@ -18,6 +20,7 @@ use crate::{
     obdd::Bdd,
     parser::{AdfParser, Formula},
 };
+use rand::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use self::heuristics::Heuristic;
@@ -30,6 +33,8 @@ pub struct Adf {
     ordering: VarContainer,
     bdd: Bdd,
     ac: Vec<Term>,
+    #[serde(skip, default = "Adf::default_rng")]
+    rng: RefCell<StdRng>,
 }
 
 impl Default for Adf {
@@ -38,6 +43,7 @@ impl Default for Adf {
             ordering: VarContainer::default(),
             bdd: Bdd::new(),
             ac: Vec::new(),
+            rng: Adf::default_rng(),
         }
     }
 }
@@ -50,6 +56,7 @@ impl Adf {
             ordering: parser.var_container(),
             bdd: Bdd::new(),
             ac: vec![Term(0); parser.dict_size()],
+            rng: Adf::default_rng(),
         };
         (0..parser.dict_size()).into_iter().for_each(|value| {
             log::trace!("adding variable {}", Var(value));
@@ -85,6 +92,7 @@ impl Adf {
             ordering: ordering.clone(),
             bdd: Bdd::new(),
             ac: vec![Term(0); bio_ac.len()],
+            rng: Adf::default_rng(),
         };
         result
             .ac
@@ -132,6 +140,15 @@ impl Adf {
         log::trace!("ordering: {:?}", result.ordering);
         log::trace!("adf {:?} instantiated with bdd {}", result.ac, result.bdd);
         result
+    }
+
+    fn default_rng() -> RefCell<StdRng> {
+        RefCell::new(StdRng::from_entropy())
+    }
+
+    /// Sets a cryptographiclly strong seed
+    pub fn seed(&mut self, seed: [u8; 32]) {
+        self.rng = RefCell::new(StdRng::from_seed(seed))
     }
 
     /// Instantiates a new ADF, based on a [biodivine adf][crate::adfbiodivine::Adf].
@@ -1230,6 +1247,25 @@ mod test {
             ]
         );
         solving.join().unwrap();
+    }
+
+    #[test]
+    fn rand_stable_heu() {
+        let parser = AdfParser::default();
+        parser.parse()("s(a).s(b).ac(a,neg(b)).ac(b,neg(a)).").unwrap();
+        let mut adf = Adf::from_parser(&parser);
+        let result = adf.stable_nogood(Heuristic::Rand).collect::<Vec<_>>();
+        assert!(result.contains(&vec![Term(0), Term(1)]));
+        assert!(result.contains(&vec![Term(1), Term(0)]));
+        assert_eq!(result.len(), 2);
+
+        let mut adf = Adf::from_parser(&parser);
+        adf.seed([
+            122, 186, 240, 42, 235, 102, 89, 81, 187, 203, 127, 188, 167, 198, 126, 156, 25, 205,
+            204, 132, 112, 93, 23, 193, 21, 108, 166, 231, 158, 250, 128, 135,
+        ]);
+        let result = adf.stable_nogood(Heuristic::Rand).collect::<Vec<_>>();
+        assert_eq!(result, vec![vec![Term(1), Term(0)], vec![Term(0), Term(1)]]);
     }
 
     #[test]
