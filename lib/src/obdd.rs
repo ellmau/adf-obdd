@@ -217,7 +217,9 @@ impl Bdd {
             } else if node.var() < var {
                 let lonode = self.restrict(node.lo(), var, val);
                 let hinode = self.restrict(node.hi(), var, val);
-                self.node(node.var(), lonode, hinode)
+                let result = self.node(node.var(), lonode, hinode);
+                self.restrict_cache.insert((tree, var, val), result);
+                result
             } else {
                 if val {
                     let result = self.restrict(node.hi(), var, val);
@@ -245,6 +247,7 @@ impl Bdd {
         } else if let Some(result) = self.ite_cache.get(&(i, t, e)) {
             *result
         } else {
+            log::trace!("if_then_else: i {i} t {t} e {e} not found");
             let minvar = Var(min(
                 self.nodes[i.value()].var().value(),
                 min(
@@ -298,7 +301,7 @@ impl Bdd {
                         var_set.insert(var);
                         self.var_deps.push(var_set);
                     }
-                    log::debug!("newterm: {} as {:?}", new_term, node);
+                    log::trace!("newterm: {} as {:?}", new_term, node);
                     #[cfg(feature = "adhoccounting")]
                     {
                         let mut count_cache = self.count_cache.borrow_mut();
