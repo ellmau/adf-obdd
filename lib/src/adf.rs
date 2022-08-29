@@ -30,9 +30,10 @@ use self::heuristics::Heuristic;
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
-    ordering: VarContainer,
-    bdd: Bdd,
-    ac: Vec<Term>,
+    // TODO: none of this should be public
+    pub ordering: VarContainer,
+    pub bdd: Bdd,
+    pub ac: Vec<Term>,
     #[serde(skip, default = "Adf::default_rng")]
     rng: RefCell<StdRng>,
 }

@@ -14,6 +14,7 @@ description = "Offer Solving ADFs as a service"
 [dependencies]
 adf_bdd = { version="0.3.1", path="../lib", features = ["frontend"] }
 actix-web = "4"
+actix-cors = "0.6"
 env_logger = "0.9"
 log = "0.4"
 serde = "1"
