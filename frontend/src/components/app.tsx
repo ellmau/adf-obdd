@@ -44,7 +44,7 @@ function App() {
     () => {
       setLoading(true);
 
-      fetch('http://localhost:8080/solve', {
+      fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/solve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,11 +75,10 @@ function App() {
             label="Put your code here:"
             helperText={(
               <>
-                For more info on the syntax, have a look
-                <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
-                .
+                For more info on the syntax, have a
+                look <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>.
               </>
-)}
+            )}
             multiline
             fullWidth
             variant="filled"
