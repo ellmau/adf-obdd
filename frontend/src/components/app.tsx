@@ -1,11 +1,13 @@
 import * as React from 'react';
 
-const { useState, useCallback } = React;
-
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Backdrop, Button, CircularProgress, CssBaseline, Container, Link, Typography, TextField } from '@mui/material';
+import {
+  Backdrop, Button, CircularProgress, CssBaseline, Container, Link, Paper, Typography, TextField,
+} from '@mui/material';
 
-//import Graph from './graph.tsx';
+import Graph from './graph.tsx';
+
+const { useState, useCallback } = React;
 
 const darkTheme = createTheme({
   palette: {
@@ -49,8 +51,8 @@ function App() {
         },
         body: JSON.stringify({ code }),
       })
-        .then(res => res.json())
-        .then(data => setGraph(data))
+        .then((res) => res.json())
+        .then((data) => setGraph(data))
         .finally(() => setLoading(false));
       // TODO: error handling
     },
@@ -59,36 +61,53 @@ function App() {
 
   console.log(graph);
 
-  return <ThemeProvider theme={darkTheme}>
-    <CssBaseline/>
-    <main>
-      <Typography variant="h2" component="h1" align="center" gutterBottom>
-        Solve your ADF Problem with Style!
-      </Typography>
+  return (
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <main>
+        <Typography variant="h2" component="h1" align="center" gutterBottom>
+          Solve your ADF Problem with Style!
+        </Typography>
 
-      <Container>
-        <TextField 
-          name="code" 
-          label="Put your code here:" 
-          helperText={<>For more info on the syntax, have a look <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>.</>} 
-          multiline 
-          fullWidth 
-          variant="filled" 
-          value={code}
-          onChange={(event) => { setCode(event.target.value); }}
-        />
-      </Container>
-      <Container maxWidth="xs">
-        <Button fullWidth variant="outlined" onClick={submitHandler}>Solve it!</Button>
-      </Container>
-    </main>
+        <Container>
+          <TextField
+            name="code"
+            label="Put your code here:"
+            helperText={(
+              <>
+                For more info on the syntax, have a look
+                <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
+                .
+              </>
+)}
+            multiline
+            fullWidth
+            variant="filled"
+            value={code}
+            onChange={(event) => { setCode(event.target.value); }}
+          />
+        </Container>
+        <Container maxWidth="xs">
+          <Button fullWidth variant="outlined" onClick={submitHandler}>Solve it!</Button>
+        </Container>
 
-    <Backdrop
-      open={loading}
-    >
-      <CircularProgress color="inherit" />
-    </Backdrop>
-  </ThemeProvider>;
+        {graph
+        && (
+        <Container>
+          <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
+            <Graph graph={graph} />
+          </Paper>
+        </Container>
+        )}
+      </main>
+
+      <Backdrop
+        open={loading}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
+    </ThemeProvider>
+  );
 }
 
 export default App;
