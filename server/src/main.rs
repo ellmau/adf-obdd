@@ -1,7 +1,9 @@
-use actix_cors::Cors;
 use actix_web::{get, http, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "cors_for_local_development")]
+use actix_cors::Cors;
 
 use adf_bdd::adf::Adf;
 use adf_bdd::datatypes::BddNode;
@@ -156,7 +158,8 @@ async fn main() -> std::io::Result<()> {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    HttpServer::new(|| {
+    #[cfg(feature = "cors_for_local_development")]
+    let server = HttpServer::new(|| {
         let cors = Cors::default()
             .allowed_origin("http://localhost:1234")
             .allowed_methods(vec!["GET", "POST"])
@@ -171,5 +174,13 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("127.0.0.1", 8080))?
     .run()
-    .await
+    .await;
+
+    #[cfg(not(feature = "cors_for_local_development"))]
+    let server = HttpServer::new(|| App::new().service(root).service(solve))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await;
+
+    server
 }
