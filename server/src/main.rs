@@ -1,20 +1,16 @@
-use actix_web::{get, http, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_files as fs;
+use actix_web::{post, web, App, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "cors_for_local_development")]
 use actix_cors::Cors;
+#[cfg(feature = "cors_for_local_development")]
+use actix_web::http;
 
 use adf_bdd::adf::Adf;
-use adf_bdd::datatypes::BddNode;
 use adf_bdd::datatypes::Var;
 use adf_bdd::parser::AdfParser;
-
-#[get("/")]
-async fn root() -> impl Responder {
-    // TODO: this should serve the static files for the react frontend
-    HttpResponse::Ok().body("Hello world!")
-}
 
 #[derive(Serialize)]
 // This is a DTO for the graph output
@@ -170,15 +166,24 @@ async fn main() -> std::io::Result<()> {
             ])
             .max_age(3600);
 
-        App::new().wrap(cors).service(root).service(solve)
+        App::new()
+            .wrap(cors)
+            .service(solve)
+            // this mus be last to not override anything
+            .service(fs::Files::new("/", "./assets").index_file("index.html"))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await;
 
     #[cfg(not(feature = "cors_for_local_development"))]
-    let server = HttpServer::new(|| App::new().service(root).service(solve))
-        .bind(("127.0.0.1", 8080))?
+    let server = HttpServer::new(|| {
+        App::new()
+            .service(solve)
+            // this mus be last to not override anything
+            .service(fs::Files::new("/", "./assets").index_file("index.html"))
+    })
+        .bind(("0.0.0.0", 8080))?
         .run()
         .await;
 
