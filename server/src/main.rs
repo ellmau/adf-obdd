@@ -1,32 +1,27 @@
 use actix_files as fs;
 use actix_web::{post, web, App, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "cors_for_local_development")]
 use actix_cors::Cors;
 #[cfg(feature = "cors_for_local_development")]
 use actix_web::http;
 
-use adf_bdd::adf::Adf;
-use adf_bdd::datatypes::Var;
+use adf_bdd::adf::{Adf, DoubleLabeledGraph};
 use adf_bdd::parser::AdfParser;
 
-#[derive(Serialize)]
-// This is a DTO for the graph output
-struct DoubleLabeledGraph {
-    // number of nodes equals the number of node labels
-    // nodes implicitly have their index as their ID
-    node_labels: HashMap<usize, String>,
-    // every node gets this label containing multiple entries (it might be empty)
-    tree_root_labels: HashMap<usize, Vec<String>>,
-    lo_edges: Vec<(usize, usize)>,
-    hi_edges: Vec<(usize, usize)>,
+#[derive(Deserialize)]
+enum Strategy {
+    ParseOnly,
+    Ground,
+    FirstComplete,
+    FirstStable,
 }
 
 #[derive(Deserialize)]
 struct SolveReqBody {
     code: String,
+    strategy: Strategy,
 }
 
 #[derive(Serialize)]
@@ -37,6 +32,7 @@ struct SolveResBody {
 #[post("/solve")]
 async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
     let input = &req_body.code;
+    let strategy = &req_body.strategy;
 
     let parser = AdfParser::default();
     match parser.parse()(input) {
@@ -52,98 +48,16 @@ async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
 
     log::debug!("{:?}", adf);
 
-    // TODO: as first test: turn full graph with initial ac into DoubleLabeledGraph DTO and return it
-
-    // get relevant nodes from bdd and ac
-    let mut node_indices: HashSet<usize> = HashSet::new();
-    let mut new_node_indices: HashSet<usize> = adf.ac.iter().map(|term| term.value()).collect();
-
-    while !new_node_indices.is_empty() {
-        node_indices = node_indices.union(&new_node_indices).map(|i| *i).collect();
-        new_node_indices = HashSet::new();
-
-        for node_index in &node_indices {
-            let lo_node_index = adf.bdd.nodes[*node_index].lo().value();
-            if !node_indices.contains(&lo_node_index) {
-                new_node_indices.insert(lo_node_index);
-            }
-
-            let hi_node_index = adf.bdd.nodes[*node_index].hi().value();
-            if !node_indices.contains(&hi_node_index) {
-                new_node_indices.insert(hi_node_index);
-            }
-        }
-    }
-
-    let node_labels: HashMap<usize, String> =
-        adf.bdd
-            .nodes
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| node_indices.contains(i))
-            .map(|(i, &node)| {
-                let value_part = match node.var() {
-                    Var::TOP => "TOP".to_string(),
-                    Var::BOT => "BOT".to_string(),
-                    _ => adf.ordering.name(node.var()).expect(
-                        "name for each var should exist; special cases are handled separately",
-                    ),
-                };
-
-                (i, value_part)
-            })
-            .collect();
-
-    let tree_root_labels: HashMap<usize, Vec<String>> = adf.ac.iter().enumerate().fold(
-        adf.bdd
-            .nodes
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| node_indices.contains(i))
-            .map(|(i, _)| (i, vec![]))
-            .collect(),
-        |mut acc, (root_for, root_node)| {
-            acc.get_mut(&root_node.value())
-                .expect("we know that the index will be in the map")
-                .push(adf.ordering.name(Var(root_for)).expect(
-                    "name for each var should exist; special cases are handled separately",
-                ));
-
-            acc
-        },
-    );
-
-    let lo_edges: Vec<(usize, usize)> = adf
-        .bdd
-        .nodes
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| node_indices.contains(i))
-        .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
-        .map(|(i, &node)| (i, node.lo().value()))
-        .collect();
-
-    let hi_edges: Vec<(usize, usize)> = adf
-        .bdd
-        .nodes
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| node_indices.contains(i))
-        .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
-        .map(|(i, &node)| (i, node.hi().value()))
-        .collect();
-
-    log::debug!("{:?}", node_labels);
-    log::debug!("{:?}", tree_root_labels);
-    log::debug!("{:?}", lo_edges);
-    log::debug!("{:?}", hi_edges);
-
-    let dto = DoubleLabeledGraph {
-        node_labels,
-        tree_root_labels,
-        lo_edges,
-        hi_edges,
+    let ac = match strategy {
+        Strategy::ParseOnly => None,
+        Strategy::Ground => Some(adf.grounded()),
+        // TODO: error handling if no such model exists!
+        Strategy::FirstComplete => Some(adf.complete().next().unwrap()),
+        // TODO: error handling if no such model exists!
+        Strategy::FirstStable => Some(adf.stable().next().unwrap()),
     };
+
+    let dto = adf.into_double_labeled_graph(ac.as_ref());
 
     web::Json(dto)
 }
@@ -183,9 +97,9 @@ async fn main() -> std::io::Result<()> {
             // this mus be last to not override anything
             .service(fs::Files::new("/", "./assets").index_file("index.html"))
     })
-        .bind(("0.0.0.0", 8080))?
-        .run()
-        .await;
+    .bind(("0.0.0.0", 8080))?
+    .run()
+    .await;
 
     server
 }

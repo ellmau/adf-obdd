@@ -7,6 +7,7 @@ This module describes the abstract dialectical framework.
 
 pub mod heuristics;
 use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     datatypes::{
@@ -30,12 +31,23 @@ use self::heuristics::Heuristic;
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
-    // TODO: none of this should be public
-    pub ordering: VarContainer,
-    pub bdd: Bdd,
-    pub ac: Vec<Term>,
+    ordering: VarContainer,
+    bdd: Bdd,
+    ac: Vec<Term>,
     #[serde(skip, default = "Adf::default_rng")]
     rng: RefCell<StdRng>,
+}
+
+#[derive(Serialize, Debug)]
+/// This is a DTO for the graph output
+pub struct DoubleLabeledGraph {
+    // number of nodes equals the number of node labels
+    // nodes implicitly have their index as their ID
+    node_labels: HashMap<usize, String>,
+    // every node gets this label containing multiple entries (it might be empty)
+    tree_root_labels: HashMap<usize, Vec<String>>,
+    lo_edges: Vec<(usize, usize)>,
+    hi_edges: Vec<(usize, usize)>,
 }
 
 impl Default for Adf {
@@ -919,6 +931,104 @@ impl Adf {
         }
         log::info!("{ng_store}");
         log::debug!("{:?}", ng_store);
+    }
+
+    /// Turns Adf into solved graph representation
+    pub fn into_double_labeled_graph(&self, ac: Option<&Vec<Term>>) -> DoubleLabeledGraph {
+        let ac: &Vec<Term> = match ac {
+            Some(ac) => ac,
+            None => &self.ac,
+        };
+
+        let mut node_indices: HashSet<usize> = HashSet::new();
+        let mut new_node_indices: HashSet<usize> = ac.iter().map(|term| term.value()).collect();
+
+        while !new_node_indices.is_empty() {
+            node_indices = node_indices.union(&new_node_indices).copied().collect();
+            new_node_indices = HashSet::new();
+
+            for node_index in &node_indices {
+                let lo_node_index = self.bdd.nodes[*node_index].lo().value();
+                if !node_indices.contains(&lo_node_index) {
+                    new_node_indices.insert(lo_node_index);
+                }
+
+                let hi_node_index = self.bdd.nodes[*node_index].hi().value();
+                if !node_indices.contains(&hi_node_index) {
+                    new_node_indices.insert(hi_node_index);
+                }
+            }
+        }
+
+        let node_labels: HashMap<usize, String> = self
+            .bdd
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| node_indices.contains(i))
+            .map(|(i, &node)| {
+                let value_part = match node.var() {
+                    Var::TOP => "TOP".to_string(),
+                    Var::BOT => "BOT".to_string(),
+                    _ => self.ordering.name(node.var()).expect(
+                        "name for each var should exist; special cases are handled separately",
+                    ),
+                };
+
+                (i, value_part)
+            })
+            .collect();
+
+        let tree_root_labels: HashMap<usize, Vec<String>> = ac.iter().enumerate().fold(
+            self.bdd
+                .nodes
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| node_indices.contains(i))
+                .map(|(i, _)| (i, vec![]))
+                .collect(),
+            |mut acc, (root_for, root_node)| {
+                acc.get_mut(&root_node.value())
+                    .expect("we know that the index will be in the map")
+                    .push(self.ordering.name(Var(root_for)).expect(
+                        "name for each var should exist; special cases are handled separately",
+                    ));
+
+                acc
+            },
+        );
+
+        let lo_edges: Vec<(usize, usize)> = self
+            .bdd
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| node_indices.contains(i))
+            .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
+            .map(|(i, &node)| (i, node.lo().value()))
+            .collect();
+
+        let hi_edges: Vec<(usize, usize)> = self
+            .bdd
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| node_indices.contains(i))
+            .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
+            .map(|(i, &node)| (i, node.hi().value()))
+            .collect();
+
+        log::debug!("{:?}", node_labels);
+        log::debug!("{:?}", tree_root_labels);
+        log::debug!("{:?}", lo_edges);
+        log::debug!("{:?}", hi_edges);
+
+        DoubleLabeledGraph {
+            node_labels,
+            tree_root_labels,
+            lo_edges,
+            hi_edges,
+        }
     }
 }
 

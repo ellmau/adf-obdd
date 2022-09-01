@@ -13,9 +13,7 @@ use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
-    // TODO: use this again
-    // pub(crate) nodes: Vec<BddNode>,
-    pub nodes: Vec<BddNode>,
+    pub(crate) nodes: Vec<BddNode>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
     var_deps: Vec<HashSet<Var>>,

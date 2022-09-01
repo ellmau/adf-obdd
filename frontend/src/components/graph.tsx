@@ -191,7 +191,7 @@ function Graph(props: Props) {
           label,
           style: {
             height: subLabel.length > 0 ? 60 : 30,
-            width: Math.max(30, 10 * mainLabel.length, 10 * subLabel.length),
+            width: Math.max(30, 5 * mainLabel.length + 10, 5 * subLabel.length + 10),
           },
         };
       });

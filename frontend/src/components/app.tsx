@@ -35,13 +35,20 @@ ac(10,and(neg(2),6)).
 ac(1,and(neg(7),2)).
 ac(6,neg(7)).ac(2,and(neg(9),neg(6))).`;
 
+enum Strategy {
+  ParseOnly = 'ParseOnly',
+  Ground = 'Ground',
+  FirstComplete = 'FirstComplete',
+  FirstStable = 'FirstStable',
+}
+
 function App() {
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState(placeholder);
   const [graph, setGraph] = useState();
 
   const submitHandler = useCallback(
-    () => {
+    (strategy: Strategy) => {
       setLoading(true);
 
       fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/solve`, {
@@ -49,7 +56,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, strategy }),
       })
         .then((res) => res.json())
         .then((data) => setGraph(data))
@@ -86,8 +93,14 @@ function App() {
             onChange={(event) => { setCode(event.target.value); }}
           />
         </Container>
-        <Container maxWidth="xs">
-          <Button fullWidth variant="outlined" onClick={submitHandler}>Solve it!</Button>
+        <Container>
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.ParseOnly)}>Parse only</Button>
+          {' '}
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.Ground)}>Grounded Model</Button>
+          {' '}
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstComplete)}>(First) Complete Model</Button>
+          {' '}
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstStable)}>(First) Stable Model</Button>
         </Container>
 
         {graph
