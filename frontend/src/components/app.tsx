@@ -40,6 +40,7 @@ enum Strategy {
   Ground = 'Ground',
   FirstComplete = 'FirstComplete',
   FirstStable = 'FirstStable',
+  FirstStableNogood = 'FirstStableNogood',
 }
 
 function App() {
@@ -73,7 +74,7 @@ function App() {
       <CssBaseline />
       <main>
         <Typography variant="h2" component="h1" align="center" gutterBottom>
-          Solve your ADF Problem with Style!
+          Solve your ADF Problem with OBDDs!
         </Typography>
 
         <Container>
@@ -101,6 +102,8 @@ function App() {
           <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstComplete)}>(First) Complete Model</Button>
           {' '}
           <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstStable)}>(First) Stable Model</Button>
+          {' '}
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstStableNogood)}>(First) Stable Model using nogoods</Button>
         </Container>
 
         {graph
