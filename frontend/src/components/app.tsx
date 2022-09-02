@@ -2,7 +2,21 @@ import * as React from 'react';
 
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
-  Backdrop, Button, CircularProgress, CssBaseline, Container, Link, Paper, Typography, TextField,
+  Backdrop,
+  Button,
+  CircularProgress,
+  CssBaseline,
+  Container,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Link,
+  Pagination,
+  Paper,
+  Radio,
+  RadioGroup,
+  Typography,
+  TextField,
 } from '@mui/material';
 
 import Graph from './graph.tsx';
@@ -35,18 +49,27 @@ ac(10,and(neg(2),6)).
 ac(1,and(neg(7),2)).
 ac(6,neg(7)).ac(2,and(neg(9),neg(6))).`;
 
+enum Parsing {
+  Naive = 'Naive',
+  Hybrid = 'Hybrid',
+}
+
 enum Strategy {
   ParseOnly = 'ParseOnly',
   Ground = 'Ground',
-  FirstComplete = 'FirstComplete',
-  FirstStable = 'FirstStable',
-  FirstStableNogood = 'FirstStableNogood',
+  Complete = 'Complete',
+  Stable = 'Stable',
+  StableCountingA = 'StableCountingA',
+  StableCountingB = 'StableCountingB',
+  StableNogood = 'StableNogood',
 }
 
 function App() {
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState(placeholder);
-  const [graph, setGraph] = useState();
+  const [parsing, setParsing] = useState(Parsing.Naive);
+  const [graphs, setGraphs] = useState();
+  const [graphIndex, setGraphIndex] = useState(0);
 
   const submitHandler = useCallback(
     (strategy: Strategy) => {
@@ -57,17 +80,18 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code, strategy }),
+        body: JSON.stringify({ code, strategy, parsing }),
       })
         .then((res) => res.json())
-        .then((data) => setGraph(data))
+        .then((data) => {
+          setGraphs(data);
+          setGraphIndex(0);
+        })
         .finally(() => setLoading(false));
       // TODO: error handling
     },
-    [code],
+    [code, parsing],
   );
-
-  console.log(graph);
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -97,24 +121,56 @@ function App() {
             onChange={(event) => { setCode(event.target.value); }}
           />
         </Container>
-        <Container>
+        <Container sx={{ marginTop: 2, marginBottom: 2 }}>
+          <FormControl>
+            <FormLabel id="parsing-radio-group">Parsing Strategy</FormLabel>
+            <RadioGroup
+              row
+              aria-labelledby="parsing-radio-group"
+              name="parsing"
+              value={parsing}
+              onChange={(e) => setParsing((e.target as HTMLInputElement).value)}
+            >
+              <FormControlLabel value={Parsing.Naive} control={<Radio />} label="Naive" />
+              <FormControlLabel value={Parsing.Hybrid} control={<Radio />} label="Hybrid" />
+            </RadioGroup>
+          </FormControl>
+          <br />
+          <br />
           <Button variant="outlined" onClick={() => submitHandler(Strategy.ParseOnly)}>Parse only</Button>
           {' '}
           <Button variant="outlined" onClick={() => submitHandler(Strategy.Ground)}>Grounded Model</Button>
           {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstComplete)}>(First) Complete Model</Button>
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.Complete)}>Complete Models</Button>
           {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstStable)}>(First) Stable Model</Button>
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.Stable)}>Stable Models (naive heuristics)</Button>
           {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.FirstStableNogood)}>(First) Stable Model using nogoods</Button>
+          <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingA)}>Stable Models (counting heuristic A)</Button>
+          {' '}
+          <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingB)}>Stable Models (counting heuristic B)</Button>
+          {' '}
+          <Button variant="outlined" onClick={() => submitHandler(Strategy.StableNogood)}>Stable Models using nogoods (Simple Heuristic)</Button>
         </Container>
 
-        {graph
+        {graphs
         && (
-        <Container>
-          <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
-            <Graph graph={graph} />
-          </Paper>
+        <Container sx={{ marginTop: 4, marginBottom: 4 }}>
+          {graphs.length > 1
+            && (
+            <>
+              Models:
+              <br />
+              <Pagination variant="outlined" shape="rounded" count={graphs.length} page={graphIndex + 1} onChange={(e, value) => setGraphIndex(value - 1)} />
+            </>
+            )}
+          {graphs.length > 0
+            && (
+            <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
+              <Graph graph={graphs[graphIndex]} />
+            </Paper>
+            )}
+          {graphs.length === 0
+            && <>No models!</>}
         </Container>
         )}
       </main>

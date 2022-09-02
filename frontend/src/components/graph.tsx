@@ -4,8 +4,6 @@ import G6 from '@antv/g6';
 
 G6.registerNode('nodeWithFlag', {
   draw(cfg, group) {
-    console.log('cfg', cfg);
-
     const mainWidth = Math.max(30, 5 * cfg.mainLabel.length + 10);
     const mainHeight = 30;
 
@@ -14,10 +12,9 @@ G6.registerNode('nodeWithFlag', {
         width: mainWidth,
         height: mainHeight,
         radius: 2,
-        fill: cfg.fill || 'white',
+        fill: 'white',
         stroke: 'black',
-        lineWidth: cfg.lineWidth,
-        opacity: cfg.opacity,
+        cursor: 'pointer',
       },
       name: 'rectMainLabel',
       draggable: true,
@@ -32,6 +29,7 @@ G6.registerNode('nodeWithFlag', {
         text: cfg.mainLabel,
         fill: '#212121',
         fontFamily: 'Roboto',
+        cursor: 'pointer',
       },
       // must be assigned in G6 3.3 and later versions. it can be any value you want
       name: 'textMailLabel',
@@ -55,7 +53,7 @@ G6.registerNode('nodeWithFlag', {
           radius: 1,
           fill: '#4caf50',
           stroke: '#1b5e20',
-          opacity: cfg.opacity,
+          cursor: 'pointer',
         },
         name: 'rectMainLabel',
         draggable: true,
@@ -71,6 +69,7 @@ G6.registerNode('nodeWithFlag', {
           fill: '#212121',
           fontFamily: 'Roboto',
           fontSize: 10,
+          cursor: 'pointer',
         },
         // must be assigned in G6 3.3 and later versions. it can be any value you want
         name: 'textMailLabel',
@@ -97,29 +96,36 @@ G6.registerNode('nodeWithFlag', {
   // },
   setState(name, value, item) {
     const group = item.getContainer();
-    const shape = group.get('children')[0]; // Find the first graphics shape of the node. It is determined by the order of being added
+    const mainShape = group.get('children')[0]; // Find the first graphics shape of the node. It is determined by the order of being added
+    const subShape = group.get('children')[2];
 
     if (name === 'hover') {
       if (value) {
-        shape.attr('fill', 'lightsteelblue');
+        mainShape.attr('fill', 'lightsteelblue');
       } else {
-        shape.attr('fill', 'white');
+        mainShape.attr('fill', 'white');
       }
     }
 
     if (name === 'highlight') {
       if (value) {
-        shape.attr('lineWidth', 3);
+        mainShape.attr('lineWidth', 3);
       } else {
-        shape.attr('lineWidth', 1);
+        mainShape.attr('lineWidth', 1);
       }
     }
 
     if (name === 'lowlight') {
       if (value) {
-        shape.attr('opacity', 0.3);
+        mainShape.attr('opacity', 0.3);
+        if (subShape) {
+          subShape.attr('opacity', 0.3);
+        }
       } else {
-        shape.attr('opacity', 1);
+        mainShape.attr('opacity', 1);
+        if (subShape) {
+          subShape.attr('opacity', 1);
+        }
       }
     }
   },
@@ -282,9 +288,6 @@ function Graph(props: Props) {
               .map(([source, target]) => `HI_${source}_${target}`),
           );
 
-        console.log(relevantNodeIds);
-        console.log(relevantEdgeIds);
-
         relevantNodeIds
           .forEach((id) => {
             graph.setItemState(id, 'lowlight', false);
@@ -347,8 +350,8 @@ function Graph(props: Props) {
   return (
     <>
       <div ref={ref} style={{ overflow: 'hidden' }} />
-      <div>
-        <span style={{ color: '#ed6c02' }}>lo edge (condition is false)</span>
+      <div style={{ padding: 4 }}>
+        <span style={{ color: '#ed6c02', marginRight: 8 }}>lo edge (condition is false)</span>
         {' '}
         <span style={{ color: '#1976d2' }}>hi edge (condition is true)</span>
       </div>

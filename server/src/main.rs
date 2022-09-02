@@ -8,20 +8,30 @@ use actix_cors::Cors;
 use actix_web::http;
 
 use adf_bdd::adf::{Adf, DoubleLabeledGraph};
+use adf_bdd::adfbiodivine::Adf as BdAdf;
 use adf_bdd::parser::AdfParser;
+
+#[derive(Deserialize)]
+enum Parsing {
+    Naive,
+    Hybrid,
+}
 
 #[derive(Deserialize)]
 enum Strategy {
     ParseOnly,
     Ground,
-    FirstComplete,
-    FirstStable,
-    FirstStableNogood,
+    Complete,
+    Stable,
+    StableCountingA,
+    StableCountingB,
+    StableNogood,
 }
 
 #[derive(Deserialize)]
 struct SolveReqBody {
     code: String,
+    parsing: Parsing,
     strategy: Strategy,
 }
 
@@ -33,6 +43,7 @@ struct SolveResBody {
 #[post("/solve")]
 async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
     let input = &req_body.code;
+    let parsing = &req_body.parsing;
     let strategy = &req_body.strategy;
 
     let parser = AdfParser::default();
@@ -43,29 +54,41 @@ async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
             panic!("Parsing failed, see log for further details")
         }
     }
-    log::info!("[Done] parsing");
 
-    let mut adf = Adf::from_parser(&parser);
+    let mut adf = match parsing {
+        Parsing::Naive => Adf::from_parser(&parser),
+        Parsing::Hybrid => {
+            let bd_adf = BdAdf::from_parser(&parser);
+            log::info!("[Start] translate into naive representation");
+            let naive_adf = bd_adf.hybrid_step();
+            log::info!("[Done] translate into naive representation");
+
+            naive_adf
+        }
+    };
 
     log::debug!("{:?}", adf);
 
-    let ac = match strategy {
-        Strategy::ParseOnly => None,
-        Strategy::Ground => Some(adf.grounded()),
-        // TODO: error handling if no such model exists!
-        Strategy::FirstComplete => Some(adf.complete().next().unwrap()),
-        // TODO: error handling if no such model exists!
-        Strategy::FirstStable => Some(adf.stable().next().unwrap()),
-        // TODO: error handling if no such model exists!
+    let acs = match strategy {
+        Strategy::ParseOnly => vec![None],
+        Strategy::Ground => vec![Some(adf.grounded())],
+        Strategy::Complete => adf.complete().map(Some).collect(),
+        Strategy::Stable => adf.stable().map(Some).collect(),
+        // TODO: INPUT VALIDATION: only allow this for hybrid parsing
+        Strategy::StableCountingA => adf.stable_count_optimisation_heu_a().map(Some).collect(),
+        // TODO: INPUT VALIDATION: only allow this for hybrid parsing
+        Strategy::StableCountingB => adf.stable_count_optimisation_heu_b().map(Some).collect(),
         // TODO: support more than just default heuristics
-        Strategy::FirstStableNogood => Some(
-            adf.stable_nogood(adf_bdd::adf::heuristics::Heuristic::default())
-                .next()
-                .unwrap(),
-        ),
+        Strategy::StableNogood => adf
+            .stable_nogood(adf_bdd::adf::heuristics::Heuristic::default())
+            .map(Some)
+            .collect(),
     };
 
-    let dto = adf.into_double_labeled_graph(ac.as_ref());
+    let dto: Vec<DoubleLabeledGraph> = acs
+        .iter()
+        .map(|ac| adf.into_double_labeled_graph(ac.as_ref()))
+        .collect();
 
     web::Json(dto)
 }
