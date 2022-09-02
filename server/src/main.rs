@@ -58,7 +58,11 @@ async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
         Strategy::FirstStable => Some(adf.stable().next().unwrap()),
         // TODO: error handling if no such model exists!
         // TODO: support more than just default heuristics
-        Strategy::FirstStableNogood => Some(adf.stable_nogood(adf_bdd::adf::heuristics::Heuristic::default()).next().unwrap()),
+        Strategy::FirstStableNogood => Some(
+            adf.stable_nogood(adf_bdd::adf::heuristics::Heuristic::default())
+                .next()
+                .unwrap(),
+        ),
     };
 
     let dto = adf.into_double_labeled_graph(ac.as_ref());

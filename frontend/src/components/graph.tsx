@@ -20,7 +20,7 @@ G6.registerNode('nodeWithFlag', {
         opacity: cfg.opacity,
       },
       name: 'rectMainLabel',
-      draggable: true
+      draggable: true,
     });
 
     group.addShape('text', {
@@ -36,7 +36,7 @@ G6.registerNode('nodeWithFlag', {
       // must be assigned in G6 3.3 and later versions. it can be any value you want
       name: 'textMailLabel',
       // allow the shape to response the drag events
-      draggable: true
+      draggable: true,
     });
 
     if (cfg.subLabel) {
@@ -58,7 +58,7 @@ G6.registerNode('nodeWithFlag', {
           opacity: cfg.opacity,
         },
         name: 'rectMainLabel',
-        draggable: true
+        draggable: true,
       });
 
       group.addShape('text', {
@@ -75,7 +75,7 @@ G6.registerNode('nodeWithFlag', {
         // must be assigned in G6 3.3 and later versions. it can be any value you want
         name: 'textMailLabel',
         // allow the shape to response the drag events
-        draggable: true
+        draggable: true,
       });
     }
 
@@ -84,17 +84,17 @@ G6.registerNode('nodeWithFlag', {
   getAnchorPoints() {
     return [[0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]];
   },
-  //nodeStateStyles: {
-    //hover: {
-      //fill: 'lightsteelblue',
-    //},
-    //highlight: {
-      //lineWidth: 3,
-    //},
-    //lowlight: {
-      //opacity: 0.3,
-    //},
-  //},
+  // nodeStateStyles: {
+  // hover: {
+  // fill: 'lightsteelblue',
+  // },
+  // highlight: {
+  // lineWidth: 3,
+  // },
+  // lowlight: {
+  // opacity: 0.3,
+  // },
+  // },
   setState(name, value, item) {
     const group = item.getContainer();
     const shape = group.get('children')[0]; // Find the first graphics shape of the node. It is determined by the order of being added
@@ -157,36 +157,36 @@ function Graph(props: Props) {
             default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
           },
           layout: { type: 'dagre' },
-          //defaultNode: {
-            //anchorPoints: [[0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]],
-            //type: 'rect',
-            //style: {
-              //radius: 2,
-            //},
-            //labelCfg: {
-              //style: {
-                //// fontWeight: 700,
-                //fontFamily: 'Roboto',
-              //},
-            //},
-          //},
+          // defaultNode: {
+          // anchorPoints: [[0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]],
+          // type: 'rect',
+          // style: {
+          // radius: 2,
+          // },
+          // labelCfg: {
+          // style: {
+          /// / fontWeight: 700,
+          // fontFamily: 'Roboto',
+          // },
+          // },
+          // },
           defaultNode: { type: 'nodeWithFlag' },
           defaultEdge: {
             style: {
               endArrow: true,
             },
           },
-          //nodeStateStyles: {
-            //hover: {
-              //fill: 'lightsteelblue',
-            //},
-            //highlight: {
-              //lineWidth: 3,
-            //},
-            //lowlight: {
-              //opacity: 0.3,
-            //},
-          //},
+          // nodeStateStyles: {
+          // hover: {
+          // fill: 'lightsteelblue',
+          // },
+          // highlight: {
+          // lineWidth: 3,
+          // },
+          // lowlight: {
+          // opacity: 0.3,
+          // },
+          // },
           edgeStateStyles: {
             lowlight: {
               opacity: 0.3,
@@ -303,10 +303,10 @@ function Graph(props: Props) {
         // });
       });
 
-      return () => { graph.off('node:click') };
+      return () => { graph.off('node:click'); };
     },
     [graphProps],
-  )
+  );
 
   useEffect(
     () => {
@@ -316,16 +316,16 @@ function Graph(props: Props) {
         const mainLabel = graphProps.node_labels[id];
         const subLabel = graphProps.tree_root_labels[id].length > 0 ? `Root for: ${graphProps.tree_root_labels[id].join(' ; ')}` : undefined;
 
-        //const label = subLabel.length > 0 ? `${mainLabel}\n${subLabel}` : mainLabel;
+        // const label = subLabel.length > 0 ? `${mainLabel}\n${subLabel}` : mainLabel;
 
         return {
           id: id.toString(),
           mainLabel,
           subLabel,
-          //style: {
-            //height: subLabel.length > 0 ? 60 : 30,
-            //width: Math.max(30, 5 * mainLabel.length + 10, 5 * subLabel.length + 10),
-          //},
+          // style: {
+          // height: subLabel.length > 0 ? 60 : 30,
+          // width: Math.max(30, 5 * mainLabel.length + 10, 5 * subLabel.length + 10),
+          // },
         };
       });
       const edges = graphProps.lo_edges.map(([source, target]) => ({
@@ -344,13 +344,16 @@ function Graph(props: Props) {
     [graphProps],
   );
 
-  return <>
-    <div ref={ref} style={{ overflow: 'hidden' }} />
-    <div>
-      <span style={{ color: '#ed6c02' }}>lo edge (condition is false)</span>
-      {' '}
-      <span style={{ color: '#1976d2' }}>hi edge (condition is true)</span>
-    </div></>;
+  return (
+    <>
+      <div ref={ref} style={{ overflow: 'hidden' }} />
+      <div>
+        <span style={{ color: '#ed6c02' }}>lo edge (condition is false)</span>
+        {' '}
+        <span style={{ color: '#1976d2' }}>hi edge (condition is true)</span>
+      </div>
+    </>
+  );
 }
 
 export default Graph;
