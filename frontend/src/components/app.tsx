@@ -29,25 +29,14 @@ const darkTheme = createTheme({
   },
 });
 
-const placeholder = `s(7).
-s(4).
-s(8).
-s(3).
-s(5).
-s(9).
-s(10).
-s(1).
-s(6).
-s(2).
-ac(7,c(v)).
-ac(4,6).
-ac(8,or(neg(1),7)).
-ac(3,and(or(7,neg(6)),2)).
-ac(5,4).
-ac(9,neg(7)).
-ac(10,and(neg(2),6)).
-ac(1,and(neg(7),2)).
-ac(6,neg(7)).ac(2,and(neg(9),neg(6))).`;
+const placeholder = `s(a).
+s(b).
+s(c).
+s(d).
+ac(a,c(v)).
+ac(b,b).
+ac(c,and(a,b)).
+ac(d,neg(b)).`;
 
 enum Parsing {
   Naive = 'Naive',
