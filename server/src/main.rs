@@ -60,7 +60,7 @@ async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
         Parsing::Hybrid => {
             let bd_adf = BdAdf::from_parser(&parser);
             log::info!("[Start] translate into naive representation");
-            let naive_adf = bd_adf.hybrid_step();
+            let naive_adf = bd_adf.hybrid_step_opt(false);
             log::info!("[Done] translate into naive representation");
 
             naive_adf
