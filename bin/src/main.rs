@@ -87,70 +87,70 @@ use crossbeam_channel::unbounded;
 use strum::VariantNames;
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about)]
+#[command(author, version, about)]
 struct App {
     /// Input filename
-    #[clap(parse(from_os_str))]
+    #[arg(value_parser)]
     input: PathBuf,
     /// Sets the verbosity to 'warn', 'info', 'debug' or 'trace' if -v and -q are not use
-    #[clap(long = "rust_log", env)]
+    #[arg(long = "rust_log", env)]
     rust_log: Option<String>,
     /// Choose the bdd implementation of either 'biodivine', 'naive', or hybrid
-    #[clap(long = "lib", default_value = "hybrid")]
+    #[arg(long = "lib", default_value = "hybrid")]
     implementation: String,
     /// Sets log verbosity (multiple times means more verbose)
-    #[clap(short, parse(from_occurrences), group = "verbosity")]
+    #[arg(short, action = clap::builder::ArgAction::Count, group = "verbosity")]
     verbose: u8,
     /// Sets log verbosity to only errors
-    #[clap(short, group = "verbosity")]
+    #[arg(short, group = "verbosity")]
     quiet: bool,
     /// Sorts variables in an lexicographic manner
-    #[clap(long = "lx", group = "sorting")]
+    #[arg(long = "lx", group = "sorting")]
     sort_lex: bool,
     /// Sorts variables in an alphanumeric manner
-    #[clap(long = "an", group = "sorting")]
+    #[arg(long = "an", group = "sorting")]
     sort_alphan: bool,
     /// Compute the grounded model
-    #[clap(long = "grd")]
+    #[arg(long = "grd")]
     grounded: bool,
     /// Compute the stable models
-    #[clap(long = "stm")]
+    #[arg(long = "stm")]
     stable: bool,
     /// Compute the stable models with the help of modelcounting using heuristics a
-    #[clap(long = "stmca")]
+    #[arg(long = "stmca")]
     stable_counting_a: bool,
     /// Compute the stable models with the help of modelcounting using heuristics b
-    #[clap(long = "stmcb")]
+    #[arg(long = "stmcb")]
     stable_counting_b: bool,
     /// Compute the stable models with a pre-filter (only hybrid lib-mode)
-    #[clap(long = "stmpre")]
+    #[arg(long = "stmpre")]
     stable_pre: bool,
     /// Compute the stable models with a single-formula rewriting (only hybrid lib-mode)
-    #[clap(long = "stmrew")]
+    #[arg(long = "stmrew")]
     stable_rew: bool,
     /// Compute the stable models with a single-formula rewriting on internal representation(only hybrid lib-mode)
-    #[clap(long = "stmrew2")]
+    #[arg(long = "stmrew2")]
     stable_rew2: bool,
     /// Compute the stable models with the nogood-learning based approach
-    #[clap(long = "stmng")]
+    #[arg(long = "stmng")]
     stable_ng: bool,
     /// Choose which heuristics shall be used by the nogood-learning approach
-    #[clap(long, possible_values = adf_bdd::adf::heuristics::Heuristic::VARIANTS.iter().filter(|&v| v != &"Custom"))]
+    #[arg(long, value_parser = clap::builder::PossibleValuesParser::new(adf_bdd::adf::heuristics::Heuristic::VARIANTS.iter().filter(|&v| v != &"Custom").collect::<Vec<_>>()))]
     heu: Option<adf_bdd::adf::heuristics::Heuristic<'static>>,
     /// Compute the two valued models with the nogood-learning based approach
-    #[clap(long = "twoval")]
+    #[arg(long = "twoval")]
     two_val: bool,
     /// Compute the complete models
-    #[clap(long = "com")]
+    #[arg(long = "com")]
     complete: bool,
     /// Import an adf- bdd state instead of an adf
-    #[clap(long)]
+    #[arg(long)]
     import: bool,
     /// Export the adf-bdd state after parsing and BDD instantiation to the given filename
-    #[clap(long)]
+    #[arg(long)]
     export: Option<PathBuf>,
     /// Set if the (counter-)models shall be computed and printed, possible values are 'nai' and 'mem' for naive and memoization repectively (only works in hybrid and naive mode)
-    #[clap(long)]
+    #[arg(long)]
     counter: Option<String>,
 }
 

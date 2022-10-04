@@ -11,7 +11,7 @@ use strum::{EnumString, EnumVariantNames};
 /// Return value for heuristics.
 pub type RetVal = Option<(Var, Term)>;
 /// Signature for heuristics functions.
-pub type HeuristicFn = dyn Fn(&Adf, &[Term]) -> RetVal;
+pub type HeuristicFn = dyn Fn(&Adf, &[Term]) -> RetVal + Sync;
 
 pub(crate) fn heu_simple(_adf: &Adf, interpr: &[Term]) -> Option<(Var, Term)> {
     for (idx, term) in interpr.iter().enumerate() {
