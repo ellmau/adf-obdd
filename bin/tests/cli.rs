@@ -19,9 +19,9 @@ fn arguments() -> Result<(), Box<dyn std::error::Error>> {
 
     cmd = Command::cargo_bin("adf-bdd")?;
     cmd.arg("-h");
-    cmd.assert().success().stdout(predicate::str::contains(
-        "stefan.ellmauthaler@tu-dresden.de",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("adf-bdd [OPTIONS] <INPUT>"));
 
     cmd = Command::cargo_bin("adf-bdd")?;
     cmd.arg("--version");

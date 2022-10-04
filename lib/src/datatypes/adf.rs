@@ -148,7 +148,7 @@ impl TwoValuedInterpretationsIterator {
         let indexes = term
             .iter()
             .enumerate()
-            .filter_map(|(idx, &v)| (!v.is_truth_value()).then(|| idx))
+            .filter_map(|(idx, &v)| (!v.is_truth_value()).then_some(idx))
             .rev()
             .collect::<Vec<_>>();
         let current = term
@@ -212,7 +212,7 @@ impl ThreeValuedInterpretationsIterator {
         let indexes = term
             .iter()
             .enumerate()
-            .filter_map(|(idx, &v)| (!v.is_truth_value()).then(|| idx))
+            .filter_map(|(idx, &v)| (!v.is_truth_value()).then_some(idx))
             .rev()
             .collect::<Vec<_>>();
         let current = vec![2; indexes.len()];
