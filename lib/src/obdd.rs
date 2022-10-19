@@ -34,6 +34,8 @@ pub struct Bdd {
     ite_cache: HashMap<(Term, Term, Term), Term>,
     #[serde(skip)]
     restrict_cache: HashMap<(Term, Var, bool), Term>,
+    #[serde(skip)]
+    restrict_cache2: HashMap<(Term, Vec<(Var, bool)>), Term>,
 }
 
 impl Display for Bdd {
@@ -70,6 +72,7 @@ impl Bdd {
                 receiver: None,
                 ite_cache: HashMap::new(),
                 restrict_cache: HashMap::new(),
+                restrict_cache2: HashMap::new(),
             }
         }
         #[cfg(feature = "adhoccounting")]
@@ -86,6 +89,7 @@ impl Bdd {
                 receiver: None,
                 ite_cache: HashMap::new(),
                 restrict_cache: HashMap::new(),
+                restrict_cache2: HashMap::new(),
             };
             result
                 .count_cache
@@ -202,10 +206,13 @@ impl Bdd {
     }
 
     /// Restrict the bdd to the given list of [variables][crate::datatypes::Var] and [values][bool].
+    ///
+    /// # Caution
+    /// `restrict_list` only works as described if the `list` follows the variable ordering.
     pub fn restrict_list(&mut self, tree: Term, list: &[(Var, bool)]) -> Term {
         if let Some(&(var, val)) = list.first() {
-            if let Some(result) = self.restrict_cache.get(&(tree, var, val)) {
-                self.restrict_list(*result, &list[1..])
+            if let Some(result) = self.restrict_cache2.get(&(tree, list.to_vec())) {
+                *result
             } else {
                 let node = self.nodes[tree.value()];
                 #[cfg(feature = "variablelist")]
@@ -221,12 +228,15 @@ impl Bdd {
                 } else if node.var() < var {
                     let lonode = self.restrict_list(node.lo(), list);
                     let hinode = self.restrict_list(node.hi(), list);
-                    let result = self.node(node.var(), lonode, hinode);
-                    self.restrict_list(result, &list[1..])
+                    let mut result = self.node(node.var(), lonode, hinode);
+                    result = self.restrict_list(result, &list[1..]);
+                    self.restrict_cache2.insert((tree, list.into()), result);
+                    result
                 } else {
-                    let result = if val { node.hi() } else { node.lo() };
-                    self.restrict_cache.insert((tree, var, val), result);
-                    self.restrict_list(result, &list[1..])
+                    let result =
+                        self.restrict_list(if val { node.hi() } else { node.lo() }, &list[1..]);
+                    self.restrict_cache2.insert((tree, list.into()), result);
+                    result
                 }
             }
         } else {
