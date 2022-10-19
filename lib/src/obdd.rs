@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 
+#[cfg(test)]
+use mimicry::mock;
+
 /// Contains the data of (possibly) multiple roBDDs, managed over one collection of nodes.
 /// It has a couple of methods to instantiate, update, and query properties on a given roBDD.
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
@@ -198,39 +201,37 @@ impl Bdd {
         result
     }
 
-    /// Restrict the value of a given [variable][crate::datatypes::Var] to **val**.
-    pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
-        if let Some(result) = self.restrict_cache.get(&(tree, var, val)) {
-            *result
-        } else {
-            let node = self.nodes[tree.0];
-            #[cfg(feature = "variablelist")]
-            {
-                if !self.var_deps[tree.value()].contains(&var) {
-                    return tree;
-                }
-            }
-            #[allow(clippy::collapsible_else_if)]
-            // Readability of algorithm > code-elegance
-            if node.var() > var || node.var() >= Var::BOT {
-                tree
-            } else if node.var() < var {
-                let lonode = self.restrict(node.lo(), var, val);
-                let hinode = self.restrict(node.hi(), var, val);
-                let result = self.node(node.var(), lonode, hinode);
-                self.restrict_cache.insert((tree, var, val), result);
-                result
+    /// Restrict the bdd to the given list of [variables][crate::datatypes::Var] and [values][bool].
+    pub fn restrict_list(&mut self, tree: Term, list: &[(Var, bool)]) -> Term {
+        if let Some(&(var, val)) = list.first() {
+            if let Some(result) = self.restrict_cache.get(&(tree, var, val)) {
+                self.restrict_list(*result, &list[1..])
             } else {
-                if val {
-                    let result = self.restrict(node.hi(), var, val);
-                    self.restrict_cache.insert((tree, var, val), result);
-                    result
+                let node = self.nodes[tree.value()];
+                #[cfg(feature = "variablelist")]
+                {
+                    if !self.var_deps[tree.value()].contains(&var) {
+                        return self.restrict_list(tree, &list[1..]);
+                    }
+                }
+                if node.var() >= Var::BOT {
+                    tree
+                } else if node.var() > var {
+                    self.restrict_list(tree, &list[1..])
+                } else if node.var() < var {
+                    let lonode = self.restrict_list(node.lo(), list);
+                    let hinode = self.restrict_list(node.hi(), list);
+                    let result = self.node(node.var(), lonode, hinode);
+                    self.restrict_list(result, &list[1..])
                 } else {
-                    let result = self.restrict(node.lo(), var, val);
+                    let result = if val { node.hi() } else { node.lo() };
                     self.restrict_cache.insert((tree, var, val), result);
-                    result
+                    self.restrict_list(result, &list[1..])
                 }
             }
+        } else {
+            // No elements in list
+            tree
         }
     }
 
@@ -569,9 +570,87 @@ impl Bdd {
     }
 }
 
+#[cfg_attr(test, mock(using = "test::TestBdd"))]
+impl Bdd {
+    /// Restrict the value of a given [variable][crate::datatypes::Var] to **val**.
+    pub fn restrict(&mut self, tree: Term, var: Var, val: bool) -> Term {
+        if let Some(result) = self.restrict_cache.get(&(tree, var, val)) {
+            *result
+        } else {
+            let node = self.nodes[tree.0];
+            #[cfg(feature = "variablelist")]
+            {
+                if !self.var_deps[tree.value()].contains(&var) {
+                    return tree;
+                }
+            }
+            #[allow(clippy::collapsible_else_if)]
+            // Readability of algorithm > code-elegance
+            if node.var() > var || node.var() >= Var::BOT {
+                tree
+            } else if node.var() < var {
+                let lonode = self.restrict(node.lo(), var, val);
+                let hinode = self.restrict(node.hi(), var, val);
+                let result = self.node(node.var(), lonode, hinode);
+                self.restrict_cache.insert((tree, var, val), result);
+                result
+            } else {
+                if val {
+                    let result = self.restrict(node.hi(), var, val);
+                    self.restrict_cache.insert((tree, var, val), result);
+                    result
+                } else {
+                    let result = self.restrict(node.lo(), var, val);
+                    self.restrict_cache.insert((tree, var, val), result);
+                    result
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use mimicry::Mock;
+
+    #[derive(Default, Mock)]
+    pub struct TestBdd {}
+    impl mimicry::CheckRealCall for TestBdd {}
+    impl TestBdd {
+        pub fn restrict<'s>(&self, recv: &'s mut Bdd, tree: Term, var: Var, val: bool) -> Term {
+            recv.restrict_list(tree, &[(var, val)])
+        }
+    }
+
+    macro_rules! genmockguard {
+        ($func: ident) => {
+            let _guard = TestBdd::default().set_as_mock();
+            $func();
+        };
+    }
+
+    macro_rules! test {
+        ($func: ident, $func2: ident) => {
+            #[test]
+            fn $func2() {
+                genmockguard!($func);
+            }
+        };
+    }
+
+    test!(newbdd, mock_newbdd);
+    test!(addconst, mock_addconst);
+    test!(addvar, mock_addvar);
+    test!(use_negation, mock_use_negation);
+    test!(use_and, mock_use_and);
+    test!(use_or, mock_use_or);
+    test!(
+        produce_different_conversions,
+        mock_produce_different_conversions
+    );
+    test!(display, mock_display);
+    test!(counting, mock_counting);
 
     #[test]
     fn newbdd() {
@@ -587,6 +666,8 @@ mod test {
         assert_eq!(Bdd::constant(false), Term::BOT);
         assert_eq!(bdd.nodes.len(), 2);
     }
+
+    test!(addconst, addconst_list);
 
     #[test]
     fn addvar() {
@@ -607,7 +688,7 @@ mod test {
     }
 
     #[test]
-    fn use_add() {
+    fn use_and() {
         let mut bdd = Bdd::new();
         let v1 = bdd.variable(Var(0));
         let v2 = bdd.variable(Var(1));
@@ -652,8 +733,10 @@ mod test {
         assert_eq!(bdd.and(v3, nv3), Term::BOT);
 
         let conj = bdd.and(v1, v2);
+        assert_eq!(bdd.restrict_list(conj, &[(Var(0), true)]), v2);
         assert_eq!(bdd.restrict(conj, Var(0), false), Term::BOT);
         assert_eq!(bdd.restrict(conj, Var(0), true), v2);
+        assert_eq!(bdd.restrict_list(conj, &[(Var(0), false)]), Term::BOT);
 
         let a = bdd.and(v3, v2);
         let b = bdd.or(v2, v1);

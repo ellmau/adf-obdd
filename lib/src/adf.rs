@@ -200,8 +200,9 @@ impl Adf {
     pub fn grounded(&mut self) -> Vec<Term> {
         log::info!("[Start] grounded");
         let ac = &self.ac.clone();
-        let result = self.grounded_internal(ac);
+        let result = self.update_interpretation_fixpoint(ac);
         log::info!("[Done] grounded");
+        log::debug!("{:?}", self.bdd);
         result
     }
 
@@ -602,7 +603,7 @@ impl Adf {
     fn update_interpretation_fixpoint(&mut self, interpretation: &[Term]) -> Vec<Term> {
         let mut cur_int = interpretation.to_vec();
         loop {
-            let new_int = self.update_interpretation(interpretation);
+            let new_int = self.update_interpretation(&cur_int);
             if cur_int == new_int {
                 return cur_int;
             } else {
@@ -632,7 +633,7 @@ impl Adf {
     }
 
     fn update_interpretation(&mut self, interpretation: &[Term]) -> Vec<Term> {
-        self.apply_interpretation(interpretation, interpretation)
+        self.apply_interpretation_list(interpretation, interpretation)
     }
 
     fn apply_interpretation(&mut self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
@@ -648,6 +649,27 @@ impl Adf {
                             acc
                         }
                     })
+            })
+            .collect::<Vec<Term>>()
+    }
+
+    fn apply_interpretation_list(&mut self, ac: &[Term], interpretation: &[Term]) -> Vec<Term> {
+        ac.iter()
+            .map(|ac| {
+                self.bdd.restrict_list(
+                    *ac,
+                    &interpretation
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, val)| {
+                            if val.is_truth_value() {
+                                Some((Var(idx), val.is_true()))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<(Var, bool)>>(),
+                )
             })
             .collect::<Vec<Term>>()
     }
