@@ -369,7 +369,7 @@ impl App {
                             export.to_string_lossy()
                         );
                     } else {
-                        let export_file = match File::create(&export) {
+                        let export_file = match File::create(export) {
                             Err(reason) => {
                                 panic!("couldn't create {}: {}", export.to_string_lossy(), reason)
                             }
