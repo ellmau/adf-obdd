@@ -15,7 +15,7 @@ fn main() {
 fn gen_tests() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let destination = Path::new(&out_dir).join("tests.rs");
-    let mut test_file = File::create(&destination).unwrap();
+    let mut test_file = File::create(destination).unwrap();
 
     if let Ok(test_data_directory) = read_dir("../res/adf-instances/instances/") {
         // write test file header, put `use`, `const` etc there
