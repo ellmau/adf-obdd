@@ -140,7 +140,7 @@ interface Props {
   }
 }
 
-function Graph(props: Props) {
+function GraphG6(props: Props) {
   const { graph: graphProps } = props;
 
   const ref = useRef(null);
@@ -359,4 +359,4 @@ function Graph(props: Props) {
   );
 }
 
-export default Graph;
+export default GraphG6;

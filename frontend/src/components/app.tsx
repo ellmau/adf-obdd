@@ -19,7 +19,7 @@ import {
   TextField,
 } from '@mui/material';
 
-import Graph from './graph.tsx';
+import GraphG6 from './graph-g6.tsx';
 
 const { useState, useCallback } = React;
 
@@ -155,7 +155,7 @@ function App() {
           {graphs.length > 0
             && (
             <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
-              <Graph graph={graphs[graphIndex]} />
+              <GraphG6 graph={graphs[graphIndex]} />
             </Paper>
             )}
           {graphs.length === 0
