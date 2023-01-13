@@ -131,13 +131,42 @@ G6.registerNode('nodeWithFlag', {
   },
 });
 
+interface GraphProps {
+  lo_edges: [number, number][],
+  hi_edges: [number, number][],
+  node_labels: { [key: number]: string },
+  tree_root_labels: { [key: number]: string[] },
+}
+
+function nodesAndEdgesFromGraphProps(graphProps: GraphProps) {
+  const nodes = Object.keys(graphProps.node_labels).map((id) => {
+    const mainLabel = graphProps.node_labels[id];
+    const subLabel = graphProps.tree_root_labels[id].length > 0 ? `Root for: ${graphProps.tree_root_labels[id].join(' ; ')}` : undefined;
+
+    // const label = subLabel.length > 0 ? `${mainLabel}\n${subLabel}` : mainLabel;
+
+    return {
+      id: id.toString(),
+      mainLabel,
+      subLabel,
+      // style: {
+      // height: subLabel.length > 0 ? 60 : 30,
+      // width: Math.max(30, 5 * mainLabel.length + 10, 5 * subLabel.length + 10),
+      // },
+    };
+  });
+  const edges = graphProps.lo_edges.map(([source, target]) => ({
+    id: `LO_${source}_${target}`, source: source.toString(), target: target.toString(), style: { stroke: '#ed6c02', lineWidth: 2 },
+  }))
+    .concat(graphProps.hi_edges.map(([source, target]) => ({
+      id: `HI_${source}_${target}`, source: source.toString(), target: target.toString(), style: { stroke: '#1976d2', lineWidth: 2 },
+    })));
+
+  return { nodes, edges };
+}
+
 interface Props {
-  graph: {
-    lo_edges: [number, number][],
-    hi_edges: [number, number][],
-    node_labels: { [key: number]: string },
-    tree_root_labels: { [key: number]: string[] },
-  }
+  graph: GraphProps,
 }
 
 function GraphG6(props: Props) {
@@ -197,6 +226,11 @@ function GraphG6(props: Props) {
             lowlight: {
               opacity: 0.3,
             },
+          },
+          animate: true,
+          animateCfg: {
+            duration: 500,
+            easing: 'easePolyInOut',
           },
         });
       }
@@ -315,34 +349,12 @@ function GraphG6(props: Props) {
     () => {
       const graph = graphRef.current;
 
-      const nodes = Object.keys(graphProps.node_labels).map((id) => {
-        const mainLabel = graphProps.node_labels[id];
-        const subLabel = graphProps.tree_root_labels[id].length > 0 ? `Root for: ${graphProps.tree_root_labels[id].join(' ; ')}` : undefined;
+      const { nodes, edges } = nodesAndEdgesFromGraphProps(graphProps);
 
-        // const label = subLabel.length > 0 ? `${mainLabel}\n${subLabel}` : mainLabel;
-
-        return {
-          id: id.toString(),
-          mainLabel,
-          subLabel,
-          // style: {
-          // height: subLabel.length > 0 ? 60 : 30,
-          // width: Math.max(30, 5 * mainLabel.length + 10, 5 * subLabel.length + 10),
-          // },
-        };
-      });
-      const edges = graphProps.lo_edges.map(([source, target]) => ({
-        id: `LO_${source}_${target}`, source: source.toString(), target: target.toString(), style: { stroke: '#ed6c02', lineWidth: 2 },
-      }))
-        .concat(graphProps.hi_edges.map(([source, target]) => ({
-          id: `HI_${source}_${target}`, source: source.toString(), target: target.toString(), style: { stroke: '#1976d2', lineWidth: 2 },
-        })));
-
-      graph.data({
+      graph.changeData({
         nodes,
         edges,
       });
-      graph.render();
     },
     [graphProps],
   );
