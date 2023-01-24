@@ -1,6 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/adf_bdd)](https://crates.io/crates/adf_bdd)
 [![docs.rs](https://img.shields.io/docsrs/adf_bdd?label=docs.rs)](https://docs.rs/adf_bdd/latest/adf_bdd/)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ellmau/adf-obdd/Code%20coverage%20with%20tarpaulin)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ellmau/adf-obdd/codecov.yml?branch=main)
 [![Coveralls](https://img.shields.io/coveralls/github/ellmau/adf-obdd)](https://coveralls.io/github/ellmau/adf-obdd)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ellmau/adf-obdd?include_prereleases)
 ![GitHub (Pre-)Release Date](https://img.shields.io/github/release-date-pre/ellmau/adf-obdd?label=release%20from) ![GitHub top language](https://img.shields.io/github/languages/top/ellmau/adf-obdd)
