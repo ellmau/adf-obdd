@@ -37,7 +37,7 @@ rand = {version = "0.8.5", features = ["std_rng"]}
 
 [dev-dependencies]
 test-log = "0.2"
-env_logger = "0.9"
+env_logger = "0.10"
 quickcheck = "1"
 quickcheck_macros = "1"
 
