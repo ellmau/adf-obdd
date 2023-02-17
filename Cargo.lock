@@ -102,9 +102,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "biodivine-lib-bdd"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "967934b40e38903f26498262995fd5c09b9470d8833590abd6a3de2b57c1a109"
+checksum = "6788c9f2c86e8189b4f622f8c6e10febfef7fa66d796a09f6074f5339ba3bae3"
 dependencies = [
  "fxhash",
  "num-bigint",
