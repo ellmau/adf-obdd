@@ -99,32 +99,12 @@ impl Interpretation {
             }
         }
     }
-    fn credulous_matches(&self, other: &NoGood) -> RoaringBitmap {
-        let true_match = (&self.0.can_be_true ^ &other.can_be_true) ^ self.0.full();
-        let false_match = (&self.0.can_be_false ^ &other.can_be_false) ^ self.0.full();
-        let und_match = (&self.0.can_be_und ^ &other.can_be_und) ^ self.0.full();
-
-        true_match | false_match | und_match
-    }
-
     fn sceptical_matches(&self, other: &NoGood) -> RoaringBitmap {
         let true_match = (&self.0.can_be_true ^ &other.can_be_true) ^ self.0.full();
         let false_match = (&self.0.can_be_false ^ &other.can_be_false) ^ self.0.full();
         let und_match = (&self.0.can_be_und ^ &other.can_be_und) ^ self.0.full();
 
         true_match & false_match & und_match
-    }
-
-    /// Returns the credulous and sceptical matches of the [Interpretation] and a given [NoGood]
-    fn matches(&self, other: &NoGood) -> (RoaringBitmap, RoaringBitmap) {
-        let true_match = (&self.0.can_be_true ^ &other.can_be_true) ^ self.0.full();
-        let false_match = (&self.0.can_be_false ^ &other.can_be_false) ^ self.0.full();
-        let und_match = (&self.0.can_be_und ^ &other.can_be_und) ^ self.0.full();
-
-        (
-            &true_match | &false_match | &und_match,
-            true_match & false_match & und_match,
-        )
     }
 }
 
@@ -176,7 +156,7 @@ impl PartialEq for NoGood {
 
 impl From<Interpretation> for NoGood {
     fn from(interpretation: Interpretation) -> Self {
-        interpretation.0.invert()
+        interpretation.0
     }
 }
 
@@ -241,14 +221,6 @@ impl NoGood {
 
     fn active(&self) -> RoaringBitmap {
         (&self.can_be_true & &self.can_be_false & &self.can_be_und) ^ &self.full()
-    }
-
-    fn no_matches(&self, other: &NoGood) -> RoaringBitmap {
-        let no_true_match = &self.can_be_true ^ &other.can_be_true;
-        let no_false_match = &self.can_be_false ^ &other.can_be_false;
-        let no_und_match = &self.can_be_und ^ &other.can_be_und;
-
-        no_true_match | no_false_match | no_und_match
     }
 }
 #[cfg(test)]
@@ -325,7 +297,8 @@ mod test {
             Term::BOT,
         ]);
 
-        assert!(ng1.clone().conclude(&ng2.0).consistent().is_none());
+        let nogood2: NoGood = ng2.clone().into();
+        assert!(ng1.clone().conclude(&nogood2).consistent().is_none());
         let result = ng2.clone().conclude(&ng1.0).consistent().unwrap();
         assert_eq!(result.idx_as_triple(0), (true, false, false));
         assert_eq!(result.idx_as_triple(1), (true, true, true));
@@ -361,5 +334,34 @@ mod test {
         } else {
             panic!("test failed");
         }
+        assert!(ng2.conclude(&ng_too_big.into()).consistent().is_some());
+    }
+
+    #[test]
+    fn invert() {
+        let inter = Interpretation::from_term_vec(&[
+            Term::TOP,
+            Term(22),
+            Term::TOP,
+            Term::BOT,
+            Term::TOP,
+            Term(22),
+        ]);
+
+        let inter_inv = inter.clone();
+        assert_eq!(inter, inter_inv.invert().invert());
+
+        let ng = std::convert::Into::<NoGood>::into(inter.clone());
+        assert_eq!(ng.clone(), ng.clone().invert().invert());
+
+        let new_inter = std::convert::Into::<Interpretation>::into(ng);
+
+        assert_eq!(new_inter, inter);
+    }
+
+    #[test]
+    fn default() {
+        let ng = NoGood::default();
+        assert_eq!(ng.size, u32::default());
     }
 }
