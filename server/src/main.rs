@@ -128,9 +128,8 @@ async fn main() -> std::io::Result<()> {
     #[cfg(feature = "cors_for_local_development")]
     let server = HttpServer::new(|| {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:1234")
-            .allowed_origin("https://web.postman.co")
-            .allowed_methods(vec!["GET", "POST"])
+            .allow_any_origin()
+            .allow_any_method()
             .allow_any_header()
             .max_age(3600);
 
