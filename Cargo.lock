@@ -246,6 +246,7 @@ dependencies = [
  "actix-files",
  "actix-web",
  "adf_bdd",
+ "derive_more",
  "env_logger 0.9.3",
  "log",
  "serde",

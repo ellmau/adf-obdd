@@ -1,11 +1,15 @@
+use std::time::Duration;
+
 use actix_files as fs;
-use actix_web::{post, web, App, HttpServer, Responder};
+use actix_web::rt::task::spawn_blocking;
+use actix_web::rt::time::timeout;
+use actix_web::{post, web, App, HttpServer, Responder, ResponseError};
 use serde::{Deserialize, Serialize};
+
+use derive_more::{Display, Error};
 
 #[cfg(feature = "cors_for_local_development")]
 use actix_cors::Cors;
-#[cfg(feature = "cors_for_local_development")]
-use actix_web::http;
 
 use adf_bdd::adf::{Adf, DoubleLabeledGraph};
 use adf_bdd::adfbiodivine::Adf as BdAdf;
@@ -40,8 +44,7 @@ struct SolveResBody {
     graph: DoubleLabeledGraph,
 }
 
-#[post("/solve")]
-async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
+fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
     let input = &req_body.code;
     let parsing = &req_body.parsing;
     let strategy = &req_body.strategy;
@@ -93,6 +96,29 @@ async fn solve(req_body: web::Json<SolveReqBody>) -> impl Responder {
     web::Json(dto)
 }
 
+#[derive(Debug, Display, Error)]
+#[display(
+    fmt = "Endpoint {} timed out. Probably your ADF problem is too complicated :(",
+    endpoint
+)]
+struct Timeout {
+    endpoint: &'static str,
+}
+
+impl ResponseError for Timeout {}
+
+#[post("/solve")]
+async fn solve_with_timeout(req_body: web::Json<SolveReqBody>) -> impl Responder {
+    timeout(Duration::from_secs(20), spawn_blocking(|| solve(req_body)))
+        .await
+        .map(|ok| {
+            ok.expect(
+                "An error in the spawned solve thread occurred. Timeouts are handled separately.",
+            )
+        })
+        .map_err(|_| Timeout { endpoint: "/solve" })
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::builder()
@@ -103,17 +129,14 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(|| {
         let cors = Cors::default()
             .allowed_origin("http://localhost:1234")
+            .allowed_origin("https://web.postman.co")
             .allowed_methods(vec!["GET", "POST"])
-            .allowed_headers(vec![
-                http::header::AUTHORIZATION,
-                http::header::ACCEPT,
-                http::header::CONTENT_TYPE,
-            ])
+            .allow_any_header()
             .max_age(3600);
 
         App::new()
             .wrap(cors)
-            .service(solve)
+            .service(solve_with_timeout)
             // this mus be last to not override anything
             .service(fs::Files::new("/", "./assets").index_file("index.html"))
     })
@@ -124,7 +147,7 @@ async fn main() -> std::io::Result<()> {
     #[cfg(not(feature = "cors_for_local_development"))]
     let server = HttpServer::new(|| {
         App::new()
-            .service(solve)
+            .service(solve_with_timeout)
             // this mus be last to not override anything
             .service(fs::Files::new("/", "./assets").index_file("index.html"))
     })
