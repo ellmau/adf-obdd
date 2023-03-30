@@ -26,7 +26,7 @@ impl Default for VarContainer {
 }
 
 impl VarContainer {
-    pub(crate) fn from_parser(
+    pub fn from_parser(
         names: Arc<RwLock<Vec<String>>>,
         mapping: Arc<RwLock<HashMap<String, usize>>>,
     ) -> VarContainer {
@@ -51,11 +51,11 @@ impl VarContainer {
             .and_then(|name| name.get(var.value()).cloned())
     }
 
-    pub(crate) fn names(&self) -> Arc<RwLock<Vec<String>>> {
+    pub fn names(&self) -> Arc<RwLock<Vec<String>>> {
         Arc::clone(&self.names)
     }
 
-    pub(crate) fn mappings(&self) -> Arc<RwLock<HashMap<String, usize>>> {
+    pub fn mappings(&self) -> Arc<RwLock<HashMap<String, usize>>> {
         Arc::clone(&self.mapping)
     }
 

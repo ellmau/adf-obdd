@@ -9,6 +9,7 @@ pub mod heuristics;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
+use crate::datatypes::BddNode;
 use crate::{
     datatypes::{
         adf::{
@@ -31,23 +32,23 @@ use self::heuristics::Heuristic;
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
-    ordering: VarContainer,
-    bdd: Bdd,
-    ac: Vec<Term>,
+    pub ordering: VarContainer,
+    pub bdd: Bdd,
+    pub ac: Vec<Term>,
     #[serde(skip, default = "Adf::default_rng")]
     rng: RefCell<StdRng>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 /// This is a DTO for the graph output
 pub struct DoubleLabeledGraph {
     // number of nodes equals the number of node labels
     // nodes implicitly have their index as their ID
-    node_labels: HashMap<usize, String>,
+    node_labels: HashMap<String, String>,
     // every node gets this label containing multiple entries (it might be empty)
-    tree_root_labels: HashMap<usize, Vec<String>>,
-    lo_edges: Vec<(usize, usize)>,
-    hi_edges: Vec<(usize, usize)>,
+    tree_root_labels: HashMap<String, Vec<String>>,
+    lo_edges: Vec<(String, String)>,
+    hi_edges: Vec<(String, String)>,
 }
 
 impl Default for Adf {
@@ -62,6 +63,21 @@ impl Default for Adf {
 }
 
 impl Adf {
+    pub fn from_ord_nodes_and_ac(
+        ordering: VarContainer,
+        bdd_nodes: Vec<BddNode>,
+        ac: Vec<Term>,
+    ) -> Self {
+        let bdd = Bdd::from_nodes(bdd_nodes);
+
+        Adf {
+            ordering,
+            bdd,
+            ac,
+            rng: Self::default_rng(),
+        }
+    }
+
     /// Instantiates a new ADF, based on the [parser-data][crate::parser::AdfParser].
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");
@@ -960,7 +976,7 @@ impl Adf {
             }
         }
 
-        let node_labels: HashMap<usize, String> = self
+        let node_labels: HashMap<String, String> = self
             .bdd
             .nodes
             .iter()
@@ -975,11 +991,11 @@ impl Adf {
                     ),
                 };
 
-                (i, value_part)
+                (i.to_string(), value_part)
             })
             .collect();
 
-        let tree_root_labels: HashMap<usize, Vec<String>> = ac.iter().enumerate().fold(
+        let tree_root_labels_with_usize: HashMap<usize, Vec<String>> = ac.iter().enumerate().fold(
             self.bdd
                 .nodes
                 .iter()
@@ -998,7 +1014,12 @@ impl Adf {
             },
         );
 
-        let lo_edges: Vec<(usize, usize)> = self
+        let tree_root_labels: HashMap<String, Vec<String>> = tree_root_labels_with_usize
+            .into_iter()
+            .map(|(i, vec)| (i.to_string(), vec))
+            .collect();
+
+        let lo_edges: Vec<(String, String)> = self
             .bdd
             .nodes
             .iter()
@@ -1006,9 +1027,10 @@ impl Adf {
             .filter(|(i, _)| node_indices.contains(i))
             .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
             .map(|(i, &node)| (i, node.lo().value()))
+            .map(|(i, v)| (i.to_string(), v.to_string()))
             .collect();
 
-        let hi_edges: Vec<(usize, usize)> = self
+        let hi_edges: Vec<(String, String)> = self
             .bdd
             .nodes
             .iter()
@@ -1016,6 +1038,7 @@ impl Adf {
             .filter(|(i, _)| node_indices.contains(i))
             .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
             .map(|(i, &node)| (i, node.hi().value()))
+            .map(|(i, v)| (i.to_string(), v.to_string()))
             .collect();
 
         log::debug!("{:?}", node_labels);
