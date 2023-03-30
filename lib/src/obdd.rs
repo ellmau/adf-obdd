@@ -556,7 +556,7 @@ impl Bdd {
 
     /// Counts how often another roBDD uses a [variable][crate::datatypes::Var], which occurs in this roBDD.
     pub fn active_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
-        (0..termlist.len()).into_iter().fold(0usize, |acc, idx| {
+        (0..termlist.len()).fold(0usize, |acc, idx| {
             if self
                 .var_dependencies(termlist[var.value()])
                 .contains(&Var(idx))

@@ -71,7 +71,7 @@ impl Adf {
             ac: vec![Term(0); parser.dict_size()],
             rng: Adf::default_rng(),
         };
-        (0..parser.dict_size()).into_iter().for_each(|value| {
+        (0..parser.dict_size()).for_each(|value| {
             log::trace!("adding variable {}", Var(value));
             result.bdd.variable(Var(value));
         });
