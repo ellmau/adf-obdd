@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use mongodb::Client;
+use serde::Serialize;
 
 use crate::adf::Strategy;
 
@@ -16,7 +17,7 @@ pub(crate) const DB_NAME: &str = "adf-obdd";
 pub(crate) const USER_COLL: &str = "users";
 pub(crate) const ADF_COLL: &str = "adf-problems";
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub(crate) enum Task {
     Parse,
     Solve(Strategy),

@@ -1,12 +1,16 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
+#[cfg(feature = "mock_long_computations")]
+use std::time::Duration;
 
 use actix_identity::Identity;
+use actix_web::rt::spawn;
 use actix_web::rt::task::spawn_blocking;
 use actix_web::rt::time::timeout;
-use actix_web::{post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use adf_bdd::datatypes::adf::VarContainer;
 use adf_bdd::datatypes::{BddNode, Term, Var};
+use futures_util::FutureExt;
 use mongodb::bson::doc;
 use mongodb::bson::{to_bson, Bson};
 use names::{Generator, Name};
@@ -22,13 +26,13 @@ use crate::user::{username_exists, User};
 type Ac = Vec<Term>;
 type AcDb = Vec<String>;
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Copy, Clone, Deserialize, Serialize)]
 pub(crate) enum Parsing {
     Naive,
     Hybrid,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub(crate) enum Strategy {
     Ground,
     Complete,
@@ -50,7 +54,27 @@ impl From<AcAndGraph> for Bson {
     }
 }
 
-type AcsAndGraphsOpt = Option<Vec<AcAndGraph>>;
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub(crate) enum OptionWithError<T> {
+    Some(T),
+    Error(String),
+    #[default]
+    None,
+}
+
+impl<T> OptionWithError<T> {
+    fn is_some(&self) -> bool {
+        matches!(self, Self::Some(_))
+    }
+}
+
+impl<T: Serialize> From<OptionWithError<T>> for Bson {
+    fn from(source: OptionWithError<T>) -> Self {
+        to_bson(&source).expect("Serialization should work")
+    }
+}
+
+type AcsAndGraphsOpt = OptionWithError<Vec<AcAndGraph>>;
 
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct AcsPerStrategy {
@@ -63,7 +87,7 @@ pub(crate) struct AcsPerStrategy {
     pub(crate) stable_nogood: AcsAndGraphsOpt,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct VarContainerDb {
     names: Vec<String>,
     mapping: HashMap<String, String>,
@@ -99,7 +123,7 @@ impl From<VarContainerDb> for VarContainer {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct BddNodeDb {
     var: String,
     lo: String,
@@ -128,7 +152,7 @@ impl From<BddNodeDb> for BddNode {
 
 type SimplifiedBdd = Vec<BddNodeDb>;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct SimplifiedAdf {
     pub(crate) ordering: VarContainerDb,
     pub(crate) bdd: SimplifiedBdd,
@@ -145,13 +169,15 @@ impl SimplifiedAdf {
     }
 }
 
+type SimplifiedAdfOpt = OptionWithError<SimplifiedAdf>;
+
 #[derive(Deserialize, Serialize)]
 pub(crate) struct AdfProblem {
     pub(crate) name: String,
     pub(crate) username: String,
     pub(crate) code: String,
     pub(crate) parsing_used: Parsing,
-    pub(crate) adf: SimplifiedAdf,
+    pub(crate) adf: SimplifiedAdfOpt,
     pub(crate) acs_per_strategy: AcsPerStrategy,
 }
 
@@ -173,6 +199,32 @@ async fn adf_problem_exists(
         .ok()
         .flatten()
         .is_some()
+}
+
+#[derive(Serialize)]
+struct AdfProblemInfo {
+    name: String,
+    code: String,
+    parsing_used: Parsing,
+    acs_per_strategy: AcsPerStrategy,
+    running_tasks: Vec<Task>,
+}
+
+impl AdfProblemInfo {
+    fn from_adf_prob_and_tasks(adf: AdfProblem, tasks: &HashSet<RunningInfo>) -> Self {
+        AdfProblemInfo {
+            name: adf.name.clone(),
+            code: adf.code,
+            parsing_used: adf.parsing_used,
+            acs_per_strategy: adf.acs_per_strategy,
+            running_tasks: tasks
+                .iter()
+                .filter_map(|t| {
+                    (t.adf_name == adf.name && t.username == adf.username).then_some(t.task)
+                })
+                .collect(),
+        }
+    }
 }
 
 #[post("/add")]
@@ -271,10 +323,26 @@ async fn add_adf_problem(
         }
     };
 
-    let adf_problem_input_clone = adf_problem_input.clone();
+    let adf_problem: AdfProblem = AdfProblem {
+        name: problem_name.clone(),
+        username: username.clone(),
+        code: adf_problem_input.code.clone(),
+        parsing_used: adf_problem_input.parse_strategy,
+        adf: SimplifiedAdfOpt::None,
+        acs_per_strategy: AcsPerStrategy::default(),
+    };
+
+    let result = adf_coll.insert_one(&adf_problem, None).await;
+
+    if let Err(err) = result {
+        return HttpResponse::InternalServerError()
+            .body(format!("Could not create Database entry. Error: {err}"));
+    }
+
     let username_clone = username.clone();
     let problem_name_clone = problem_name.clone();
-    let adf_res = timeout(
+
+    let adf_fut = timeout(
         COMPUTE_TIME,
         spawn_blocking(move || {
             let running_info = RunningInfo {
@@ -289,11 +357,14 @@ async fn add_adf_problem(
                 .unwrap()
                 .insert(running_info.clone());
 
+            #[cfg(feature = "mock_long_computations")]
+            std::thread::sleep(Duration::from_secs(20));
+
             let parser = AdfParser::default();
-            parser.parse()(&adf_problem_input_clone.code)
+            parser.parse()(&adf_problem_input.code)
                 .map_err(|_| "ADF could not be parsed, double check your input!")?;
 
-            let lib_adf = match adf_problem_input_clone.parse_strategy {
+            let lib_adf = match adf_problem_input.parse_strategy {
                 Parsing::Naive => Adf::from_parser(&parser),
                 Parsing::Hybrid => {
                     let bd_adf = BdAdf::from_parser(&parser);
@@ -314,33 +385,42 @@ async fn add_adf_problem(
 
             Ok::<_, &str>((SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph))
         }),
-    )
-    .await;
+    );
 
-    match adf_res {
-        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(Ok(Err(err))) => HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(Ok(Ok((adf, ac_and_graph)))) => {
-            let acs = AcsPerStrategy { parse_only: Some(vec![ac_and_graph]), ..Default::default()};
+    spawn(adf_fut.then(move |adf_res| async move {
+        let (adf, ac_and_graph): (SimplifiedAdfOpt, AcsAndGraphsOpt) = match adf_res {
+            Err(err) => (
+                SimplifiedAdfOpt::Error(err.to_string()),
+                AcsAndGraphsOpt::Error(err.to_string()),
+            ),
+            Ok(Err(err)) => (
+                SimplifiedAdfOpt::Error(err.to_string()),
+                AcsAndGraphsOpt::Error(err.to_string()),
+            ),
+            Ok(Ok(Err(err))) => (
+                SimplifiedAdfOpt::Error(err.to_string()),
+                AcsAndGraphsOpt::Error(err.to_string()),
+            ),
+            Ok(Ok(Ok((adf, ac_and_graph)))) => (
+                SimplifiedAdfOpt::Some(adf),
+                AcsAndGraphsOpt::Some(vec![ac_and_graph]),
+            ),
+        };
 
-            let adf_problem: AdfProblem = AdfProblem {
-                name: problem_name,
-                username,
-                code: adf_problem_input.code,
-                parsing_used: adf_problem_input.parse_strategy,
-                adf,
-                acs_per_strategy: acs,
-            };
+        let result = adf_coll
+            .update_one(
+                doc! { "name": problem_name, "username": username },
+                doc! { "$set": { "adf": &adf, "acs_per_strategy.parse_only": &ac_and_graph } },
+                None,
+            )
+            .await;
 
-            let result = adf_coll.insert_one(&adf_problem, None).await;
-
-            match result {
-                Ok(_) => HttpResponse::Ok().json(adf_problem), // TODO: return name of problem here (especially since it may be generated)
-                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-            }
+        if let Err(err) = result {
+            log::error!("{err}");
         }
-    }
+    }));
+
+    HttpResponse::Ok().body("Parsing started...")
 }
 
 #[derive(Deserialize)]
@@ -382,6 +462,16 @@ async fn solve_adf_problem(
         Ok(Some(prob)) => prob,
     };
 
+    let simp_adf: SimplifiedAdf = match adf_problem.adf {
+        SimplifiedAdfOpt::None => {
+            return HttpResponse::BadRequest().body("The ADF problem has not been parsed yet.")
+        }
+        SimplifiedAdfOpt::Error(err) => return HttpResponse::BadRequest().body(format!(
+            "The ADF problem could not be parsed. Update it and try parsing it again. Error: {err}"
+        )),
+        SimplifiedAdfOpt::Some(adf) => adf,
+    };
+
     let has_been_solved = match adf_problem_input.strategy {
         Strategy::Complete => adf_problem.acs_per_strategy.complete.is_some(),
         Strategy::Ground => adf_problem.acs_per_strategy.ground.is_some(),
@@ -399,14 +489,14 @@ async fn solve_adf_problem(
 
     let username_clone = username.clone();
     let problem_name_clone = problem_name.clone();
-    let strategy_clone = adf_problem_input.strategy.clone();
-    let acs_and_graphs_res = timeout(
+
+    let acs_and_graphs_fut = timeout(
         COMPUTE_TIME,
         spawn_blocking(move || {
             let running_info = RunningInfo {
                 username: username_clone,
                 adf_name: problem_name_clone,
-                task: Task::Solve(strategy_clone.clone()),
+                task: Task::Solve(adf_problem_input.strategy),
             };
 
             app_state
@@ -415,18 +505,20 @@ async fn solve_adf_problem(
                 .unwrap()
                 .insert(running_info.clone());
 
+            #[cfg(feature = "mock_long_computations")]
+            std::thread::sleep(Duration::from_secs(20));
+
             let mut adf: Adf = Adf::from_ord_nodes_and_ac(
-                adf_problem.adf.ordering.into(),
-                adf_problem.adf.bdd.into_iter().map(Into::into).collect(),
-                adf_problem
-                    .adf
+                simp_adf.ordering.into(),
+                simp_adf.bdd.into_iter().map(Into::into).collect(),
+                simp_adf
                     .ac
                     .into_iter()
                     .map(|t| Term(t.parse().unwrap()))
                     .collect(),
             );
 
-            let acs: Vec<Ac> = match strategy_clone {
+            let acs: Vec<Ac> = match adf_problem_input.strategy {
                 Strategy::Complete => adf.complete().collect(),
                 Strategy::Ground => vec![adf.grounded()],
                 Strategy::Stable => adf.stable().collect(),
@@ -456,26 +548,66 @@ async fn solve_adf_problem(
 
             acs_and_graphs
         }),
-    )
-    .await;
+    );
 
-    match acs_and_graphs_res {
-        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(Ok(acs_and_graphs)) => {
-            let result = adf_coll.update_one(doc! { "name": &problem_name, "username": &username }, match adf_problem_input.strategy {
-                Strategy::Complete => doc! { "$set": { "acs_per_strategy.complete": Some(&acs_and_graphs) } },
-                Strategy::Ground => doc! { "$set": { "acs_per_strategy.ground": Some(&acs_and_graphs) } },
-                Strategy::Stable => doc! { "$set": { "acs_per_strategy.stable": Some(&acs_and_graphs) } },
-                Strategy::StableCountingA => doc! { "$set": { "acs_per_strategy.stable_counting_a": Some(&acs_and_graphs) } },
-                Strategy::StableCountingB => doc! { "$set": { "acs_per_strategy.stable_counting_b": Some(&acs_and_graphs) } },
-                Strategy::StableNogood => doc! { "$set": { "acs_per_strategy.stable_nogood": Some(&acs_and_graphs) } },
-            }, None).await;
+    spawn(acs_and_graphs_fut.then(move |acs_and_graphs_res| async move {
+        let acs_and_graphs_enum: AcsAndGraphsOpt = match acs_and_graphs_res {
+            Err(err) => AcsAndGraphsOpt::Error(err.to_string()),
+            Ok(Err(err)) => AcsAndGraphsOpt::Error(err.to_string()),
+            Ok(Ok(acs_and_graphs)) => AcsAndGraphsOpt::Some(acs_and_graphs),
+        };
 
-            match result {
-                Ok(_) => HttpResponse::Ok().json(acs_and_graphs),
-                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-            }
+        let result = adf_coll.update_one(doc! { "name": problem_name, "username": username }, match adf_problem_input.strategy {
+            Strategy::Complete => doc! { "$set": { "acs_per_strategy.complete": &acs_and_graphs_enum } },
+            Strategy::Ground => doc! { "$set": { "acs_per_strategy.ground": &acs_and_graphs_enum } },
+            Strategy::Stable => doc! { "$set": { "acs_per_strategy.stable": &acs_and_graphs_enum } },
+            Strategy::StableCountingA => doc! { "$set": { "acs_per_strategy.stable_counting_a": &acs_and_graphs_enum } },
+            Strategy::StableCountingB => doc! { "$set": { "acs_per_strategy.stable_counting_b": &acs_and_graphs_enum } },
+            Strategy::StableNogood => doc! { "$set": { "acs_per_strategy.stable_nogood": &acs_and_graphs_enum } },
+        }, None).await;
+
+        if let Err(err) = result {
+            log::error!("{err}");
         }
-    }
+    }));
+
+    HttpResponse::Ok().body("Solving started...")
+}
+
+#[get("/{problem_name}")]
+async fn get_adf_problem(
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let problem_name = path.into_inner();
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    let username = match identity.map(|id| id.id()) {
+        None => {
+            return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
+        }
+        Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => username,
+    };
+
+    let adf_problem = match adf_coll
+        .find_one(doc! { "name": &problem_name, "username": &username }, None)
+        .await
+    {
+        Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Ok(None) => {
+            return HttpResponse::NotFound()
+                .body(format!("ADF problem with name {problem_name} not found."))
+        }
+        Ok(Some(prob)) => prob,
+    };
+
+    HttpResponse::Ok().json(AdfProblemInfo::from_adf_prob_and_tasks(
+        adf_problem,
+        &app_state.currently_running.lock().unwrap(),
+    ))
 }

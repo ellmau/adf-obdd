@@ -280,8 +280,7 @@ async fn update_user(
         Some(id) => match id.id() {
             Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             Ok(username) => {
-                if user.username != username && username_exists(&user_coll, &user.username).await
-                {
+                if user.username != username && username_exists(&user_coll, &user.username).await {
                     return HttpResponse::Conflict()
                         .body("Username is already taken. Please pick another one!");
                 }
