@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
     // cookie secret ket
     let secret_key = Key::generate();
 
-    let server = HttpServer::new(move || {
+    HttpServer::new(move || {
         let app = App::new();
 
         #[cfg(feature = "cors_for_local_development")]
@@ -89,7 +89,5 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", 8080))?
     .run()
-    .await;
-
-    server
+    .await
 }

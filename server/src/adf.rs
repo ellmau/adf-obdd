@@ -44,9 +44,9 @@ pub(crate) struct AcAndGraph {
     pub(crate) graph: DoubleLabeledGraph,
 }
 
-impl Into<Bson> for AcAndGraph {
-    fn into(self) -> Bson {
-        to_bson(&self).expect("Serialization should work")
+impl From<AcAndGraph> for Bson {
+    fn from(source: AcAndGraph) -> Self {
+        to_bson(&source).expect("Serialization should work")
     }
 }
 
@@ -297,9 +297,7 @@ async fn add_adf_problem(
                 Parsing::Naive => Adf::from_parser(&parser),
                 Parsing::Hybrid => {
                     let bd_adf = BdAdf::from_parser(&parser);
-                    let naive_adf = bd_adf.hybrid_step_opt(false);
-
-                    naive_adf
+                    bd_adf.hybrid_step_opt(false)
                 }
             };
 
@@ -324,8 +322,7 @@ async fn add_adf_problem(
         Ok(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
         Ok(Ok(Err(err))) => HttpResponse::InternalServerError().body(err.to_string()),
         Ok(Ok(Ok((adf, ac_and_graph)))) => {
-            let mut acs = AcsPerStrategy::default();
-            acs.parse_only = Some(vec![ac_and_graph]);
+            let acs = AcsPerStrategy { parse_only: Some(vec![ac_and_graph]), ..Default::default()};
 
             let adf_problem: AdfProblem = AdfProblem {
                 name: problem_name,
