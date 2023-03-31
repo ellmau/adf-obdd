@@ -1,9 +1,9 @@
 use actix_identity::Identity;
-use actix_web::{delete, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use mongodb::results::DeleteResult;
+use mongodb::results::{DeleteResult, UpdateResult};
 use mongodb::{bson::doc, options::IndexOptions, Client, IndexModel};
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,12 @@ pub(crate) struct User {
 struct UserPayload {
     username: String,
     password: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct UserInfo {
+    username: String,
+    temp: bool,
 }
 
 // Creates an index on the "username" field to force the values to be unique.
@@ -210,6 +216,131 @@ async fn logout(app_state: web::Data<AppState>, id: Option<Identity>) -> impl Re
                 } else {
                     id.logout();
                     HttpResponse::Ok().body("Logout successful!")
+                }
+            }
+        },
+    }
+}
+
+// Get current user
+#[get("/info")]
+async fn user_info(app_state: web::Data<AppState>, identity: Option<Identity>) -> impl Responder {
+    let user_coll: mongodb::Collection<User> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(USER_COLL);
+
+    match identity.map(|id| id.id()) {
+        None => {
+            HttpResponse::Unauthorized().body("You need to login get your account information.")
+        }
+        Some(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => {
+            match user_coll
+                .find_one(doc! { "username": &username }, None)
+                .await
+            {
+                Ok(Some(user)) => {
+                    let info = UserInfo {
+                        username: user.username,
+                        temp: user.password.is_none(),
+                    };
+
+                    HttpResponse::Ok().json(info)
+                }
+                Ok(None) => HttpResponse::NotFound().body("Logged in user does not exist anymore."),
+                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+            }
+        }
+    }
+}
+
+// Update current user
+#[put("/update")]
+async fn update_user(
+    req: HttpRequest,
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
+    user: web::Json<UserPayload>,
+) -> impl Responder {
+    let mut user: UserPayload = user.into_inner();
+    let user_coll = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(USER_COLL);
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    match identity {
+        None => {
+            HttpResponse::Unauthorized().body("You need to login get your account information.")
+        }
+        Some(id) => match id.id() {
+            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+            Ok(username) => {
+                if &user.username != &username && username_exists(&user_coll, &user.username).await
+                {
+                    return HttpResponse::Conflict()
+                        .body("Username is already taken. Please pick another one!");
+                }
+
+                let pw = &user.password;
+                let salt = SaltString::generate(&mut OsRng);
+                let hashed_pw = Argon2::default()
+                    .hash_password(pw.as_bytes(), &salt)
+                    .expect("Error while hashing password!")
+                    .to_string();
+
+                user.password = hashed_pw;
+
+                let result = user_coll
+                    .replace_one(
+                        doc! { "username": &username },
+                        User {
+                            username: user.username.clone(),
+                            password: Some(user.password),
+                        },
+                        None,
+                    )
+                    .await;
+                match result {
+                    Ok(UpdateResult {
+                        modified_count: 0, ..
+                    }) => HttpResponse::InternalServerError().body("Account could not be updated."),
+                    Ok(UpdateResult {
+                        modified_count: 1, ..
+                    }) => {
+                        // re-login with new username
+                        Identity::login(&req.extensions(), user.username.clone()).unwrap();
+
+                        // update all adf problems of user
+                        match adf_coll
+                            .update_many(
+                                doc! { "username": &username },
+                                doc! { "$set": { "username": &user.username } },
+                                None,
+                            )
+                            .await
+                        {
+                            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+                            Ok(UpdateResult {
+                                modified_count: 0, ..
+                            }) => HttpResponse::InternalServerError()
+                                .body("Account could not be updated."),
+                            Ok(UpdateResult {
+                                modified_count: _, ..
+                            }) => HttpResponse::Ok().json(UserInfo {
+                                username: user.username,
+                                temp: false,
+                            }),
+                        }
+                    }
+                    Ok(_) => unreachable!(
+                        "replace_one replaces at most one entry so all cases are covered already"
+                    ),
+                    Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
                 }
             }
         },

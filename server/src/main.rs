@@ -19,7 +19,9 @@ mod user;
 
 use adf::{add_adf_problem, solve_adf_problem};
 use config::{AppState, ASSET_DIRECTORY, COOKIE_DURATION};
-use user::{create_username_index, delete_account, login, logout, register};
+use user::{
+    create_username_index, delete_account, login, logout, register, update_user, user_info,
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -73,7 +75,9 @@ async fn main() -> std::io::Result<()> {
                 .service(register)
                 .service(delete_account)
                 .service(login)
-                .service(logout),
+                .service(logout)
+                .service(user_info)
+                .service(update_user),
         )
         .service(
             web::scope("/adf")
