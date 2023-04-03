@@ -51,6 +51,7 @@ async fn main() -> std::io::Result<()> {
             .allowed_origin("http://localhost:1234")
             .allow_any_method()
             .allow_any_header()
+            .supports_credentials()
             .max_age(3600);
 
         #[cfg(feature = "cors_for_local_development")]

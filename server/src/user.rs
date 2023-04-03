@@ -56,6 +56,11 @@ pub(crate) async fn username_exists(user_coll: &mongodb::Collection<User>, usern
 #[post("/register")]
 async fn register(app_state: web::Data<AppState>, user: web::Json<UserPayload>) -> impl Responder {
     let mut user: UserPayload = user.into_inner();
+
+    if user.username.is_empty() || user.password.is_empty() {
+        return HttpResponse::BadRequest().body("Username and Password need to be set!");
+    }
+
     let user_coll = app_state
         .mongodb_client
         .database(DB_NAME)
@@ -116,9 +121,6 @@ async fn delete_account(
             {
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
                 Ok(DeleteResult {
-                    deleted_count: 0, ..
-                }) => HttpResponse::InternalServerError().body("Account could not be deleted."),
-                Ok(DeleteResult {
                     deleted_count: _, ..
                 }) => {
                     // Delete actual user
@@ -163,7 +165,7 @@ async fn login(
     {
         Ok(Some(user)) => {
             let stored_password = match &user.password {
-                None => return HttpResponse::BadRequest().body("Invalid email or password"), // NOTE: login as tremporary user is not allowed
+                None => return HttpResponse::BadRequest().body("Invalid username or password"), // NOTE: login as tremporary user is not allowed
                 Some(password) => password,
             };
 
@@ -264,6 +266,11 @@ async fn update_user(
     user: web::Json<UserPayload>,
 ) -> impl Responder {
     let mut user: UserPayload = user.into_inner();
+
+    if user.username.is_empty() || user.password.is_empty() {
+        return HttpResponse::BadRequest().body("Username and Password need to be set!");
+    }
+
     let user_coll = app_state
         .mongodb_client
         .database(DB_NAME)
@@ -324,10 +331,6 @@ async fn update_user(
                             .await
                         {
                             Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-                            Ok(UpdateResult {
-                                modified_count: 0, ..
-                            }) => HttpResponse::InternalServerError()
-                                .body("Account could not be updated."),
                             Ok(UpdateResult {
                                 modified_count: _, ..
                             }) => HttpResponse::Ok().json(UserInfo {
