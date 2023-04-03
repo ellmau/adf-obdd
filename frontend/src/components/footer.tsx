@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 
 import {
+  AlertColor,
   Alert,
   AppBar,
   Button,
@@ -25,7 +26,7 @@ enum UserFormType {
 
 interface UserFormProps {
   formType: UserFormType | null;
-  close: (message?: string) => void;
+  close: (message?: string, severity?: AlertColor) => void;
   username?: string;
 }
 
@@ -76,7 +77,7 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
         .then((res) => {
           switch (res.status) {
             case 200:
-              close(`Action '${formType}' successful!`);
+              close(`Action '${formType}' successful!`, 'success');
               break;
             default:
               setError(true);
@@ -89,22 +90,35 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
   );
 
   return (
-    <>
+    <form onSubmit={(e) => { e.preventDefault(); submitHandler(false); }}>
       <DialogTitle>{formType}</DialogTitle>
       <DialogContent>
-        <TextField variant="standard" type="text" label="Username" value={username} onChange={(event) => { setUsername(event.target.value); }} />
+        <TextField
+          variant="standard"
+          type="text"
+          label="Username"
+          value={username}
+          onChange={(event) => { setUsername(event.target.value); }}
+        />
         <br />
-        <TextField variant="standard" type="password" label="Password" value={password} onChange={(event) => { setPassword(event.target.value); }} />
+        <TextField
+          variant="standard"
+          type="password"
+          label="Password"
+          value={password}
+          onChange={(event) => { setPassword(event.target.value); }}
+        />
         {errorOccurred
           && <Alert severity="error">Check your inputs!</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => close()}>Cancel</Button>
-        <Button onClick={() => submitHandler(false)}>{formType}</Button>
+        <Button type="button" onClick={() => close()}>Cancel</Button>
+        <Button type="submit">{formType}</Button>
         {formType === UserFormType.Update
         // TODO: add another confirm dialog here
           && (
           <Button
+            type="button"
             variant="outlined"
             onClick={() => {
               // eslint-disable-next-line no-alert
@@ -117,7 +131,7 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
           </Button>
           )}
       </DialogActions>
-    </>
+    </form>
   );
 }
 
@@ -127,7 +141,10 @@ function Footer() {
   const [username, setUsername] = useState<string>();
   const [tempUser, setTempUser] = useState<boolean>();
   const [dialogTypeOpen, setDialogTypeOpen] = useState<UserFormType | null>(null);
-  const [snackbarMessage, setSnackbarMessage] = useState<string | undefined>();
+  const [snackbarInfo, setSnackbarInfo] = useState<{
+    message: string,
+    severity: AlertColor,
+  } | undefined>();
 
   const logout = useCallback(() => {
     fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/users/logout`, {
@@ -140,15 +157,15 @@ function Footer() {
       .then((res) => {
         switch (res.status) {
           case 200:
-            setSnackbarMessage('Logout successful!');
+            setSnackbarInfo({ message: 'Logout successful!', severity: 'success' });
             setUsername(undefined);
             break;
           default:
-            setSnackbarMessage('An error occurred while trying to log out.');
+            setSnackbarInfo({ message: 'An error occurred while trying to log out.', severity: 'error' });
             break;
         }
       });
-  }, [setSnackbarMessage]);
+  }, [setSnackbarInfo]);
 
   useEffect(() => {
     // Intuition: If the dialog was just closed (or on first render).
@@ -203,16 +220,20 @@ function Footer() {
       <Dialog open={!!dialogTypeOpen} onClose={() => setDialogTypeOpen(null)}>
         <UserForm
           formType={dialogTypeOpen}
-          close={(message) => { setDialogTypeOpen(null); setSnackbarMessage(message); }}
+          close={(message, severity) => {
+            setDialogTypeOpen(null);
+            setSnackbarInfo((!!message && !!severity) ? { message, severity } : undefined);
+          }}
           username={dialogTypeOpen === UserFormType.Update ? username : undefined}
         />
       </Dialog>
       <Snackbar
-        open={!!snackbarMessage}
-        autoHideDuration={5000}
-        message={snackbarMessage}
-        onClose={() => setSnackbarMessage(undefined)}
-      />
+        open={!!snackbarInfo}
+        autoHideDuration={10000}
+        onClose={() => setSnackbarInfo(undefined)}
+      >
+        <Alert severity={snackbarInfo?.severity}>{snackbarInfo?.message}</Alert>
+      </Snackbar>
     </>
   );
 }
