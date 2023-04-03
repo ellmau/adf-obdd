@@ -17,7 +17,10 @@ mod adf;
 mod config;
 mod user;
 
-use adf::{add_adf_problem, get_adf_problem, solve_adf_problem};
+use adf::{
+    add_adf_problem, delete_adf_problem, get_adf_problem, get_adf_problems_for_user,
+    solve_adf_problem,
+};
 use config::{AppState, ASSET_DIRECTORY, COOKIE_DURATION};
 use user::{
     create_username_index, delete_account, login, logout, register, update_user, user_info,
@@ -83,7 +86,9 @@ async fn main() -> std::io::Result<()> {
             web::scope("/adf")
                 .service(add_adf_problem)
                 .service(solve_adf_problem)
-                .service(get_adf_problem),
+                .service(get_adf_problem)
+                .service(delete_adf_problem)
+                .service(get_adf_problems_for_user),
         )
         // this mus be last to not override anything
         .service(fs::Files::new("/", ASSET_DIRECTORY).index_file("index.html"))

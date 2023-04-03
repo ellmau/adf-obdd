@@ -7,12 +7,13 @@ use actix_identity::Identity;
 use actix_web::rt::spawn;
 use actix_web::rt::task::spawn_blocking;
 use actix_web::rt::time::timeout;
-use actix_web::{get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use adf_bdd::datatypes::adf::VarContainer;
 use adf_bdd::datatypes::{BddNode, Term, Var};
-use futures_util::FutureExt;
+use futures_util::{FutureExt, TryStreamExt};
 use mongodb::bson::doc;
 use mongodb::bson::{to_bson, Bson};
+use mongodb::results::DeleteResult;
 use names::{Generator, Name};
 use serde::{Deserialize, Serialize};
 
@@ -372,16 +373,16 @@ async fn add_adf_problem(
                 }
             };
 
+            let ac_and_graph = AcAndGraph {
+                ac: lib_adf.ac.iter().map(|t| t.0.to_string()).collect(),
+                graph: lib_adf.into_double_labeled_graph(None),
+            };
+
             app_state
                 .currently_running
                 .lock()
                 .unwrap()
                 .remove(&running_info);
-
-            let ac_and_graph = AcAndGraph {
-                ac: lib_adf.ac.iter().map(|t| t.0.to_string()).collect(),
-                graph: lib_adf.into_double_labeled_graph(None),
-            };
 
             Ok::<_, &str>((SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph))
         }),
@@ -466,9 +467,11 @@ async fn solve_adf_problem(
         SimplifiedAdfOpt::None => {
             return HttpResponse::BadRequest().body("The ADF problem has not been parsed yet.")
         }
-        SimplifiedAdfOpt::Error(err) => return HttpResponse::BadRequest().body(format!(
-            "The ADF problem could not be parsed. Update it and try parsing it again. Error: {err}"
-        )),
+        SimplifiedAdfOpt::Error(err) => {
+            return HttpResponse::BadRequest().body(format!(
+                "The ADF problem could not be parsed. Update it and try again. Error: {err}"
+            ))
+        }
         SimplifiedAdfOpt::Some(adf) => adf,
     };
 
@@ -610,4 +613,81 @@ async fn get_adf_problem(
         adf_problem,
         &app_state.currently_running.lock().unwrap(),
     ))
+}
+
+#[delete("/{problem_name}")]
+async fn delete_adf_problem(
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let problem_name = path.into_inner();
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    let username = match identity.map(|id| id.id()) {
+        None => {
+            return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
+        }
+        Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => username,
+    };
+
+    match adf_coll
+        .delete_one(doc! { "name": &problem_name, "username": &username }, None)
+        .await
+    {
+        Ok(DeleteResult {
+            deleted_count: 0, ..
+        }) => HttpResponse::InternalServerError().body("Adf Problem could not be deleted."),
+        Ok(DeleteResult {
+            deleted_count: 1, ..
+        }) => HttpResponse::Ok().body("Adf Problem deleted."),
+        Ok(_) => {
+            unreachable!("delete_one removes at most one entry so all cases are covered already")
+        }
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+
+#[get("/")]
+async fn get_adf_problems_for_user(
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
+) -> impl Responder {
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    let username = match identity.map(|id| id.id()) {
+        None => {
+            return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
+        }
+        Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => username,
+    };
+
+    let adf_problem_cursor = match adf_coll.find(doc! { "username": &username }, None).await {
+        Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Ok(cursor) => cursor,
+    };
+
+    let adf_problems: Vec<AdfProblemInfo> = match adf_problem_cursor
+        .map_ok(|adf_problem| {
+            AdfProblemInfo::from_adf_prob_and_tasks(
+                adf_problem,
+                &app_state.currently_running.lock().unwrap(),
+            )
+        })
+        .try_collect()
+        .await
+    {
+        Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Ok(probs) => probs,
+    };
+
+    HttpResponse::Ok().json(adf_problems)
 }
