@@ -19,9 +19,11 @@ import {
   TextField,
 } from '@mui/material';
 
-import GraphG6 from './graph-g6.tsx';
+import LoadingContext from './loading-context';
+import GraphG6, { GraphProps } from './graph-g6';
+import Footer from './footer';
 
-const { useState, useCallback } = React;
+const { useState, useCallback, useMemo } = React;
 
 const darkTheme = createTheme({
   palette: {
@@ -57,7 +59,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState(placeholder);
   const [parsing, setParsing] = useState(Parsing.Naive);
-  const [graphs, setGraphs] = useState();
+  const [graphs, setGraphs] = useState<GraphProps[]>();
   const [graphIndex, setGraphIndex] = useState(0);
 
   const submitHandler = useCallback(
@@ -82,93 +84,98 @@ function App() {
     [code, parsing],
   );
 
+  const loadingContext = useMemo(() => ({ loading, setLoading }), [loading, setLoading]);
+
   return (
     <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <main>
-        <Typography variant="h2" component="h1" align="center" gutterBottom>
-          Solve your ADF Problem with OBDDs!
-        </Typography>
+      <LoadingContext.Provider value={loadingContext}>
+        <CssBaseline />
+        <main>
+          <Typography variant="h2" component="h1" align="center" gutterBottom>
+            Solve your ADF Problem with OBDDs!
+          </Typography>
 
-        <Container>
-          <TextField
-            name="code"
-            label="Put your code here:"
-            helperText={(
+          <Container>
+            <TextField
+              name="code"
+              label="Put your code here:"
+              helperText={(
+                <>
+                  For more info on the syntax, have a
+                  look
+                  {' '}
+                  <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
+                  .
+                </>
+              )}
+              multiline
+              fullWidth
+              variant="filled"
+              value={code}
+              onChange={(event) => { setCode(event.target.value); }}
+            />
+          </Container>
+          <Container sx={{ marginTop: 2, marginBottom: 2 }}>
+            <FormControl>
+              <FormLabel id="parsing-radio-group">Parsing Strategy</FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="parsing-radio-group"
+                name="parsing"
+                value={parsing}
+                onChange={(e) => setParsing(((e.target as HTMLInputElement).value) as Parsing)}
+              >
+                <FormControlLabel value={Parsing.Naive} control={<Radio />} label="Naive" />
+                <FormControlLabel value={Parsing.Hybrid} control={<Radio />} label="Hybrid" />
+              </RadioGroup>
+            </FormControl>
+            <br />
+            <br />
+            <Button variant="outlined" onClick={() => submitHandler(Strategy.ParseOnly)}>Parse only</Button>
+            {' '}
+            <Button variant="outlined" onClick={() => submitHandler(Strategy.Ground)}>Grounded Model</Button>
+            {' '}
+            <Button variant="outlined" onClick={() => submitHandler(Strategy.Complete)}>Complete Models</Button>
+            {' '}
+            <Button variant="outlined" onClick={() => submitHandler(Strategy.Stable)}>Stable Models (naive heuristics)</Button>
+            {' '}
+            <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingA)}>Stable Models (counting heuristic A)</Button>
+            {' '}
+            <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingB)}>Stable Models (counting heuristic B)</Button>
+            {' '}
+            <Button variant="outlined" onClick={() => submitHandler(Strategy.StableNogood)}>Stable Models using nogoods (Simple Heuristic)</Button>
+          </Container>
+
+          {graphs
+          && (
+          <Container sx={{ marginTop: 4, marginBottom: 4 }}>
+            {graphs.length > 1
+              && (
               <>
-                For more info on the syntax, have a
-                look
-                {' '}
-                <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
-                .
+                Models:
+                <br />
+                <Pagination variant="outlined" shape="rounded" count={graphs.length} page={graphIndex + 1} onChange={(e, value) => setGraphIndex(value - 1)} />
               </>
-            )}
-            multiline
-            fullWidth
-            variant="filled"
-            value={code}
-            onChange={(event) => { setCode(event.target.value); }}
-          />
-        </Container>
-        <Container sx={{ marginTop: 2, marginBottom: 2 }}>
-          <FormControl>
-            <FormLabel id="parsing-radio-group">Parsing Strategy</FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="parsing-radio-group"
-              name="parsing"
-              value={parsing}
-              onChange={(e) => setParsing((e.target as HTMLInputElement).value)}
-            >
-              <FormControlLabel value={Parsing.Naive} control={<Radio />} label="Naive" />
-              <FormControlLabel value={Parsing.Hybrid} control={<Radio />} label="Hybrid" />
-            </RadioGroup>
-          </FormControl>
-          <br />
-          <br />
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.ParseOnly)}>Parse only</Button>
-          {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.Ground)}>Grounded Model</Button>
-          {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.Complete)}>Complete Models</Button>
-          {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.Stable)}>Stable Models (naive heuristics)</Button>
-          {' '}
-          <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingA)}>Stable Models (counting heuristic A)</Button>
-          {' '}
-          <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingB)}>Stable Models (counting heuristic B)</Button>
-          {' '}
-          <Button variant="outlined" onClick={() => submitHandler(Strategy.StableNogood)}>Stable Models using nogoods (Simple Heuristic)</Button>
-        </Container>
+              )}
+            {graphs.length > 0
+              && (
+              <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
+                <GraphG6 graph={graphs[graphIndex]} />
+              </Paper>
+              )}
+            {graphs.length === 0
+              && <>No models!</>}
+          </Container>
+          )}
+        </main>
+        <Footer />
 
-        {graphs
-        && (
-        <Container sx={{ marginTop: 4, marginBottom: 4 }}>
-          {graphs.length > 1
-            && (
-            <>
-              Models:
-              <br />
-              <Pagination variant="outlined" shape="rounded" count={graphs.length} page={graphIndex + 1} onChange={(e, value) => setGraphIndex(value - 1)} />
-            </>
-            )}
-          {graphs.length > 0
-            && (
-            <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
-              <GraphG6 graph={graphs[graphIndex]} />
-            </Paper>
-            )}
-          {graphs.length === 0
-            && <>No models!</>}
-        </Container>
-        )}
-      </main>
-
-      <Backdrop
-        open={loading}
-      >
-        <CircularProgress color="inherit" />
-      </Backdrop>
+        <Backdrop
+          open={loading}
+        >
+          <CircularProgress color="inherit" />
+        </Backdrop>
+      </LoadingContext.Provider>
     </ThemeProvider>
   );
 }

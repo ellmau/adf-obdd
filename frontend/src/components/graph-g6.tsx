@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 
-import G6 from '@antv/g6';
+import G6, { Graph } from '@antv/g6';
 
 G6.registerNode('nodeWithFlag', {
   draw(cfg, group) {
-    const mainWidth = Math.max(30, 5 * cfg.mainLabel.length + 10);
+    const mainWidth = Math.max(30, 5 * (cfg!.mainLabel as string).length + 10);
     const mainHeight = 30;
 
-    const keyShape = group.addShape('rect', {
+    const keyShape = group!.addShape('rect', {
       attrs: {
         width: mainWidth,
         height: mainHeight,
@@ -20,13 +20,13 @@ G6.registerNode('nodeWithFlag', {
       draggable: true,
     });
 
-    group.addShape('text', {
+    group!.addShape('text', {
       attrs: {
         x: mainWidth / 2,
         y: mainHeight / 2,
         textAlign: 'center',
         textBaseline: 'middle',
-        text: cfg.mainLabel,
+        text: cfg!.mainLabel,
         fill: '#212121',
         fontFamily: 'Roboto',
         cursor: 'pointer',
@@ -37,14 +37,14 @@ G6.registerNode('nodeWithFlag', {
       draggable: true,
     });
 
-    if (cfg.subLabel) {
-      const subWidth = 5 * cfg.subLabel.length + 4;
+    if (cfg!.subLabel) {
+      const subWidth = 5 * (cfg!.subLabel as string).length + 4;
       const subHeight = 20;
 
       const subRectX = mainWidth - 4;
       const subRectY = -subHeight + 4;
 
-      group.addShape('rect', {
+      group!.addShape('rect', {
         attrs: {
           x: subRectX,
           y: subRectY,
@@ -59,13 +59,13 @@ G6.registerNode('nodeWithFlag', {
         draggable: true,
       });
 
-      group.addShape('text', {
+      group!.addShape('text', {
         attrs: {
           x: subRectX + subWidth / 2,
           y: subRectY + subHeight / 2,
           textAlign: 'center',
           textBaseline: 'middle',
-          text: cfg.subLabel,
+          text: cfg!.subLabel,
           fill: '#212121',
           fontFamily: 'Roboto',
           fontSize: 10,
@@ -95,6 +95,7 @@ G6.registerNode('nodeWithFlag', {
   // },
   // },
   setState(name, value, item) {
+    if (!item) { return; }
     const group = item.getContainer();
     const mainShape = group.get('children')[0]; // Find the first graphics shape of the node. It is determined by the order of being added
     const subShape = group.get('children')[2];
@@ -131,11 +132,11 @@ G6.registerNode('nodeWithFlag', {
   },
 });
 
-interface GraphProps {
-  lo_edges: [number, number][],
-  hi_edges: [number, number][],
-  node_labels: { [key: number]: string },
-  tree_root_labels: { [key: number]: string[] },
+export interface GraphProps {
+  lo_edges: [string, string][],
+  hi_edges: [string, string][],
+  node_labels: { [key: string]: string },
+  tree_root_labels: { [key: string]: string[] },
 }
 
 function nodesAndEdgesFromGraphProps(graphProps: GraphProps) {
@@ -174,24 +175,26 @@ function GraphG6(props: Props) {
 
   const ref = useRef(null);
 
-  const graphRef = useRef();
+  const graphRef = useRef<Graph>();
 
   useEffect(
     () => {
       if (!graphRef.current) {
-        graphRef.current = new G6.Graph({
-          container: ref.current,
+        graphRef.current = new Graph({
+          container: ref.current!,
           width: 1200,
           height: 600,
           fitView: true,
-          rankdir: 'TB',
-          align: 'DR',
-          nodesep: 100,
-          ranksep: 100,
           modes: {
             default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
           },
-          layout: { type: 'dagre' },
+          layout: {
+            type: 'dagre',
+            rankdir: 'TB',
+            align: 'DR',
+            nodesep: 100,
+            ranksep: 100,
+          },
           // defaultNode: {
           // anchorPoints: [[0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]],
           // type: 'rect',
@@ -239,13 +242,13 @@ function GraphG6(props: Props) {
 
       // Mouse enter a node
       graph.on('node:mouseenter', (e) => {
-        const nodeItem = e.item; // Get the target item
+        const nodeItem = e.item!; // Get the target item
         graph.setItemState(nodeItem, 'hover', true); // Set the state 'hover' of the item to be true
       });
 
       // Mouse leave a node
       graph.on('node:mouseleave', (e) => {
-        const nodeItem = e.item; // Get the target item
+        const nodeItem = e.item!; // Get the target item
         graph.setItemState(nodeItem, 'hover', false); // Set the state 'hover' of the item to be false
       });
     },
@@ -254,11 +257,11 @@ function GraphG6(props: Props) {
 
   useEffect(
     () => {
-      const graph = graphRef.current;
+      const graph = graphRef.current!;
 
       // Click a node
       graph.on('node:click', (e) => {
-        const nodeItem = e.item; // et the clicked item
+        const nodeItem = e.item!; // et the clicked item
 
         let onlyRemoveStates = false;
         if (nodeItem.hasState('highlight')) {
@@ -290,12 +293,12 @@ function GraphG6(props: Props) {
           graph.setItemState(edge, 'lowlight', true);
         });
 
-        const relevantNodeIds = [];
-        const relevantLoEdges = [];
-        const relevantHiEdges = [];
-        let newNodeIds = [nodeItem.getModel().id];
-        let newLoEdges = [];
-        let newHiEdges = [];
+        const relevantNodeIds: string[] = [];
+        const relevantLoEdges: [string, string][] = [];
+        const relevantHiEdges: [string, string][] = [];
+        let newNodeIds: string[] = [nodeItem.getModel().id!];
+        let newLoEdges: [string, string][] = [];
+        let newHiEdges: [string, string][] = [];
 
         while (newNodeIds.length > 0 || newLoEdges.length > 0 || newHiEdges.length > 0) {
           relevantNodeIds.push(...newNodeIds);
@@ -347,7 +350,7 @@ function GraphG6(props: Props) {
 
   useEffect(
     () => {
-      const graph = graphRef.current;
+      const graph = graphRef.current!;
 
       const { nodes, edges } = nodesAndEdgesFromGraphProps(graphProps);
 

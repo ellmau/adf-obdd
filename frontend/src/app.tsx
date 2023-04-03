@@ -6,8 +6,8 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-import App from './components/app.tsx';
+import App from './components/app';
 
 const container = document.getElementById('app');
-const root = createRoot(container);
+const root = createRoot(container!);
 root.render(<App />);
