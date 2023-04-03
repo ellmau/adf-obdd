@@ -155,6 +155,11 @@ async fn login(
 ) -> impl Responder {
     let username = &user_data.username;
     let pw = &user_data.password;
+
+    if username.is_empty() || pw.is_empty() {
+        return HttpResponse::BadRequest().body("Username and Password need to be set!");
+    }
+
     let user_coll: mongodb::Collection<User> = app_state
         .mongodb_client
         .database(DB_NAME)
