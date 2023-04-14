@@ -1,180 +1,83 @@
-import * as React from 'react';
+import React, { useState, useMemo } from 'react';
+
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
+  Alert,
+  AlertColor,
   Backdrop,
-  Button,
   CircularProgress,
   CssBaseline,
-  Container,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Link,
-  Pagination,
-  Paper,
-  Radio,
-  RadioGroup,
-  Typography,
-  TextField,
+  Snackbar,
+  useMediaQuery,
 } from '@mui/material';
 
 import LoadingContext from './loading-context';
-import GraphG6, { GraphProps } from './graph-g6';
+import SnackbarContext from './snackbar-context';
 import Footer from './footer';
+import AdfOverview from './adf-overview';
+import AdfDetails from './adf-details';
 
-const { useState, useCallback, useMemo } = React;
-
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
+const browserRouter = createBrowserRouter([
+  {
+    path: '/',
+    element: <AdfOverview />,
   },
-});
-
-const placeholder = `s(a).
-s(b).
-s(c).
-s(d).
-ac(a,c(v)).
-ac(b,b).
-ac(c,and(a,b)).
-ac(d,neg(b)).`;
-
-enum Parsing {
-  Naive = 'Naive',
-  Hybrid = 'Hybrid',
-}
-
-enum Strategy {
-  ParseOnly = 'ParseOnly',
-  Ground = 'Ground',
-  Complete = 'Complete',
-  Stable = 'Stable',
-  StableCountingA = 'StableCountingA',
-  StableCountingB = 'StableCountingB',
-  StableNogood = 'StableNogood',
-}
+  {
+    path: '/:adfName',
+    element: <AdfDetails />,
+  },
+]);
 
 function App() {
-  const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState(placeholder);
-  const [parsing, setParsing] = useState(Parsing.Naive);
-  const [graphs, setGraphs] = useState<GraphProps[]>();
-  const [graphIndex, setGraphIndex] = useState(0);
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
-  const submitHandler = useCallback(
-    (strategy: Strategy) => {
-      setLoading(true);
-
-      fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/solve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code, strategy, parsing }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          setGraphs(data);
-          setGraphIndex(0);
-        })
-        .finally(() => setLoading(false));
-      // TODO: error handling
-    },
-    [code, parsing],
+  const theme = useMemo(
+    () => createTheme({
+      palette: {
+        mode: prefersDarkMode ? 'dark' : 'light',
+      },
+    }),
+    [prefersDarkMode],
   );
 
+  const [loading, setLoading] = useState(false);
   const loadingContext = useMemo(() => ({ loading, setLoading }), [loading, setLoading]);
 
+  const [snackbarInfo, setSnackbarInfo] = useState<{
+    message: string,
+    severity: AlertColor,
+    potentialUserChange: boolean,
+  } | undefined>();
+  const snackbarContext = useMemo(
+    () => ({ status: snackbarInfo, setStatus: setSnackbarInfo }),
+    [snackbarInfo, setSnackbarInfo],
+  );
+
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <LoadingContext.Provider value={loadingContext}>
-        <CssBaseline />
-        <main>
-          <Typography variant="h2" component="h1" align="center" gutterBottom>
-            Solve your ADF Problem with OBDDs!
-          </Typography>
+        <SnackbarContext.Provider value={snackbarContext}>
+          <CssBaseline />
+          <main style={{ maxHeight: 'calc(100vh - 70px)', overflowY: 'auto' }}>
+            <RouterProvider router={browserRouter} />
+          </main>
+          <Footer />
 
-          <Container>
-            <TextField
-              name="code"
-              label="Put your code here:"
-              helperText={(
-                <>
-                  For more info on the syntax, have a
-                  look
-                  {' '}
-                  <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
-                  .
-                </>
-              )}
-              multiline
-              fullWidth
-              variant="filled"
-              value={code}
-              onChange={(event) => { setCode(event.target.value); }}
-            />
-          </Container>
-          <Container sx={{ marginTop: 2, marginBottom: 2 }}>
-            <FormControl>
-              <FormLabel id="parsing-radio-group">Parsing Strategy</FormLabel>
-              <RadioGroup
-                row
-                aria-labelledby="parsing-radio-group"
-                name="parsing"
-                value={parsing}
-                onChange={(e) => setParsing(((e.target as HTMLInputElement).value) as Parsing)}
-              >
-                <FormControlLabel value={Parsing.Naive} control={<Radio />} label="Naive" />
-                <FormControlLabel value={Parsing.Hybrid} control={<Radio />} label="Hybrid" />
-              </RadioGroup>
-            </FormControl>
-            <br />
-            <br />
-            <Button variant="outlined" onClick={() => submitHandler(Strategy.ParseOnly)}>Parse only</Button>
-            {' '}
-            <Button variant="outlined" onClick={() => submitHandler(Strategy.Ground)}>Grounded Model</Button>
-            {' '}
-            <Button variant="outlined" onClick={() => submitHandler(Strategy.Complete)}>Complete Models</Button>
-            {' '}
-            <Button variant="outlined" onClick={() => submitHandler(Strategy.Stable)}>Stable Models (naive heuristics)</Button>
-            {' '}
-            <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingA)}>Stable Models (counting heuristic A)</Button>
-            {' '}
-            <Button disabled={parsing !== Parsing.Hybrid} variant="outlined" onClick={() => submitHandler(Strategy.StableCountingB)}>Stable Models (counting heuristic B)</Button>
-            {' '}
-            <Button variant="outlined" onClick={() => submitHandler(Strategy.StableNogood)}>Stable Models using nogoods (Simple Heuristic)</Button>
-          </Container>
-
-          {graphs
-          && (
-          <Container sx={{ marginTop: 4, marginBottom: 4 }}>
-            {graphs.length > 1
-              && (
-              <>
-                Models:
-                <br />
-                <Pagination variant="outlined" shape="rounded" count={graphs.length} page={graphIndex + 1} onChange={(e, value) => setGraphIndex(value - 1)} />
-              </>
-              )}
-            {graphs.length > 0
-              && (
-              <Paper elevation={3} square sx={{ marginTop: 4, marginBottom: 4 }}>
-                <GraphG6 graph={graphs[graphIndex]} />
-              </Paper>
-              )}
-            {graphs.length === 0
-              && <>No models!</>}
-          </Container>
-          )}
-        </main>
-        <Footer />
-
-        <Backdrop
-          open={loading}
-        >
-          <CircularProgress color="inherit" />
-        </Backdrop>
+          <Backdrop
+            open={loading}
+          >
+            <CircularProgress color="inherit" />
+          </Backdrop>
+          <Snackbar
+            open={!!snackbarInfo}
+            autoHideDuration={10000}
+            onClose={() => setSnackbarInfo(undefined)}
+          >
+            <Alert severity={snackbarInfo?.severity}>{snackbarInfo?.message}</Alert>
+          </Snackbar>
+        </SnackbarContext.Provider>
       </LoadingContext.Provider>
     </ThemeProvider>
   );

@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useContext, useEffect,
+  useState, useCallback, useContext, useEffect, useRef,
 } from 'react';
 
 import {
@@ -11,12 +11,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Snackbar,
   TextField,
   Toolbar,
 } from '@mui/material';
 
 import LoadingContext from './loading-context';
+import SnackbarContext from './snackbar-context';
 
 enum UserFormType {
   Login = 'Login',
@@ -77,7 +77,7 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
         .then((res) => {
           switch (res.status) {
             case 200:
-              close(`Action '${formType}' successful!`, 'success');
+              close(`Action '${del ? 'Delete' : formType}' successful!`, 'success');
               break;
             default:
               setError(true);
@@ -113,13 +113,14 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
       </DialogContent>
       <DialogActions>
         <Button type="button" onClick={() => close()}>Cancel</Button>
-        <Button type="submit">{formType}</Button>
+        <Button type="submit" variant="contained" color="success">{formType}</Button>
         {formType === UserFormType.Update
         // TODO: add another confirm dialog here
           && (
           <Button
             type="button"
             variant="outlined"
+            color="error"
             onClick={() => {
               // eslint-disable-next-line no-alert
               if (window.confirm('Are you sure that you want to delete your account?')) {
@@ -138,13 +139,12 @@ function UserForm({ username: propUsername, formType, close }: UserFormProps) {
 UserForm.defaultProps = { username: undefined };
 
 function Footer() {
+  const { status: snackbarInfo, setStatus: setSnackbarInfo } = useContext(SnackbarContext);
   const [username, setUsername] = useState<string>();
   const [tempUser, setTempUser] = useState<boolean>();
   const [dialogTypeOpen, setDialogTypeOpen] = useState<UserFormType | null>(null);
-  const [snackbarInfo, setSnackbarInfo] = useState<{
-    message: string,
-    severity: AlertColor,
-  } | undefined>();
+
+  const isFirstRender = useRef(true);
 
   const logout = useCallback(() => {
     fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/users/logout`, {
@@ -157,19 +157,22 @@ function Footer() {
       .then((res) => {
         switch (res.status) {
           case 200:
-            setSnackbarInfo({ message: 'Logout successful!', severity: 'success' });
+            setSnackbarInfo({ message: 'Logout successful!', severity: 'success', potentialUserChange: true });
             setUsername(undefined);
             break;
           default:
-            setSnackbarInfo({ message: 'An error occurred while trying to log out.', severity: 'error' });
+            setSnackbarInfo({ message: 'An error occurred while trying to log out.', severity: 'error', potentialUserChange: false });
             break;
         }
       });
   }, [setSnackbarInfo]);
 
   useEffect(() => {
-    // Intuition: If the dialog was just closed (or on first render).
-    if (!dialogTypeOpen) {
+    // TODO: having the info if the user may have changed on the snackbar info
+    // is a bit lazy and unclean; be better!
+    if (isFirstRender.current || snackbarInfo?.potentialUserChange) {
+      isFirstRender.current = false;
+
       fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/users/info`, {
         method: 'GET',
         credentials: process.env.NODE_ENV === 'development' ? 'include' : 'same-origin',
@@ -191,7 +194,7 @@ function Footer() {
           }
         });
     }
-  }, [dialogTypeOpen]);
+  }, [snackbarInfo?.potentialUserChange]);
 
   return (
     <>
@@ -222,18 +225,13 @@ function Footer() {
           formType={dialogTypeOpen}
           close={(message, severity) => {
             setDialogTypeOpen(null);
-            setSnackbarInfo((!!message && !!severity) ? { message, severity } : undefined);
+            setSnackbarInfo((!!message && !!severity)
+              ? { message, severity, potentialUserChange: true }
+              : undefined);
           }}
           username={dialogTypeOpen === UserFormType.Update ? username : undefined}
         />
       </Dialog>
-      <Snackbar
-        open={!!snackbarInfo}
-        autoHideDuration={10000}
-        onClose={() => setSnackbarInfo(undefined)}
-      >
-        <Alert severity={snackbarInfo?.severity}>{snackbarInfo?.message}</Alert>
-      </Snackbar>
     </>
   );
 }
