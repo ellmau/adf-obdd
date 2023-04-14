@@ -3,6 +3,10 @@ import React, {
 } from 'react';
 
 import {
+  useNavigate,
+} from 'react-router-dom';
+
+import {
   Chip,
   Container,
   Paper,
@@ -20,7 +24,7 @@ import AdfNewForm from './adf-new-form';
 import {
   AdfProblemInfo,
   StrategySnakeCase,
-  StrategyCamelCase,
+  STRATEGIES_WITHOUT_PARSE,
   Task,
   acsWithGraphOptToColor,
   acsWithGraphOptToText,
@@ -31,6 +35,8 @@ import SnackbarContext from './snackbar-context';
 function AdfOverview() {
   const { status: snackbarInfo } = useContext(SnackbarContext);
   const [problems, setProblems] = useState<AdfProblemInfo[]>([]);
+
+  const navigate = useNavigate();
 
   const isFirstRender = useRef(true);
 
@@ -121,7 +127,8 @@ function AdfOverview() {
                   {problems.map((problem) => (
                     <TableRow
                       key={problem.name}
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      onClick={() => { navigate(`/${problem.name}`); }}
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 }, cursor: 'pointer' }}
                     >
                       <TableCell component="th" scope="row">
                         {problem.name}
@@ -134,19 +141,19 @@ function AdfOverview() {
                   const color = acsWithGraphOptToColor(status, running);
                   const text = acsWithGraphOptToText(status, running);
 
-                  return <TableCell align="center"><Chip color={color} label={`${text} (${problem.parsing_used} Parsing)`} /></TableCell>;
+                  return <TableCell align="center"><Chip color={color} label={`${text} (${problem.parsing_used} Parsing)`} sx={{ cursor: 'inherit' }} /></TableCell>;
                 })()
               }
                       {
-                (['Ground', 'Complete', 'Stable', 'StableCountingA', 'StableCountingB', 'StableNogood'] as StrategyCamelCase[]).map((strategy) => {
-                  const status = problem.acs_per_strategy[strategy.replace(/^([A-Z])/, (_, p1) => p1.toLowerCase()).replace(/([A-Z])/g, (_, p1) => `_${p1.toLowerCase()}`) as StrategySnakeCase];
-                  const running = problem.running_tasks.some((t: Task) => t.type === 'Solve' && t.content === strategy);
+                  STRATEGIES_WITHOUT_PARSE.map((strategy) => {
+                    const status = problem.acs_per_strategy[strategy.replace(/^([A-Z])/, (_, p1) => p1.toLowerCase()).replace(/([A-Z])/g, (_, p1) => `_${p1.toLowerCase()}`) as StrategySnakeCase];
+                    const running = problem.running_tasks.some((t: Task) => t.type === 'Solve' && t.content === strategy);
 
-                  const color = acsWithGraphOptToColor(status, running);
-                  const text = acsWithGraphOptToText(status, running);
+                    const color = acsWithGraphOptToColor(status, running);
+                    const text = acsWithGraphOptToText(status, running);
 
-                  return <TableCell key={strategy} align="center"><Chip color={color} label={text} /></TableCell>;
-                })
+                    return <TableCell key={strategy} align="center"><Chip color={color} label={text} sx={{ cursor: 'inherit' }} /></TableCell>;
+                  })
               }
                     </TableRow>
                   ))}

@@ -515,24 +515,30 @@ async fn solve_adf_problem(
         Strategy::StableNogood => adf_problem.acs_per_strategy.stable_nogood.is_some(),
     };
 
+    let username_clone = username.clone();
+    let problem_name_clone = problem_name.clone();
+
+    let running_info = RunningInfo {
+        username: username_clone,
+        adf_name: problem_name_clone,
+        task: Task::Solve(adf_problem_input.strategy),
+    };
+
     // NOTE: we could also return the result here instead of throwing an error but I think the canonical way should just be to call the get endpoint for the problem.
-    if has_been_solved {
+    if has_been_solved
+        || app_state
+            .currently_running
+            .lock()
+            .unwrap()
+            .contains(&running_info)
+    {
         return HttpResponse::Conflict()
             .body("The ADF problem has already been solved with this strategy. You can just get the solution from the problem data directly.");
     }
 
-    let username_clone = username.clone();
-    let problem_name_clone = problem_name.clone();
-
     let acs_and_graphs_fut = timeout(
         COMPUTE_TIME,
         spawn_blocking(move || {
-            let running_info = RunningInfo {
-                username: username_clone,
-                adf_name: problem_name_clone,
-                task: Task::Solve(adf_problem_input.strategy),
-            };
-
             app_state
                 .currently_running
                 .lock()

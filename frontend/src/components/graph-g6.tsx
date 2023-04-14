@@ -183,7 +183,7 @@ function GraphG6(props: Props) {
         graphRef.current = new Graph({
           container: ref.current!,
           width: 1200,
-          height: 600,
+          height: 400,
           fitView: true,
           modes: {
             default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
@@ -368,7 +368,9 @@ function GraphG6(props: Props) {
       <div style={{ padding: 4 }}>
         <span style={{ color: '#ed6c02', marginRight: 8 }}>lo edge (condition is false)</span>
         {' '}
-        <span style={{ color: '#1976d2' }}>hi edge (condition is true)</span>
+        <span style={{ color: '#1976d2', marginRight: 8 }}>hi edge (condition is true)</span>
+        {' '}
+        Click nodes to hightlight paths! (You can also drag and zoom.)
       </div>
     </>
   );
