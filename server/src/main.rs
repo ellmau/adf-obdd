@@ -7,7 +7,9 @@ use actix_session::config::PersistentSession;
 use actix_session::storage::CookieSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
+use actix_web::dev::{fn_service, ServiceRequest, ServiceResponse};
 use actix_web::{web, App, HttpServer};
+use fs::NamedFile;
 use mongodb::Client;
 
 #[cfg(feature = "cors_for_local_development")]
@@ -95,7 +97,17 @@ async fn main() -> std::io::Result<()> {
                     .service(get_adf_problems_for_user),
             )
             // this mus be last to not override anything
-            .service(fs::Files::new("/", ASSET_DIRECTORY).index_file("index.html"))
+            .service(
+                fs::Files::new("/", ASSET_DIRECTORY)
+                    .index_file("index.html")
+                    .default_handler(fn_service(|req: ServiceRequest| async {
+                        let (req, _) = req.into_parts();
+                        let file =
+                            NamedFile::open_async(format!("{ASSET_DIRECTORY}/index.html")).await?;
+                        let res = file.into_response(&req);
+                        Ok(ServiceResponse::new(req, res))
+                    })),
+            )
     })
     .bind(("0.0.0.0", 8080))?
     .run()
