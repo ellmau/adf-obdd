@@ -1,5 +1,5 @@
 # 1. BUILD-CONTAINER: Frontend
-FROM node:gallium-alpine
+FROM node:hydrogen-alpine
 
 WORKDIR /root
 
@@ -29,6 +29,8 @@ WORKDIR /root
 
 COPY --from=0 /root/dist /root/assets
 COPY --from=1 /root/target/release/adf-bdd-server /root/server
+
+EXPOSE 8080
 
 ENTRYPOINT ["./server"]
 
