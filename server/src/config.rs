@@ -17,13 +17,14 @@ pub(crate) const DB_NAME: &str = "adf-obdd";
 pub(crate) const USER_COLL: &str = "users";
 pub(crate) const ADF_COLL: &str = "adf-problems";
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[serde(tag = "type", content = "content")]
 pub(crate) enum Task {
     Parse,
     Solve(Strategy),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct RunningInfo {
     pub(crate) username: String,
     pub(crate) adf_name: String,

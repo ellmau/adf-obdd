@@ -25,6 +25,7 @@ argon2 = "0.5.0"
 actix-session = { version="0.7.2", features = ["cookie-session"] }
 names = "0.14.0"
 futures-util = "0.3.28"
+actix-multipart = "0.6.0"
 
 [features]
 cors_for_local_development = []

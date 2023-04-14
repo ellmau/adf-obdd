@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use actix_identity::Identity;
+use actix_multipart::form::{tempfile::TempFile, text::Text, MultipartForm};
 use actix_web::rt::spawn;
 use actix_web::rt::task::spawn_blocking;
 use actix_web::rt::time::timeout;
@@ -27,13 +28,13 @@ use crate::user::{username_exists, User};
 type Ac = Vec<Term>;
 type AcDb = Vec<String>;
 
-#[derive(Copy, Clone, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub(crate) enum Parsing {
     Naive,
     Hybrid,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub(crate) enum Strategy {
     Ground,
     Complete,
@@ -56,6 +57,7 @@ impl From<AcAndGraph> for Bson {
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(tag = "type", content = "content")]
 pub(crate) enum OptionWithError<T> {
     Some(T),
     Error(String),
@@ -182,11 +184,36 @@ pub(crate) struct AdfProblem {
     pub(crate) acs_per_strategy: AcsPerStrategy,
 }
 
-#[derive(Clone, Deserialize)]
-struct AddAdfProblemBody {
-    name: Option<String>,
+#[derive(MultipartForm)]
+struct AddAdfProblemBodyMultipart {
+    name: Text<String>,
+    code: Option<Text<String>>, // Either Code or File is set
+    file: Option<TempFile>,     // Either Code or File is set
+    parsing: Text<Parsing>,
+}
+
+#[derive(Clone)]
+struct AddAdfProblemBodyPlain {
+    name: String,
     code: String,
-    parse_strategy: Parsing,
+    parsing: Parsing,
+}
+
+impl TryFrom<AddAdfProblemBodyMultipart> for AddAdfProblemBodyPlain {
+    type Error = &'static str;
+
+    fn try_from(source: AddAdfProblemBodyMultipart) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: source.name.into_inner(),
+            code: source
+                .file
+                .map(|f| std::io::read_to_string(f.file).expect("TempFile should be readable"))
+                .or_else(|| source.code.map(|c| c.into_inner()))
+                .and_then(|code| (!code.is_empty()).then_some(code))
+                .ok_or("Either a file or the code has to be provided.")?,
+            parsing: source.parsing.into_inner(),
+        })
+    }
 }
 
 async fn adf_problem_exists(
@@ -233,9 +260,12 @@ async fn add_adf_problem(
     req: HttpRequest,
     app_state: web::Data<AppState>,
     identity: Option<Identity>,
-    req_body: web::Json<AddAdfProblemBody>,
+    req_body: MultipartForm<AddAdfProblemBodyMultipart>,
 ) -> impl Responder {
-    let adf_problem_input: AddAdfProblemBody = req_body.into_inner();
+    let adf_problem_input: AddAdfProblemBodyPlain = match req_body.into_inner().try_into() {
+        Ok(input) => input,
+        Err(err) => return HttpResponse::BadRequest().body(err),
+    };
     let adf_coll: mongodb::Collection<AdfProblem> = app_state
         .mongodb_client
         .database(DB_NAME)
@@ -291,35 +321,32 @@ async fn add_adf_problem(
         Some(Ok(username)) => username,
     };
 
-    let problem_name = match &adf_problem_input.name {
-        Some(name) => {
-            if adf_problem_exists(&adf_coll, name, &username).await {
-                return HttpResponse::Conflict()
-                    .body("ADF Problem with that name already exists. Please pick another one!");
-            }
-
-            name.clone()
+    let problem_name = if !adf_problem_input.name.is_empty() {
+        if adf_problem_exists(&adf_coll, &adf_problem_input.name, &username).await {
+            return HttpResponse::Conflict()
+                .body("ADF Problem with that name already exists. Please pick another one!");
         }
-        None => {
-            let gen = Generator::with_naming(Name::Numbered);
-            let candidates = gen.take(10);
 
-            let mut name: Option<String> = None;
-            for candidate in candidates {
-                if name.is_some() {
-                    continue;
-                }
+        adf_problem_input.name.clone()
+    } else {
+        let gen = Generator::with_naming(Name::Numbered);
+        let candidates = gen.take(10);
 
-                if !(adf_problem_exists(&adf_coll, &candidate, &username).await) {
-                    name = Some(candidate);
-                }
+        let mut name: Option<String> = None;
+        for candidate in candidates {
+            if name.is_some() {
+                continue;
             }
 
-            match name {
-                Some(name) => name,
-                None => {
-                    return HttpResponse::InternalServerError().body("Could not generate new name.")
-                }
+            if !(adf_problem_exists(&adf_coll, &candidate, &username).await) {
+                name = Some(candidate);
+            }
+        }
+
+        match name {
+            Some(name) => name,
+            None => {
+                return HttpResponse::InternalServerError().body("Could not generate new name.")
             }
         }
     };
@@ -328,7 +355,7 @@ async fn add_adf_problem(
         name: problem_name.clone(),
         username: username.clone(),
         code: adf_problem_input.code.clone(),
-        parsing_used: adf_problem_input.parse_strategy,
+        parsing_used: adf_problem_input.parsing,
         adf: SimplifiedAdfOpt::None,
         acs_per_strategy: AcsPerStrategy::default(),
     };
@@ -362,21 +389,25 @@ async fn add_adf_problem(
             std::thread::sleep(Duration::from_secs(20));
 
             let parser = AdfParser::default();
-            parser.parse()(&adf_problem_input.code)
-                .map_err(|_| "ADF could not be parsed, double check your input!")?;
+            let parse_result = parser.parse()(&adf_problem_input.code)
+                .map_err(|_| "ADF could not be parsed, double check your input!");
 
-            let lib_adf = match adf_problem_input.parse_strategy {
-                Parsing::Naive => Adf::from_parser(&parser),
-                Parsing::Hybrid => {
-                    let bd_adf = BdAdf::from_parser(&parser);
-                    bd_adf.hybrid_step_opt(false)
-                }
-            };
+            let result = parse_result.map(|_| {
+                let lib_adf = match adf_problem_input.parsing {
+                    Parsing::Naive => Adf::from_parser(&parser),
+                    Parsing::Hybrid => {
+                        let bd_adf = BdAdf::from_parser(&parser);
+                        bd_adf.hybrid_step_opt(false)
+                    }
+                };
 
-            let ac_and_graph = AcAndGraph {
-                ac: lib_adf.ac.iter().map(|t| t.0.to_string()).collect(),
-                graph: lib_adf.into_double_labeled_graph(None),
-            };
+                let ac_and_graph = AcAndGraph {
+                    ac: lib_adf.ac.iter().map(|t| t.0.to_string()).collect(),
+                    graph: lib_adf.into_double_labeled_graph(None),
+                };
+
+                (SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph)
+            });
 
             app_state
                 .currently_running
@@ -384,7 +415,7 @@ async fn add_adf_problem(
                 .unwrap()
                 .remove(&running_info);
 
-            Ok::<_, &str>((SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph))
+            result
         }),
     );
 

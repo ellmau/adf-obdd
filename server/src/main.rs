@@ -43,6 +43,12 @@ async fn main() -> std::io::Result<()> {
     // cookie secret ket
     let secret_key = Key::generate();
 
+    // needs to be set outside of httpserver closure to only create it once!
+    let app_data = web::Data::new(AppState {
+        mongodb_client: client.clone(),
+        currently_running: Mutex::new(HashSet::new()),
+    });
+
     HttpServer::new(move || {
         let app = App::new();
 
@@ -62,37 +68,34 @@ async fn main() -> std::io::Result<()> {
         #[cfg(not(feature = "cors_for_local_development"))]
         let cookie_secure = true;
 
-        app.app_data(web::Data::new(AppState {
-            mongodb_client: client.clone(),
-            currently_running: Mutex::new(HashSet::new()),
-        }))
-        .wrap(IdentityMiddleware::default())
-        .wrap(
-            SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
-                .cookie_name("adf-obdd-service-auth".to_owned())
-                .cookie_secure(cookie_secure)
-                .session_lifecycle(PersistentSession::default().session_ttl(COOKIE_DURATION))
-                .build(),
-        )
-        .service(
-            web::scope("/users")
-                .service(register)
-                .service(delete_account)
-                .service(login)
-                .service(logout)
-                .service(user_info)
-                .service(update_user),
-        )
-        .service(
-            web::scope("/adf")
-                .service(add_adf_problem)
-                .service(solve_adf_problem)
-                .service(get_adf_problem)
-                .service(delete_adf_problem)
-                .service(get_adf_problems_for_user),
-        )
-        // this mus be last to not override anything
-        .service(fs::Files::new("/", ASSET_DIRECTORY).index_file("index.html"))
+        app.app_data(app_data.clone())
+            .wrap(IdentityMiddleware::default())
+            .wrap(
+                SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
+                    .cookie_name("adf-obdd-service-auth".to_owned())
+                    .cookie_secure(cookie_secure)
+                    .session_lifecycle(PersistentSession::default().session_ttl(COOKIE_DURATION))
+                    .build(),
+            )
+            .service(
+                web::scope("/users")
+                    .service(register)
+                    .service(delete_account)
+                    .service(login)
+                    .service(logout)
+                    .service(user_info)
+                    .service(update_user),
+            )
+            .service(
+                web::scope("/adf")
+                    .service(add_adf_problem)
+                    .service(solve_adf_problem)
+                    .service(get_adf_problem)
+                    .service(delete_adf_problem)
+                    .service(get_adf_problems_for_user),
+            )
+            // this mus be last to not override anything
+            .service(fs::Files::new("/", ASSET_DIRECTORY).index_file("index.html"))
     })
     .bind(("0.0.0.0", 8080))?
     .run()

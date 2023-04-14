@@ -110,39 +110,44 @@ async fn delete_account(
         .database(DB_NAME)
         .collection(ADF_COLL);
 
-    match identity.map(|id| id.id()) {
-        None => HttpResponse::Unauthorized().body("You need to login to delete your account."),
-        Some(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
-        Some(Ok(username)) => {
-            // Delete all adfs created by user
-            match adf_coll
-                .delete_many(doc! { "username": &username }, None)
-                .await
-            {
-                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-                Ok(DeleteResult {
-                    deleted_count: _, ..
-                }) => {
-                    // Delete actual user
-                    match user_coll
-                        .delete_one(doc! { "username": &username }, None)
-                        .await
-                    {
-                        Ok(DeleteResult {
-                            deleted_count: 0, ..
-                        }) => HttpResponse::InternalServerError()
-                            .body("Account could not be deleted."),
-                        Ok(DeleteResult {
-                            deleted_count: 1, ..
-                        }) => HttpResponse::Ok().body("Account deleted."),
-                        Ok(_) => unreachable!(
+    match identity {
+        None => HttpResponse::Unauthorized().body("You are not logged in."),
+        Some(id) => match id.id() {
+            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+            Ok(username) => {
+                // Delete all adfs created by user
+                match adf_coll
+                    .delete_many(doc! { "username": &username }, None)
+                    .await
+                {
+                    Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+                    Ok(DeleteResult {
+                        deleted_count: _, ..
+                    }) => {
+                        // Delete actual user
+                        match user_coll
+                            .delete_one(doc! { "username": &username }, None)
+                            .await
+                        {
+                            Ok(DeleteResult {
+                                deleted_count: 0, ..
+                            }) => HttpResponse::InternalServerError()
+                                .body("Account could not be deleted."),
+                            Ok(DeleteResult {
+                                deleted_count: 1, ..
+                            }) => {
+                                id.logout();
+                                HttpResponse::Ok().body("Account deleted.")
+                            }
+                            Ok(_) => unreachable!(
                             "delete_one removes at most one entry so all cases are covered already"
                         ),
-                        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+                            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+                        }
                     }
                 }
             }
-        }
+        },
     }
 }
 
@@ -237,28 +242,33 @@ async fn user_info(app_state: web::Data<AppState>, identity: Option<Identity>) -
         .database(DB_NAME)
         .collection(USER_COLL);
 
-    match identity.map(|id| id.id()) {
+    match identity {
         None => {
             HttpResponse::Unauthorized().body("You need to login get your account information.")
         }
-        Some(Err(err)) => HttpResponse::InternalServerError().body(err.to_string()),
-        Some(Ok(username)) => {
-            match user_coll
-                .find_one(doc! { "username": &username }, None)
-                .await
-            {
-                Ok(Some(user)) => {
-                    let info = UserInfo {
-                        username: user.username,
-                        temp: user.password.is_none(),
-                    };
+        Some(id) => match id.id() {
+            Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+            Ok(username) => {
+                match user_coll
+                    .find_one(doc! { "username": &username }, None)
+                    .await
+                {
+                    Ok(Some(user)) => {
+                        let info = UserInfo {
+                            username: user.username,
+                            temp: user.password.is_none(),
+                        };
 
-                    HttpResponse::Ok().json(info)
+                        HttpResponse::Ok().json(info)
+                    }
+                    Ok(None) => {
+                        id.logout();
+                        HttpResponse::NotFound().body("Logged in user does not exist anymore.")
+                    }
+                    Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
                 }
-                Ok(None) => HttpResponse::NotFound().body("Logged in user does not exist anymore."),
-                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
-        }
+        },
     }
 }
 
