@@ -6,11 +6,13 @@ import {
   AlertColor,
   Alert,
   AppBar,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   TextField,
   Toolbar,
 } from '@mui/material';
@@ -200,24 +202,29 @@ function Footer() {
     <>
       <AppBar position="fixed" sx={{ top: 'auto', bottom: 0 }}>
         <Toolbar sx={{ justifyContent: 'center' }}>
-          {username ? (
-            <>
-              <span>
-                Logged in as:
-                {' '}
-                {username}
-                {' '}
-                {tempUser ? '(Temporary User. Edit to set a password!)' : undefined}
-              </span>
-              <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Update)}>Edit</Button>
-              {!tempUser && <Button color="inherit" onClick={() => logout()}>Logout</Button>}
-            </>
-          ) : (
-            <>
-              <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Login)}>Login</Button>
-              <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Register)}>Register</Button>
-            </>
-          )}
+          <Box sx={{ flexGrow: 1 }}>
+            {username ? (
+              <>
+                <span>
+                  Logged in as:
+                  {' '}
+                  {username}
+                  {' '}
+                  {tempUser ? '(Temporary User. Edit to set a password!)' : undefined}
+                </span>
+                <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Update)}>Edit</Button>
+                {!tempUser && <Button color="inherit" onClick={() => logout()}>Logout</Button>}
+              </>
+            ) : (
+              <>
+                <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Login)}>Login</Button>
+                <Button color="inherit" onClick={() => setDialogTypeOpen(UserFormType.Register)}>Register</Button>
+              </>
+            )}
+          </Box>
+          <Link href="/legal.html" target="_blank" sx={{ fontSize: '0.8rem' }}>
+            Legal Information (Impressum and Data Protection Regulation)
+          </Link>
         </Toolbar>
       </AppBar>
       <Dialog open={!!dialogTypeOpen} onClose={() => setDialogTypeOpen(null)}>
