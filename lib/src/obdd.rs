@@ -13,6 +13,7 @@ use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
+    /// The nodes of the [Bdd] with their edges
     pub nodes: Vec<BddNode>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
@@ -100,6 +101,7 @@ impl Bdd {
         RefCell::new(HashMap::new())
     }
 
+    /// Construct [Bdd] from a list of nodes by adding one after the other
     pub fn from_nodes(nodes: Vec<BddNode>) -> Self {
         let mut bdd = Self::new();
 

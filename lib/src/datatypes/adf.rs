@@ -26,6 +26,7 @@ impl Default for VarContainer {
 }
 
 impl VarContainer {
+    /// Create [VarContainer] from its components
     pub fn from_parser(
         names: Arc<RwLock<Vec<String>>>,
         mapping: Arc<RwLock<HashMap<String, usize>>>,
@@ -51,10 +52,12 @@ impl VarContainer {
             .and_then(|name| name.get(var.value()).cloned())
     }
 
+    /// Return ordered names from [VarContainer]
     pub fn names(&self) -> Arc<RwLock<Vec<String>>> {
         Arc::clone(&self.names)
     }
 
+    /// Return map from names to indices in [VarContainer]
     pub fn mappings(&self) -> Arc<RwLock<HashMap<String, usize>>> {
         Arc::clone(&self.mapping)
     }

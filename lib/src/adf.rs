@@ -32,8 +32,11 @@ use self::heuristics::Heuristic;
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
+    /// The ordering or the variables in the ADF including a dictionary for the statements
     pub ordering: VarContainer,
+    /// The underlying binary decision diagram that respresents the ADF
     pub bdd: Bdd,
+    /// Acceptance Conditions for the ADF
     pub ac: Vec<Term>,
     #[serde(skip, default = "Adf::default_rng")]
     rng: RefCell<StdRng>,
@@ -63,6 +66,7 @@ impl Default for Adf {
 }
 
 impl Adf {
+    /// Instntiates an ADF based on the publically available data
     pub fn from_ord_nodes_and_ac(
         ordering: VarContainer,
         bdd_nodes: Vec<BddNode>,
