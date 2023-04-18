@@ -182,18 +182,14 @@ function GraphG6(props: Props) {
       if (!graphRef.current) {
         graphRef.current = new Graph({
           container: ref.current!,
-          width: 1200,
-          height: 400,
+          height: 800,
           fitView: true,
           modes: {
             default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
           },
           layout: {
             type: 'dagre',
-            rankdir: 'TB',
-            align: 'DR',
-            nodesep: 100,
-            ranksep: 100,
+            rankdir: 'BT',
           },
           // defaultNode: {
           // anchorPoints: [[0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]],
