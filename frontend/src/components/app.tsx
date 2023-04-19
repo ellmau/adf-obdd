@@ -7,9 +7,12 @@ import {
   Alert,
   AlertColor,
   Backdrop,
+  Container,
   CircularProgress,
   CssBaseline,
+  Link,
   Snackbar,
+  Stack,
   useMediaQuery,
 } from '@mui/material';
 
@@ -62,7 +65,73 @@ function App() {
           <CssBaseline />
           <main style={{ maxHeight: 'calc(100vh - 70px)', overflowY: 'auto' }}>
             <RouterProvider router={browserRouter} />
+
+            <Container sx={{ marginTop: 4 }}>
+              <Stack direction="row" justifyContent="center" flexWrap="wrap">
+                <Link href="https://www.innosale.eu/" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../innosale-logo.png', import.meta.url).toString()}
+                    alt="InnoSale Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)', padding: 8, background: '#FFFFFF',
+                    }}
+                  />
+                </Link>
+                <Link href="https://scads.ai/" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../scads-logo.png', import.meta.url).toString()}
+                    alt="Scads.AI Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)', padding: 2, background: '#FFFFFF',
+                    }}
+                  />
+                </Link>
+                <Link href="https://secai.org/" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../secai-logo.png', import.meta.url).toString()}
+                    alt="Secai Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)',
+                    }}
+                  />
+                </Link>
+                <Link href="https://perspicuous-computing.science" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../cpec-logo.png', import.meta.url).toString()}
+                    alt="CPEC Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)', padding: 8, background: '#FFFFFF',
+                    }}
+                  />
+                </Link>
+                <Link href="https://iccl.inf.tu-dresden.de" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../iccl-logo.png', import.meta.url).toString()}
+                    alt="ICCL Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)', padding: 4, background: '#FFFFFF',
+                    }}
+                  />
+                </Link>
+                <Link href="https://tu-dresden.de" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={new URL('../tud-logo.png', import.meta.url).toString()}
+                    alt="TU Dresden Logo"
+                    height="40"
+                    style={{
+                      display: 'inline-block', borderRadius: 4, margin: 2, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)',
+                    }}
+                  />
+                </Link>
+              </Stack>
+            </Container>
           </main>
+
           <Footer />
 
           <Backdrop

@@ -201,7 +201,7 @@ function Footer() {
   return (
     <>
       <AppBar position="fixed" sx={{ top: 'auto', bottom: 0 }}>
-        <Toolbar sx={{ justifyContent: 'center' }}>
+        <Toolbar sx={{ justifyContent: 'center', alignItems: 'center' }}>
           <Box sx={{ flexGrow: 1 }}>
             {username ? (
               <>
@@ -222,6 +222,7 @@ function Footer() {
               </>
             )}
           </Box>
+
           <Link href="/legal.html" target="_blank" sx={{ fontSize: '0.8rem' }}>
             Legal Information (Impressum and Data Protection Regulation)
           </Link>
