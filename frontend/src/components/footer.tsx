@@ -223,7 +223,7 @@ function Footer() {
             )}
           </Box>
 
-          <Link href="/legal.html" target="_blank" sx={{ fontSize: '0.8rem' }}>
+          <Link color="inherit" href="/legal.html" target="_blank" sx={{ fontSize: '0.8rem' }}>
             Legal Information (Impressum and Data Protection Regulation)
           </Link>
         </Toolbar>
