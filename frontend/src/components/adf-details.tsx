@@ -3,11 +3,15 @@ import React, {
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   AlertColor,
   Button,
   Chip,
   Container,
+  Grid,
   Paper,
   Pagination,
   Skeleton,
@@ -17,6 +21,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+import DetailInfoMd from 'bundle-text:../help-texts/detail-info.md';
+import Markdown from './markdown';
 
 import GraphG6, { GraphProps } from './graph-g6';
 import LoadingContext from './loading-context';
@@ -218,6 +227,27 @@ function AdfDetails() {
       <Typography variant="h3" component="h1" align="center" gutterBottom>
         ADF-BDD.DEV
       </Typography>
+      <Container sx={{ marginTop: 2, marginBottom: 2 }}>
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <span style={{ fontWeight: 'bold' }}>What can I do with the ADF now?</span>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Grid container alignItems="center" spacing={2}>
+              <Grid item xs={12} sm={8}>
+                <Markdown>{DetailInfoMd}</Markdown>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <img
+                  src={new URL('../help-texts/example-bdd.png', import.meta.url).toString()}
+                  alt="Example BDD"
+                  style={{ maxWidth: '100%', borderRadius: 4, boxShadow: '0 0 5px 0 rgba(0,0,0,0.4)' }}
+                />
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
+      </Container>
       <Container sx={{ marginBottom: 4 }}>
         {problem ? (
           <>

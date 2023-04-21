@@ -7,6 +7,9 @@ import {
 } from 'react-router-dom';
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Chip,
   Container,
   Paper,
@@ -18,6 +21,11 @@ import {
   TableBody,
   Typography,
 } from '@mui/material';
+
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+import AddInfoMd from 'bundle-text:../help-texts/add-info.md';
+import Markdown from './markdown';
 
 import AdfNewForm from './adf-new-form';
 
@@ -102,6 +110,16 @@ function AdfOverview() {
       <Typography variant="h3" component="h1" align="center" gutterBottom>
         ADF-BDD.DEV
       </Typography>
+      <Container sx={{ marginTop: 2, marginBottom: 2 }}>
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <span style={{ fontWeight: 'bold' }}>What is this webapp doing and how should I use it?</span>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Markdown>{AddInfoMd}</Markdown>
+          </AccordionDetails>
+        </Accordion>
+      </Container>
       {problems.length > 0
         && (
         <Container sx={{ marginBottom: 4 }}>

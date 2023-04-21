@@ -122,7 +122,7 @@ function AdfNewForm({ fetchProblems }: { fetchProblems: () => void; }) {
                   For more info on the syntax, have a
                   look
                   {' '}
-                  <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noreferrer">here</Link>
+                  <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noopener noreferrer">here</Link>
                   .
                 </>
               )}

@@ -367,6 +367,12 @@ function GraphG6(props: Props) {
         <span style={{ color: '#1976d2', marginRight: 8 }}>hi edge (condition is true)</span>
         {' '}
         Click nodes to hightlight paths! (You can also drag and zoom.)
+        <br />
+        The
+        {' '}
+        <span style={{ color: '#4caf50' }}>Root for: X</span>
+        {' '}
+        labels indicate where to start looking to determine the truth value of statement X.
       </div>
     </>
   );
