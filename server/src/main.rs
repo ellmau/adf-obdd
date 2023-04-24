@@ -17,6 +17,7 @@ use actix_cors::Cors;
 
 mod adf;
 mod config;
+mod double_labeled_graph;
 mod user;
 
 use adf::{

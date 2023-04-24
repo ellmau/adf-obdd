@@ -18,12 +18,14 @@ use mongodb::results::DeleteResult;
 use names::{Generator, Name};
 use serde::{Deserialize, Serialize};
 
-use adf_bdd::adf::{Adf, DoubleLabeledGraph};
+use adf_bdd::adf::Adf;
 use adf_bdd::adfbiodivine::Adf as BdAdf;
 use adf_bdd::parser::AdfParser;
 
 use crate::config::{AppState, RunningInfo, Task, ADF_COLL, COMPUTE_TIME, DB_NAME, USER_COLL};
 use crate::user::{username_exists, User};
+
+use crate::double_labeled_graph::DoubleLabeledGraph;
 
 type Ac = Vec<Term>;
 type AcDb = Vec<String>;
@@ -403,7 +405,7 @@ async fn add_adf_problem(
 
                 let ac_and_graph = AcAndGraph {
                     ac: lib_adf.ac.iter().map(|t| t.0.to_string()).collect(),
-                    graph: lib_adf.into_double_labeled_graph(None),
+                    graph: DoubleLabeledGraph::from_adf_and_ac(&lib_adf, None),
                 };
 
                 (SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph)
@@ -576,7 +578,7 @@ async fn solve_adf_problem(
                 .iter()
                 .map(|ac| AcAndGraph {
                     ac: ac.iter().map(|t| t.0.to_string()).collect(),
-                    graph: adf.into_double_labeled_graph(Some(ac)),
+                    graph: DoubleLabeledGraph::from_adf_and_ac(&adf, Some(ac)),
                 })
                 .collect();
 
