@@ -8,7 +8,6 @@ This module describes the abstract dialectical framework.
 pub mod heuristics;
 use std::cell::RefCell;
 
-use crate::datatypes::BddNode;
 use crate::{
     datatypes::{
         adf::{
@@ -52,23 +51,18 @@ impl Default for Adf {
     }
 }
 
-impl Adf {
-    /// Instntiates an ADF based on the publically available data
-    pub fn from_ord_nodes_and_ac(
-        ordering: VarContainer,
-        bdd_nodes: Vec<BddNode>,
-        ac: Vec<Term>,
-    ) -> Self {
-        let bdd = Bdd::from_nodes(bdd_nodes);
-
-        Adf {
-            ordering,
-            bdd,
-            ac,
+impl From<(VarContainer, Bdd, Vec<Term>)> for Adf {
+    fn from(source: (VarContainer, Bdd, Vec<Term>)) -> Self {
+        Self {
+            ordering: source.0,
+            bdd: source.1,
+            ac: source.2,
             rng: Self::default_rng(),
         }
     }
+}
 
+impl Adf {
     /// Instantiates a new ADF, based on the [parser-data][crate::parser::AdfParser].
     pub fn from_parser(parser: &AdfParser) -> Self {
         log::info!("[Start] instantiating BDD");

@@ -82,7 +82,7 @@ impl NoGood {
         visit.then_some(result)
     }
 
-    /// Creates an updated [Vec<Term>], based on the given [&[Term]] and the [NoGood].
+    /// Creates an updated [`Vec<Term>`], based on the given [&[Term]] and the [NoGood].
     /// The parameter _update_ is set to [`true`] if there has been an update and to [`false`] otherwise
     pub fn update_term_vec(&self, term_vec: &[Term], update: &mut bool) -> Vec<Term> {
         *update = false;

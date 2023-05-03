@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use adf_bdd::adf::Adf;
 use adf_bdd::adfbiodivine::Adf as BdAdf;
+use adf_bdd::obdd::Bdd;
 use adf_bdd::parser::AdfParser;
 
 use crate::config::{AppState, RunningInfo, Task, ADF_COLL, COMPUTE_TIME, DB_NAME, USER_COLL};
@@ -164,13 +165,35 @@ pub(crate) struct SimplifiedAdf {
     pub(crate) ac: AcDb,
 }
 
-impl SimplifiedAdf {
-    fn from_lib_adf(adf: Adf) -> Self {
-        SimplifiedAdf {
-            ordering: adf.ordering.into(),
-            bdd: adf.bdd.nodes.into_iter().map(Into::into).collect(),
-            ac: adf.ac.into_iter().map(|t| t.0.to_string()).collect(),
+impl From<Adf> for SimplifiedAdf {
+    fn from(source: Adf) -> Self {
+        Self {
+            ordering: source.ordering.into(),
+            bdd: source.bdd.nodes.into_iter().map(Into::into).collect(),
+            ac: source.ac.into_iter().map(|t| t.0.to_string()).collect(),
         }
+    }
+}
+
+impl From<SimplifiedAdf> for Adf {
+    fn from(source: SimplifiedAdf) -> Self {
+        let bdd = Bdd::from(
+            source
+                .bdd
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<BddNode>>(),
+        );
+
+        Adf::from((
+            source.ordering.into(),
+            bdd,
+            source
+                .ac
+                .into_iter()
+                .map(|t| Term(t.parse().unwrap()))
+                .collect(),
+        ))
     }
 }
 
@@ -408,7 +431,7 @@ async fn add_adf_problem(
                     graph: DoubleLabeledGraph::from_adf_and_ac(&lib_adf, None),
                 };
 
-                (SimplifiedAdf::from_lib_adf(lib_adf), ac_and_graph)
+                (SimplifiedAdf::from(lib_adf), ac_and_graph)
             });
 
             app_state
@@ -550,15 +573,7 @@ async fn solve_adf_problem(
             #[cfg(feature = "mock_long_computations")]
             std::thread::sleep(Duration::from_secs(20));
 
-            let mut adf: Adf = Adf::from_ord_nodes_and_ac(
-                simp_adf.ordering.into(),
-                simp_adf.bdd.into_iter().map(Into::into).collect(),
-                simp_adf
-                    .ac
-                    .into_iter()
-                    .map(|t| Term(t.parse().unwrap()))
-                    .collect(),
-            );
+            let mut adf: Adf = simp_adf.into();
 
             let acs: Vec<Ac> = match adf_problem_input.strategy {
                 Strategy::Complete => adf.complete().collect(),

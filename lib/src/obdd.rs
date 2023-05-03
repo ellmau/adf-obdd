@@ -13,7 +13,7 @@ use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
-    /// The nodes of the [Bdd] with their edges
+    /// The nodes of the [`Bdd`] with their edges
     pub nodes: Vec<BddNode>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
@@ -47,6 +47,18 @@ impl Display for Bdd {
 impl Default for Bdd {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<Vec<BddNode>> for Bdd {
+    fn from(nodes: Vec<BddNode>) -> Self {
+        let mut bdd = Self::new();
+
+        for node in nodes {
+            bdd.node(node.var(), node.lo(), node.hi());
+        }
+
+        bdd
     }
 }
 
@@ -99,17 +111,6 @@ impl Bdd {
 
     fn default_count_cache() -> RefCell<HashMap<Term, CountNode>> {
         RefCell::new(HashMap::new())
-    }
-
-    /// Construct [Bdd] from a list of nodes by adding one after the other
-    pub fn from_nodes(nodes: Vec<BddNode>) -> Self {
-        let mut bdd = Self::new();
-
-        for node in nodes {
-            bdd.node(node.var(), node.lo(), node.hi());
-        }
-
-        bdd
     }
 
     /// Instantiates a [variable][crate::datatypes::Var] and returns the representing roBDD as a [`Term`][crate::datatypes::Term].

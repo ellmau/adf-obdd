@@ -198,6 +198,146 @@ while let Ok(result) = r.recv() {
 solving.join().unwrap();
 
 ```
+
+### Serialize and Deserialize custom datastructures representing an [`adf::Adf`]
+
+The Web Application <https://adf-bdd.dev> uses custom datastructures that are stored in a mongodb which inspired this example.
+
+```rust
+use std::sync::{Arc, RwLock};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use adf_bdd::datatypes::adf::VarContainer;
+use adf_bdd::datatypes::{BddNode, Term, Var};
+use adf_bdd::obdd::Bdd;
+use adf_bdd::parser::AdfParser;
+use adf_bdd::adf::Adf;
+
+// Custom Datastructures for (De-)Serialization
+
+# #[derive(PartialEq, Debug)]
+#[derive(Deserialize, Serialize)]
+struct MyCustomVarContainer {
+    names: Vec<String>,
+    mapping: HashMap<String, String>,
+}
+
+impl From<VarContainer> for MyCustomVarContainer {
+    fn from(source: VarContainer) -> Self {
+        Self {
+            names: source.names().read().unwrap().clone(),
+            mapping: source
+                .mappings()
+                .read()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.to_string()))
+                .collect(),
+        }
+    }
+}
+
+impl From<MyCustomVarContainer> for VarContainer {
+    fn from(source: MyCustomVarContainer) -> Self {
+        Self::from_parser(
+            Arc::new(RwLock::new(source.names)),
+            Arc::new(RwLock::new(
+                source
+                    .mapping
+                    .into_iter()
+                    .map(|(k, v)| (k, v.parse().unwrap()))
+                    .collect(),
+            )),
+        )
+    }
+}
+
+# #[derive(PartialEq, Debug)]
+#[derive(Deserialize, Serialize)]
+struct MyCustomBddNode {
+    var: String,
+    lo: String,
+    hi: String,
+}
+
+impl From<BddNode> for MyCustomBddNode {
+    fn from(source: BddNode) -> Self {
+        Self {
+            var: source.var().0.to_string(),
+            lo: source.lo().0.to_string(),
+            hi: source.hi().0.to_string(),
+        }
+    }
+}
+
+impl From<MyCustomBddNode> for BddNode {
+    fn from(source: MyCustomBddNode) -> Self {
+        Self::new(
+            Var(source.var.parse().unwrap()),
+            Term(source.lo.parse().unwrap()),
+            Term(source.hi.parse().unwrap()),
+        )
+    }
+}
+
+# #[derive(PartialEq, Debug)]
+#[derive(Deserialize, Serialize)]
+struct MyCustomAdf {
+    ordering: MyCustomVarContainer,
+    bdd: Vec<MyCustomBddNode>,
+    ac: Vec<String>,
+}
+
+impl From<Adf> for MyCustomAdf {
+    fn from(source: Adf) -> Self {
+        Self {
+            ordering: source.ordering.into(),
+            bdd: source.bdd.nodes.into_iter().map(Into::into).collect(),
+            ac: source.ac.into_iter().map(|t| t.0.to_string()).collect(),
+        }
+    }
+}
+
+impl From<MyCustomAdf> for Adf {
+    fn from(source: MyCustomAdf) -> Self {
+        let bdd = Bdd::from(source.bdd.into_iter().map(Into::into).collect::<Vec<BddNode>>());
+
+        Adf::from((
+            source.ordering.into(),
+            bdd,
+            source
+                .ac
+                .into_iter()
+                .map(|t| Term(t.parse().unwrap()))
+                .collect(),
+        ))
+    }
+}
+
+// use the above example as input
+let input = "s(a).s(b).s(c).s(d).ac(a,c(v)).ac(b,or(a,b)).ac(c,neg(b)).ac(d,d).";
+let parser = AdfParser::default();
+parser.parse()(&input).unwrap();
+
+// create Adf
+let adf = Adf::from_parser(&parser);
+
+// cast into custom struct
+let my_custom_adf: MyCustomAdf = adf.into();
+
+// stringify to json
+let json: String = serde_json::to_string(&my_custom_adf).unwrap();
+
+// parse json
+let parsed_custom_adf: MyCustomAdf = serde_json::from_str(&json).unwrap();
+
+// cast into lib struct that resembles the original Adf
+let parsed_adf: Adf = parsed_custom_adf.into();
+
+# let my_custom_adf2: MyCustomAdf = parsed_adf.into();
+# assert_eq!(my_custom_adf, my_custom_adf2);
+```
+
 */
 #![deny(
     missing_debug_implementations,
