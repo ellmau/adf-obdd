@@ -30,9 +30,12 @@ use self::heuristics::Heuristic;
 ///
 /// Please note that due to the nature of the underlying reduced and ordered Bdd the concept of a [`Term`][crate::datatypes::Term] represents one (sub) formula as well as truth-values.
 pub struct Adf {
-    ordering: VarContainer,
-    bdd: Bdd,
-    ac: Vec<Term>,
+    /// The ordering or the variables in the ADF including a dictionary for the statements
+    pub ordering: VarContainer,
+    /// The underlying binary decision diagram that respresents the ADF
+    pub bdd: Bdd,
+    /// Acceptance Conditions for the ADF
+    pub ac: Vec<Term>,
     #[serde(skip, default = "Adf::default_rng")]
     rng: RefCell<StdRng>,
 }
@@ -48,6 +51,17 @@ impl Default for Adf {
     }
 }
 
+impl From<(VarContainer, Bdd, Vec<Term>)> for Adf {
+    fn from(source: (VarContainer, Bdd, Vec<Term>)) -> Self {
+        Self {
+            ordering: source.0,
+            bdd: source.1,
+            ac: source.2,
+            rng: Self::default_rng(),
+        }
+    }
+}
+
 impl Adf {
     /// Instantiates a new ADF, based on the [parser-data][crate::parser::AdfParser].
     pub fn from_parser(parser: &AdfParser) -> Self {
@@ -58,7 +72,7 @@ impl Adf {
             ac: vec![Term(0); parser.dict_size()],
             rng: Adf::default_rng(),
         };
-        (0..parser.dict_size()).into_iter().for_each(|value| {
+        (0..parser.dict_size()).for_each(|value| {
             log::trace!("adding variable {}", Var(value));
             result.bdd.variable(Var(value));
         });

@@ -7,11 +7,11 @@ name: DevSkim
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
   schedule:
-    - cron: '26 6 * * 5'
+    - cron: '15 6 * * 4'
 
 jobs:
   lint:
@@ -23,12 +23,12 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run DevSkim scanner
         uses: microsoft/DevSkim-Action@v1
-        
+
       - name: Upload DevSkim scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: devskim-results.sarif

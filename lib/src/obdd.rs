@@ -13,7 +13,8 @@ use std::{cell::RefCell, cmp::min, collections::HashMap, fmt::Display};
 /// Each roBDD is identified by its corresponding [`Term`], which implicitly identifies the root node of a roBDD.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bdd {
-    pub(crate) nodes: Vec<BddNode>,
+    /// The nodes of the [`Bdd`] with their edges
+    pub nodes: Vec<BddNode>,
     #[cfg(feature = "variablelist")]
     #[serde(skip)]
     var_deps: Vec<HashSet<Var>>,
@@ -46,6 +47,18 @@ impl Display for Bdd {
 impl Default for Bdd {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<Vec<BddNode>> for Bdd {
+    fn from(nodes: Vec<BddNode>) -> Self {
+        let mut bdd = Self::new();
+
+        for node in nodes {
+            bdd.node(node.var(), node.lo(), node.hi());
+        }
+
+        bdd
     }
 }
 
@@ -556,7 +569,7 @@ impl Bdd {
 
     /// Counts how often another roBDD uses a [variable][crate::datatypes::Var], which occurs in this roBDD.
     pub fn active_var_impact(&self, var: Var, termlist: &[Term]) -> usize {
-        (0..termlist.len()).into_iter().fold(0usize, |acc, idx| {
+        (0..termlist.len()).fold(0usize, |acc, idx| {
             if self
                 .var_dependencies(termlist[var.value()])
                 .contains(&Var(idx))

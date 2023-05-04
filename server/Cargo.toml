@@ -1,0 +1,32 @@
+[package]
+name = "adf-bdd-server"
+version = "0.3.0"
+authors = ["Lukas Gerlach <lukas.gerlach@tu-dresden.de>"]
+edition = "2021"
+homepage = "https://ellmau.github.io/adf-obdd"
+repository = "https://github.com/ellmau/adf-obdd"
+license = "MIT"
+exclude = ["res/", "./flake*", "*.nix", ".envrc", "_config.yml", "tarpaulin-report.*", "*~"]
+description = "Offer Solving ADFs as a service"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+adf_bdd = { version="0.3.1", path="../lib", features = ["frontend"] }
+actix-web = "4"
+actix-cors = "0.6"
+actix-files = "0.6"
+env_logger = "0.9"
+log = "0.4"
+serde = "1"
+mongodb = "2.4.0"
+actix-identity = "0.5.2"
+argon2 = "0.5.0"
+actix-session = { version="0.7.2", features = ["cookie-session"] }
+names = "0.14.0"
+futures-util = "0.3.28"
+actix-multipart = "0.6.0"
+
+[features]
+cors_for_local_development = []
+mock_long_computations = []
