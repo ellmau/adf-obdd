@@ -386,7 +386,7 @@ pub trait BddRestrict {
 
 impl BddRestrict for Bdd {
     fn var_restrict(&self, variable: biodivine_lib_bdd::BddVariable, value: bool) -> Bdd {
-        self.var_select(variable, value).var_project(variable)
+        self.var_select(variable, value).var_exists(variable)
     }
 
     fn restrict(&self, variables: &[(biodivine_lib_bdd::BddVariable, bool)]) -> Bdd {
@@ -394,7 +394,7 @@ impl BddRestrict for Bdd {
         variables
             .iter()
             .for_each(|(var, _val)| variablelist.push(*var));
-        self.select(variables).project(&variablelist)
+        self.select(variables).exists(&variablelist)
     }
 }
 
