@@ -1,7 +1,6 @@
 //! Collection of all nogood-related structures.
 
 use std::{
-    borrow::Borrow,
     fmt::{Debug, Display},
     ops::{BitAnd, BitOr, BitXor, BitXorAssign},
 };
@@ -23,11 +22,8 @@ pub struct NoGood {
 impl Eq for NoGood {}
 impl PartialEq for NoGood {
     fn eq(&self, other: &Self) -> bool {
-        self.active
-            .borrow()
-            .bitxor(other.active.borrow())
-            .is_empty()
-            && self.value.borrow().bitxor(other.value.borrow()).is_empty()
+        (&self.active).bitxor(&other.active).is_empty()
+            && (&self.value).bitxor(&other.value).is_empty()
     }
 }
 
@@ -113,15 +109,11 @@ impl NoGood {
     /// Given a [NoGood] and another one, conclude a non-conflicting value which can be concluded on basis of the given one.
     pub fn conclude(&self, other: &NoGood) -> Option<(usize, bool)> {
         log::debug!("conclude: {:?} other {:?}", self, other);
-        let implication = self
-            .active
-            .borrow()
-            .bitxor(other.active.borrow())
-            .bitand(self.active.borrow());
+        let implication = (&self.active).bitxor(&other.active).bitand(&self.active);
 
-        let bothactive = self.active.borrow().bitand(other.active.borrow());
-        let mut no_matches = bothactive.borrow().bitand(other.value.borrow());
-        no_matches.bitxor_assign(bothactive.bitand(self.value.borrow()));
+        let bothactive = (&self.active).bitand(&other.active);
+        let mut no_matches = (&bothactive).bitand(&other.value);
+        no_matches.bitxor_assign(bothactive.bitand(&self.value));
 
         if implication.len() == 1 && no_matches.is_empty() {
             let pos = implication
@@ -140,16 +132,16 @@ impl NoGood {
 
     /// Updates the [NoGood] and a second one in a disjunctive (bitor) manner.
     pub fn disjunction(&mut self, other: &NoGood) {
-        self.active = self.active.borrow().bitor(&other.active);
-        self.value = self.value.borrow().bitor(&other.value);
+        self.active = (&self.active).bitor(&other.active);
+        self.value = (&self.value).bitor(&other.value);
     }
 
     /// Returns [true] if the other [Interpretation] matches with all the assignments of the current [NoGood].
     pub fn is_violating(&self, other: &Interpretation) -> bool {
-        let active = self.active.borrow().bitand(other.active.borrow());
+        let active = (&self.active).bitand(&other.active);
         if self.active.len() == active.len() {
-            let lhs = active.borrow().bitand(self.value.borrow());
-            let rhs = active.borrow().bitand(other.value.borrow());
+            let lhs = (&active).bitand(&self.value);
+            let rhs = (&active).bitand(&other.value);
             if lhs.bitxor(rhs).is_empty() {
                 return true;
             }
