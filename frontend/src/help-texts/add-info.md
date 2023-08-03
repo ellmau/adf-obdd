@@ -3,7 +3,7 @@ The Web UI mimics many options of the CLI version of the [underlying adf-bdd too
 
 In the below form, you can either type/paste your `code` or upload a file in the same format.
 To put it briefly, an ADF consists of statements and accectance conditions for these statements.
-For instance, the following code indicates that `a,b,c,d` are statements, that `a` is assumed to be true (verum), `b` is true if is true (which is tautological), `c` is true if `a` and `b` are true, and `d` is true if `b` is false.
+For instance, the following code indicates that `a,b,c,d` are statements, that `a` is assumed to be true (verum), `b` is true if `b` is true (which is self-supporting), `c` is true if `a` and `b` are true, and `d` is true if `b` is false.
 
 ```
 s(a).
