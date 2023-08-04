@@ -47,6 +47,7 @@ rec {
           adf-bdd = platform.buildRustPackage {
             pname = "adf-bdd";
             inherit (cargoMetaBin) version;
+            inherit meta;
 
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
@@ -56,6 +57,7 @@ rec {
           adf_bdd = platform.buildRustPackage {
             pname = "adf_bdd";
             inherit (cargoMetaLib) version;
+            inherit meta;
 
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
