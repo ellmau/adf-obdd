@@ -1,4 +1,4 @@
-{
+rec {
   description = "adf-bdd, Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden";
 
   inputs = {
@@ -30,49 +30,36 @@
           rustc = toolchain;
         };
       in rec {
-        apps = rec {
-          adf-bdd = flake-utils.lib.mkApp {
-            drv = packages.adf-bdd;
-            exePath = "/bin/adf-bdd";
-          };
-        };
-        packages = rec {
-          adf-bdd = platform.buildRustPackage {
-            pname = "adf-bdd";
-            version = "0.3.0-dev";
-            src = ./.;
-
-            cargoLock.lockFile = ./Cargo.lock;
-
-            meta = {
-              description = "adf-bdd, Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden";
-              homepage = "https://github.com/ellmau/adf-obdd";
-              license = [pkgs.lib.licenses.mit];
-            };
+        packages = let
+          cargoMetaBin = (builtins.fromTOML (builtins.readFile ./bin/Cargo.toml)).package;
+          cargoMetaLib = (builtins.fromTOML (builtins.readFile ./lib/Cargo.toml)).package;
+          meta = {
+            inherit description;
+            homepage = "https://github.com/ellmau/adf-obdd";
+            license = [pkgs.lib.licenses.mit];
 
             nativeBuildInputs = with platform; [
               cargoBuildHook
               cargoCheckHook
             ];
+          };
+        in rec {
+          adf-bdd = platform.buildRustPackage {
+            pname = "adf-bdd";
+            inherit (cargoMetaBin) version;
+
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+
             buildAndTestSubdir = "bin";
           };
           adf_bdd = platform.buildRustPackage {
             pname = "adf_bdd";
-            version = "0.3.0";
-            src = ./.;
+            inherit (cargoMetaLib) version;
 
+            src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
 
-            meta = {
-              description = "adf-bdd, Abstract Dialectical Frameworks solved by Binary Decision Diagrams; developed in Dresden";
-              homepage = "https://github.com/ellmau/adf-obdd";
-              license = [pkgs.lib.licenses.mit];
-            };
-
-            nativeBuildInputs = with platform; [
-              cargoBuildHook
-              cargoCheckHook
-            ];
             buildAndTestSubdir = "lib";
           };
         };
@@ -92,9 +79,8 @@
               pkgs.cargo-audit
               pkgs.cargo-license
             ]
-            ++ (notOn ["aarch64-darwin" "x86_64-darwin"] [pkgs.kcov pkgs.cargo-kcov pkgs.gnuplot])
-            ++ (notOn ["aarch64-linux" "aarch64-darwin" "i686-linux"] [pkgs.cargo-tarpaulin])
-            ++ (notOn ["aarch64-darwin" "x86_64-darwin"] [pkgs.valgrind]);
+            ++ (notOn ["aarch64-darwin" "x86_64-darwin"] [pkgs.kcov pkgs.cargo-kcov pkgs.gnuplot pkgs.valgrind])
+            ++ (notOn ["aarch64-linux" "aarch64-darwin" "i686-linux"] [pkgs.cargo-tarpaulin]);
         };
       };
     };
