@@ -92,7 +92,7 @@ impl DoubleLabeledGraph {
             .iter()
             .enumerate()
             .filter(|(i, _)| node_indices.contains(i))
-            .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
+            .filter(|(_, node)| [Var::TOP, Var::BOT].contains(&node.var()))
             .map(|(i, &node)| (i, node.lo().value()))
             .map(|(i, v)| (i.to_string(), v.to_string()))
             .collect();
@@ -103,7 +103,7 @@ impl DoubleLabeledGraph {
             .iter()
             .enumerate()
             .filter(|(i, _)| node_indices.contains(i))
-            .filter(|(_, node)| !vec![Var::TOP, Var::BOT].contains(&node.var()))
+            .filter(|(_, node)| [Var::TOP, Var::BOT].contains(&node.var()))
             .map(|(i, &node)| (i, node.hi().value()))
             .map(|(i, v)| (i.to_string(), v.to_string()))
             .collect();
