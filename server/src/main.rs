@@ -19,6 +19,7 @@ mod adf;
 mod config;
 mod double_labeled_graph;
 mod user;
+mod pmc_vis;
 
 use adf::{
     add_adf_problem, delete_adf_problem, get_adf_problem, get_adf_problems_for_user,
@@ -27,6 +28,9 @@ use adf::{
 use config::{AppState, ASSET_DIRECTORY, COOKIE_DURATION};
 use user::{
     create_username_index, delete_account, login, logout, register, update_user, user_info,
+};
+use pmc_vis::{
+    pmc_vis_get_initial, pmc_vis_get_outgoing,
 };
 
 #[actix_web::main]
@@ -58,6 +62,7 @@ async fn main() -> std::io::Result<()> {
         #[cfg(feature = "cors_for_local_development")]
         let cors = Cors::default()
             .allowed_origin("http://localhost:1234")
+            .allowed_origin("http://localhost:3000")
             .allow_any_method()
             .allow_any_header()
             .supports_credentials()
@@ -97,7 +102,12 @@ async fn main() -> std::io::Result<()> {
                     .service(delete_adf_problem)
                     .service(get_adf_problems_for_user),
             )
-            // this mus be last to not override anything
+            .service(
+                web::scope("/pmc-vis")
+                    .service(pmc_vis_get_initial)
+                    .service(pmc_vis_get_outgoing),
+            )
+            // this must be last to not override anything
             .service(
                 fs::Files::new("/", ASSET_DIRECTORY)
                     .index_file("index.html")
