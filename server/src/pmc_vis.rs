@@ -1,8 +1,12 @@
+use crate::{
+    adf::{AcAndGraph, AdfProblem, OptionWithError},
+    config::{AppState, RunningInfo, Task, ADF_COLL, COMPUTE_TIME, DB_NAME, USER_COLL},
+    double_labeled_graph::DoubleLabeledGraph,
+};
 use actix_identity::Identity;
-use actix_web::{get, web, HttpResponse, Responder, http::header};
-use serde::Deserialize;
-use crate::config::AppState;
-
+use actix_web::{get, http::header, web, HttpResponse, Responder};
+use mongodb::bson::doc;
+use serde::{Deserialize, Serialize};
 
 const DUMMY_INITIAL: &str = r#"{
   "nodes": [
@@ -126,7 +130,7 @@ const DUMMY_INITIAL: &str = r#"{
   ]
 }"#;
 
-const DUMMY_OUTGOING : &str = r#"{
+const DUMMY_OUTGOING: &str = r#"{
   "nodes": [
     {
       "id": "0",
@@ -802,18 +806,131 @@ const DUMMY_OUTGOING : &str = r#"{
   ]
 }"#;
 
-#[get("/{problem_id}/initial")]
+#[derive(Serialize)]
+struct PmcVisNode {
+    id: String,
+    name: String,
+    #[serde(rename = "type")]
+    node_type: String,
+}
+
+#[derive(Serialize)]
+struct PmcVisEdge {
+    source: String,
+    target: String,
+    label: String,
+}
+
+struct PmcVisGraph {
+    nodes: Vec<PmcVisNode>,
+    edges: Vec<PmcVisEdge>,
+}
+
+impl From<DoubleLabeledGraph> for PmcVisGraph {
+    fn from(graph: DoubleLabeledGraph) -> Self {
+        PmcVisGraph {
+            nodes: graph
+                .nodes_iter()
+                .map(|(k, v)| PmcVisNode {
+                    id: k,
+                    name: v,
+                    node_type: "s".to_string(),
+                })
+                .collect(),
+            edges: graph
+                .edges_iter()
+                .map(|(s, t, l)| PmcVisEdge {
+                    source: s,
+                    target: t,
+                    label: l,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct PmcVisInfo {
+    #[serde(rename = "ID")]
+    id: String,
+}
+
+#[derive(Serialize)]
+struct PmcVisDto {
+    nodes: Vec<PmcVisNode>,
+    edges: Vec<PmcVisEdge>,
+    info: PmcVisInfo,
+}
+
+impl PmcVisDto {
+    fn from_pmc_vis_graph_and_id(graph: PmcVisGraph, id: String) -> Self {
+        Self {
+            nodes: graph.nodes,
+            edges: graph.edges,
+            info: PmcVisInfo { id },
+        }
+    }
+}
+
+#[get("/{problem_name}/initial")]
 async fn pmc_vis_get_initial(
-    _app_state: web::Data<AppState>,
-    _identity: Option<Identity>,
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
     path: web::Path<String>,
 ) -> impl Responder {
-    let _problem_id = path.into_inner();
+    let problem_name = path.into_inner();
 
-    HttpResponse::Ok()
-        .append_header(header::ContentType::json())
-        .body(DUMMY_INITIAL)
-    // HttpResponse::Ok().json(...)
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    let username = match identity.map(|id| id.id()) {
+        None => {
+            return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
+        }
+        Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => username,
+    };
+
+    let adf_problem = match adf_coll
+        .find_one(doc! { "name": &problem_name, "username": &username }, None)
+        .await
+    {
+        Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Ok(None) => {
+            return HttpResponse::NotFound()
+                .body(format!("ADF problem with name {problem_name} not found."))
+        }
+        Ok(Some(prob)) => prob,
+    };
+
+    let parse_only_graph: DoubleLabeledGraph = match adf_problem.acs_per_strategy.parse_only {
+        OptionWithError::None => {
+            return HttpResponse::BadRequest().body("The ADF problem has not been parsed yet.")
+        }
+        OptionWithError::Error(err) => {
+            return HttpResponse::BadRequest().body(format!(
+                "The ADF problem could not be parsed. Update it and try again. Error: {err}"
+            ))
+        }
+        OptionWithError::Some(acs_and_graphs) => {
+            acs_and_graphs
+                .first()
+                .expect("There should be exacly one graph in the parsing result.")
+                .clone()
+                .graph
+        }
+    };
+
+    HttpResponse::Ok().json(PmcVisDto::from_pmc_vis_graph_and_id(
+        PmcVisGraph::from(parse_only_graph.only_roots()),
+        problem_name,
+    ))
+
+    // HttpResponse::Ok()
+    //     .append_header(header::ContentType::json())
+    //     .body(DUMMY_INITIAL)
 }
 
 #[derive(Deserialize)]
@@ -823,16 +940,63 @@ struct OutgoingQuery {
 
 #[get("/{problem_id}/outgoing")]
 async fn pmc_vis_get_outgoing(
-    _app_state: web::Data<AppState>,
-    _identity: Option<Identity>,
+    app_state: web::Data<AppState>,
+    identity: Option<Identity>,
     path: web::Path<String>,
     query: web::Query<OutgoingQuery>,
 ) -> impl Responder {
-    let _problem_id = path.into_inner();
-    let _node_id = &query.id;
+    let problem_name = path.into_inner();
+    let node_id = &query.id;
 
-    HttpResponse::Ok()
-        .append_header(header::ContentType::json())
-        .body(DUMMY_OUTGOING)
-    // HttpResponse::Ok().json(...)
+    let adf_coll: mongodb::Collection<AdfProblem> = app_state
+        .mongodb_client
+        .database(DB_NAME)
+        .collection(ADF_COLL);
+
+    let username = match identity.map(|id| id.id()) {
+        None => {
+            return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
+        }
+        Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Some(Ok(username)) => username,
+    };
+
+    let adf_problem = match adf_coll
+        .find_one(doc! { "name": &problem_name, "username": &username }, None)
+        .await
+    {
+        Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
+        Ok(None) => {
+            return HttpResponse::NotFound()
+                .body(format!("ADF problem with name {problem_name} not found."))
+        }
+        Ok(Some(prob)) => prob,
+    };
+
+    let parse_only_graph: DoubleLabeledGraph = match adf_problem.acs_per_strategy.parse_only {
+        OptionWithError::None => {
+            return HttpResponse::BadRequest().body("The ADF problem has not been parsed yet.")
+        }
+        OptionWithError::Error(err) => {
+            return HttpResponse::BadRequest().body(format!(
+                "The ADF problem could not be parsed. Update it and try again. Error: {err}"
+            ))
+        }
+        OptionWithError::Some(acs_and_graphs) => {
+            acs_and_graphs
+                .first()
+                .expect("There should be exacly one graph in the parsing result.")
+                .clone()
+                .graph
+        }
+    };
+
+    HttpResponse::Ok().json(PmcVisDto::from_pmc_vis_graph_and_id(
+        PmcVisGraph::from(parse_only_graph.only_node_with_successors_roots(node_id.to_string())),
+        problem_name,
+    ))
+
+    // HttpResponse::Ok()
+    //     .append_header(header::ContentType::json())
+    //     .body(DUMMY_OUTGOING)
 }

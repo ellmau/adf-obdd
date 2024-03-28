@@ -115,4 +115,27 @@ impl DoubleLabeledGraph {
             hi_edges,
         }
     }
+
+    pub fn only_roots(&self) -> DoubleLabeledGraph {
+        todo!()
+    }
+
+    pub fn only_node_with_successors_roots(&self, node: String) -> DoubleLabeledGraph {
+        todo!()
+    }
+
+    pub fn nodes_iter(&self) -> impl Iterator<Item = (String, String)> + '_ {
+        self.node_labels.iter().map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn edges_iter(&self) -> impl Iterator<Item = (String, String, String)> + '_ {
+        self.lo_edges
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone(), "lo".to_string()))
+            .chain(
+                self.hi_edges
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone(), "hi".to_string())),
+            )
+    }
 }

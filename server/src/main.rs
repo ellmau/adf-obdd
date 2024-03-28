@@ -18,19 +18,17 @@ use actix_cors::Cors;
 mod adf;
 mod config;
 mod double_labeled_graph;
-mod user;
 mod pmc_vis;
+mod user;
 
 use adf::{
     add_adf_problem, delete_adf_problem, get_adf_problem, get_adf_problems_for_user,
     solve_adf_problem,
 };
 use config::{AppState, ASSET_DIRECTORY, COOKIE_DURATION};
+use pmc_vis::{pmc_vis_get_initial, pmc_vis_get_outgoing};
 use user::{
     create_username_index, delete_account, login, logout, register, update_user, user_info,
-};
-use pmc_vis::{
-    pmc_vis_get_initial, pmc_vis_get_outgoing,
 };
 
 #[actix_web::main]
