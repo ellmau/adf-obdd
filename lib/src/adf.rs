@@ -1135,8 +1135,8 @@ mod test {
         let (s, r) = unbounded();
         adf.nogood_internal(
             &grounded,
-            crate::adf::heuristics::heu_simple,
-            crate::adf::Adf::stability_check,
+            heuristics::heu_simple,
+            Adf::stability_check,
             s,
         );
 
@@ -1172,8 +1172,8 @@ mod test {
         let (s, r) = unbounded();
         adf.nogood_internal(
             &grounded,
-            crate::adf::heuristics::heu_simple,
-            crate::adf::Adf::stability_check,
+            heuristics::heu_simple,
+            Adf::stability_check,
             s.clone(),
         );
         let stable_result = r.try_iter().collect::<Vec<_>>();
