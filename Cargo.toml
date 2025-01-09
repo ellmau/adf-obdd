@@ -1,5 +1,5 @@
 [workspace]
-members=[ "lib", "bin", "server" ]
+members=[ "lib", "bin", "server" , "iccma-2025-bin"]
 default-members = [ "lib" ]
 
 [profile.release]
