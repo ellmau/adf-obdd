@@ -1,0 +1,10 @@
+[package]
+name = "adf-bdd-iccma-2025-bin"
+version = "0.3.0-dev"
+authors = ["Stefan Ellmauthaler <stefan.ellmauthaler@tu-dresden.de>", "Lukas Gerlach <lukas.gerlach@tu-dresden.de>"]
+edition = "2021"
+
+[dependencies]
+adf_bdd = { version="0.3.1", path="../lib", default-features = false }
+clap = {version = "4.3.0", features = [ "derive", "cargo", "env" ]}
+

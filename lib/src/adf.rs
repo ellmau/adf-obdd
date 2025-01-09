@@ -698,6 +698,29 @@ impl Adf {
         })
     }
 
+    /// Computes the preferred models
+    /// Returns a Vector which contains all preferred models
+    pub fn preferred(&mut self) -> Vec<Vec<Term>> {
+        let mut result: Vec<Vec<Term>> = vec![];
+        let mut max_count: usize = 0;
+
+        self.complete().for_each(|model| {
+            let count = model
+                .iter()
+                .filter(|t| t.is_truth_value() && t.is_true())
+                .count();
+
+            if count > max_count {
+                max_count = count;
+                result = vec![model];
+            } else if count == max_count {
+                result.push(model)
+            }
+        });
+
+        result
+    }
+
     /// Returns a [Vector][std::vec::Vec] of [ModelCounts][crate::datatypes::ModelCounts] for each acceptance condition.
     ///
     /// `memoization` controls whether memoization is utilised or not.

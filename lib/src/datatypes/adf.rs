@@ -89,6 +89,20 @@ impl PrintDictionary {
     {
         PrintableInterpretation::new(interpretation, &self.ordering)
     }
+
+    /// get the truthy statements from an interpretation
+    pub fn print_truthy_statements(&self, interpretation: &[Term]) -> Vec<String> {
+        interpretation
+            .iter()
+            .enumerate()
+            .filter(|(_, term)| term.is_truth_value() && term.is_true())
+            .map(|(pos, _)| {
+                self.ordering
+                    .name(Var(pos))
+                    .expect("Variable originates from same parser object as the ordering")
+            })
+            .collect()
+    }
 }
 
 /// A struct to print a representation, it will be instantiated by [Adf][crate::adf::Adf] by calling the method [print_interpretation][`crate::adf::Adf::print_interpretation`].
