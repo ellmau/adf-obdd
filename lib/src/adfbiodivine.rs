@@ -5,6 +5,7 @@
 //!  - grounded
 //!  - stable
 //!  - complete
+//!
 //! semantics of ADFs.
 
 use crate::{
@@ -89,7 +90,7 @@ impl Adf {
 
     pub(crate) fn stm_rewriting(&mut self, parser: &AdfParser) {
         let expr = parser.formula_order().iter().enumerate().fold(
-            biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
+            BooleanExpression::Const(true),
             |acc, (insert_order, new_order)| {
                 BooleanExpression::And(
                     Box::new(acc),
@@ -321,19 +322,15 @@ impl Adf {
     fn stable_representation(&self) -> Bdd {
         log::debug!("[Start] stable representation rewriting");
         self.ac.iter().enumerate().fold(
-            self.varset.eval_expression(
-                &biodivine_lib_bdd::boolean_expression::BooleanExpression::Const(true),
-            ),
+            self.varset.eval_expression(&BooleanExpression::Const(true)),
             |acc, (idx, formula)| {
                 acc.and(
                     &formula.iff(
-                        &self.varset.eval_expression(
-                            &biodivine_lib_bdd::boolean_expression::BooleanExpression::Variable(
-                                self.ordering
-                                    .name(crate::datatypes::Var(idx))
-                                    .expect("Variable should exist"),
-                            ),
-                        ),
+                        &self.varset.eval_expression(&BooleanExpression::Variable(
+                            self.ordering
+                                .name(crate::datatypes::Var(idx))
+                                .expect("Variable should exist"),
+                        )),
                     ),
                 )
             },
@@ -430,8 +427,8 @@ mod test {
         let c = variables.eval_expression_string("c");
         let d = variables.eval_expression_string("a & b & c");
         let e = variables.eval_expression_string("a ^ b");
-        let t = variables.eval_expression(&boolean_expression::BooleanExpression::Const(true));
-        let f = variables.eval_expression(&boolean_expression::BooleanExpression::Const(false));
+        let t = variables.eval_expression(&BooleanExpression::Const(true));
+        let f = variables.eval_expression(&BooleanExpression::Const(false));
 
         println!("{:?}", a.to_string());
         println!("{:?}", a.to_bytes());

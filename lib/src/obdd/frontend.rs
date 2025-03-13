@@ -33,6 +33,7 @@ impl super::Bdd {
     /// # Attention
     /// - Constants for [`⊤`][crate::datatypes::Term::TOP] and [`⊥`][crate::datatypes::Term::BOT] concepts are not sent, as they are considered to be existing in every [Bdd][super::Bdd] structure.
     /// - Mixing manipulating operations and utilising the communication channel for a receiving [roBDD][super::Bdd] may end up in inconsistent data.
+    ///
     /// So far, only manipulate the [roBDD][super::Bdd] if no further [recv][Self::recv] will be called.
     pub fn with_sender_receiver(
         sender: crossbeam_channel::Sender<BddNode>,
