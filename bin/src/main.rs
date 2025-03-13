@@ -63,7 +63,6 @@ OPTIONS:
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
-    missing_copy_implementations,
     trivial_casts,
     trivial_numeric_casts,
     unsafe_code
@@ -181,7 +180,7 @@ impl App {
         let input = std::fs::read_to_string(self.input.clone()).expect("Error Reading File");
         match self.implementation.as_str() {
             "hybrid" => {
-                let parser = adf_bdd::parser::AdfParser::default();
+                let parser = AdfParser::default();
                 match parser.parse()(&input) {
                     Ok(_) => log::info!("[Done] parsing"),
                     Err(e) => {
@@ -283,7 +282,7 @@ impl App {
                 if self.counter.is_some() {
                     log::error!("Modelcounting not supported in biodivine mode");
                 }
-                let parser = adf_bdd::parser::AdfParser::default();
+                let parser = AdfParser::default();
                 match parser.parse()(&input) {
                     Ok(_) => log::info!("[Done] parsing"),
                     Err(e) => {

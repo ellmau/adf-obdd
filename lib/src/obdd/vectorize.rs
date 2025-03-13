@@ -11,7 +11,7 @@ where
     V: Serialize + 'a,
 {
     let container: Vec<_> = target.into_iter().collect();
-    serde::Serialize::serialize(&container, ser)
+    Serialize::serialize(&container, ser)
 }
 
 /// Deserialize from a [Vector][std::vec::Vec] to a [Map][std::collections::HashMap].
@@ -22,6 +22,6 @@ where
     K: Deserialize<'de>,
     V: Deserialize<'de>,
 {
-    let container: Vec<_> = serde::Deserialize::deserialize(des)?;
+    let container: Vec<_> = Deserialize::deserialize(des)?;
     Ok(T::from_iter(container))
 }
