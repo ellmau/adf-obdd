@@ -1,4 +1,5 @@
 use adf_bdd::adf::Adf;
+use adf_bdd::adfbiodivine::Adf as BdAdf;
 use adf_bdd::parser::{AdfParser, Formula};
 use clap::{builder, Parser, ValueEnum};
 use std::cell::RefCell;
@@ -27,8 +28,10 @@ enum Task {
     SeSt,
     #[value(name = "SE-SST")]
     SeSst,
-    #[value(name = "SE-ID")]
-    SeId,
+    // TODO: Do we want to include ideal extensions? I'm not sure if we can compute these easily
+    // based on what we already have...
+    //#[value(name = "SE-ID")]
+    //SeId,
 }
 
 #[derive(Parser)]
@@ -95,7 +98,7 @@ fn main() {
 
     if app.problems {
         let possible_values: Vec<String> = Task::value_variants()
-            .into_iter()
+            .iter()
             .filter_map(Task::to_possible_value)
             .map(|pv| builder::PossibleValue::get_name(&pv).to_string())
             .collect();
@@ -124,7 +127,7 @@ fn main() {
 
         let num_arguments: usize = first_line[2].parse().expect("Could not convert number of arguments to u32; expected first line to be of the form: p af <n>");
 
-        let attacks: Vec<(usize, usize)> = lines
+        let attacks = lines
             .map(|line| line.expect("Error Reading Line"))
             .filter(|line| !line.starts_with('#') && !line.is_empty())
             .map(|line| {
@@ -134,58 +137,150 @@ fn main() {
                 if line.next().is_some() {
                     None
                 } else {
-                    Some((a.parse().ok()?, b.parse().ok()?))
+                    Some((a.parse::<usize>().ok()?, b.parse::<usize>().ok()?))
                 }
             })
-            .map(|res_option| res_option.expect("Line must be of the form: n m"))
-            .collect();
+            .map(|res_option| res_option.expect("Line must be of the form: n m"));
 
         // index in outer vector represents attacked element
-        let mut is_attacked_by: Vec<Vec<usize>> = vec![vec![]; num_arguments.try_into().unwrap()];
+        let mut is_attacked_by: Vec<Vec<usize>> = vec![vec![]; num_arguments];
         for (a, b) in attacks {
             is_attacked_by[b - 1].push(a - 1); // we normalize names to be zero-indexed
         }
 
+        eprintln!("reading of attacks - done!");
+
         let hacked_adf_parser = AdfParser::from(AF(is_attacked_by));
 
-        let mut adf = Adf::from_parser(&hacked_adf_parser);
+        eprintln!("creating parser instance - done!");
+
+        //let bd_adf = BdAdf::from_parser(&hacked_adf_parser);
+        //eprintln!("create biodevine instance - done!");
+        //let mut adf = bd_adf.hybrid_step();
+        let mut adf = Adf::from_parser(&hacked_adf_parser); // for creation without biodevine
+
+        eprintln!("create our adf - done!");
 
         match task {
             Task::DcCo => {
-                unimplemented!()
-                //let query: usize = app.query.expect("Query is required for current task.");
-                //let printer = adf.print_dictionary();
-                //let mut models = adf.complete();
-                //if let Some(fst) = models.filter(|m| {
-                //    // TODO: filter for query here; use dict somehow
-                //}).next() {
-                //    println!("YES");
-                //    println!("w {}", printer.print_truthy_statements(&fst).join(" "));
-                //}
-                //else {
-                //    println!("NO");
-                //}
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+
+                if let Some(fst) = target_var.and_then(|tv| {
+                    adf.complete().find(|m| {
+                        let term = m[tv.value()];
+                        term.is_truth_value() && term.is_true()
+                    })
+                }) {
+                    println!("YES");
+                    println!("w {}", printer.print_truthy_statements(&fst).join(" "));
+                } else {
+                    println!("NO");
+                }
             }
             Task::DcSt => {
-                unimplemented!()
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+
+                if let Some(fst) = target_var.and_then(|tv| {
+                    adf.stable().find(|m| {
+                        let term = m[tv.value()];
+                        term.is_truth_value() && term.is_true()
+                    })
+                }) {
+                    println!("YES");
+                    println!("w {}", printer.print_truthy_statements(&fst).join(" "));
+                } else {
+                    println!("NO");
+                }
             }
             Task::DcSst => {
-                unimplemented!()
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+
+                if let Some(fst) = target_var.and_then(|tv| {
+                    let m = adf.grounded();
+                    let term = m[tv.value()];
+                    (term.is_truth_value() && term.is_true()).then_some(m)
+                }) {
+                    println!("YES");
+                    println!("w {}", printer.print_truthy_statements(&fst).join(" "));
+                } else {
+                    println!("NO");
+                }
             }
             Task::DsPr => {
-                unimplemented!()
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+                let models = adf.preferred();
+
+                let witness = if let Some(tv) = target_var {
+                    models.iter().find(|m| {
+                        let term = m[tv.value()];
+                        !(term.is_truth_value() && term.is_true())
+                    })
+                } else {
+                    models.first()
+                };
+
+                if let Some(w) = witness {
+                    println!("NO");
+                    println!("w {}", printer.print_truthy_statements(w).join(" "));
+                } else {
+                    println!("YES");
+                }
             }
             Task::DsSt => {
-                unimplemented!()
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+                let mut models = adf.stable();
+
+                let witness = if let Some(tv) = target_var {
+                    models.find(|m| {
+                        let term = m[tv.value()];
+                        !(term.is_truth_value() && term.is_true())
+                    })
+                } else {
+                    models.next()
+                };
+
+                if let Some(w) = witness {
+                    println!("NO");
+                    println!("w {}", printer.print_truthy_statements(&w).join(" "));
+                } else {
+                    println!("YES");
+                }
             }
             Task::DsSst => {
-                unimplemented!()
+                let query: usize = app.query.expect("Query is required for current task.");
+                let target_var = adf.ordering.variable(&query.to_string());
+                let printer = adf.print_dictionary();
+                let model = adf.grounded();
+
+                let witness = if let Some(tv) = target_var {
+                    let term = model[tv.value()];
+                    (!(term.is_truth_value() && term.is_true())).then_some(model)
+                } else {
+                    Some(model)
+                };
+
+                if let Some(w) = witness {
+                    println!("NO");
+                    println!("w {}", printer.print_truthy_statements(&w).join(" "));
+                } else {
+                    println!("YES");
+                }
             }
             Task::SePr => {
                 let printer = adf.print_dictionary();
                 let models = adf.preferred();
                 if let Some(fst) = models.first() {
-                    println!("w {}", printer.print_truthy_statements(&fst).join(" "));
+                    println!("w {}", printer.print_truthy_statements(fst).join(" "));
                 } else {
                     println!("NO");
                 }
@@ -204,10 +299,9 @@ fn main() {
                 let printer = adf.print_dictionary();
                 let model = adf.grounded();
                 println!("w {}", printer.print_truthy_statements(&model).join(" "));
-            }
-            Task::SeId => {
-                unimplemented!()
-            }
+            } //Task::SeId => {
+              //    unimplemented!()
+              //}
         }
     }
 }
