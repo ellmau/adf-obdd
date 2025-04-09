@@ -787,7 +787,9 @@ impl Adf {
         let grounded = self.grounded();
         let heu = heuristic.get_heuristic();
         let (s, r) = crossbeam_channel::unbounded::<Vec<Term>>();
-        self.stable_nogood_get_vec(&grounded, heu, s, r).into_iter()
+        // self.stable_nogood_get_vec(&grounded, heu, s, r).into_iter()
+        self.nogood_internal(&grounded, heu, Self::stability_check, s);
+        r.into_iter()
     }
 
     /// Computes the stable extension of a given [`Adf`], using the [`NoGood`]-learner.

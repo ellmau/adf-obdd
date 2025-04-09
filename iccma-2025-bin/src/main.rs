@@ -185,7 +185,7 @@ fn main() {
                 let printer = adf.print_dictionary();
 
                 if let Some(fst) = target_var.and_then(|tv| {
-                    adf.stable().find(|m| {
+                    adf.stable_nogood(Default::default()).find(|m| {
                         let term = m[tv.value()];
                         term.is_truth_value() && term.is_true()
                     })
@@ -238,7 +238,7 @@ fn main() {
                 let query: usize = app.query.expect("Query is required for current task.");
                 let target_var = adf.ordering.variable(&query.to_string());
                 let printer = adf.print_dictionary();
-                let mut models = adf.stable();
+                let mut models = adf.stable_nogood(Default::default());
 
                 let witness = if let Some(tv) = target_var {
                     models.find(|m| {
@@ -287,7 +287,7 @@ fn main() {
             }
             Task::SeSt => {
                 let printer = adf.print_dictionary();
-                let mut models = adf.stable();
+                let mut models = adf.stable_nogood(Default::default());
                 if let Some(fst) = models.next() {
                     println!("w {}", printer.print_truthy_statements(&fst).join(" "));
                 } else {
