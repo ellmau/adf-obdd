@@ -81,7 +81,7 @@ rec {
               pkgs.cargo-audit
               pkgs.cargo-license
             ]
-            ++ (notOn ["aarch64-darwin" "x86_64-darwin"] [pkgs.kcov pkgs.cargo-kcov pkgs.gnuplot pkgs.valgrind])
+            ++ (notOn ["aarch64-darwin" "x86_64-darwin"] [pkgs.kcov pkgs.gnuplot pkgs.valgrind])
             ++ (notOn ["aarch64-linux" "aarch64-darwin" "i686-linux"] [pkgs.cargo-tarpaulin]);
         };
       };
