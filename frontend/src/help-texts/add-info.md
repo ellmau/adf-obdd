@@ -21,3 +21,17 @@ The `Parsing Strategy` determines the internal implementation used for these. `N
 You will get a view on the BDD in the detail view after you added the problem.
 
 You can optionally set a name for you ADF problem. Otherwise a random name will be chosen. At the moment the name cannot be changed later (but you could remove and re-add the problem).
+
+We also support adding AFs in the ICCMA competition format. They are converted to ADFs internally in the obvious way. 
+For example you can try the following code and change the option below from ADF to AF.
+
+```
+p af 5
+# this is a comment
+1 2
+2 4
+4 5
+5 4
+5 5
+```
+

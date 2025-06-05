@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 #[cfg(feature = "mock_long_computations")]
@@ -11,7 +12,7 @@ use actix_web::rt::time::timeout;
 use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use adf_bdd::datatypes::adf::VarContainer;
 use adf_bdd::datatypes::{BddNode, Term, Var};
-use futures_util::{FutureExt, TryStreamExt};
+use futures_util::{FutureExt, TryFutureExt, TryStreamExt};
 use mongodb::bson::doc;
 use mongodb::bson::{to_bson, Bson};
 use mongodb::results::DeleteResult;
@@ -21,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use adf_bdd::adf::Adf;
 use adf_bdd::adfbiodivine::Adf as BdAdf;
 use adf_bdd::obdd::Bdd;
-use adf_bdd::parser::AdfParser;
+use adf_bdd::parser::{AdfParser, Formula};
 
 use crate::config::{AppState, RunningInfo, Task, ADF_COLL, COMPUTE_TIME, DB_NAME, USER_COLL};
 use crate::user::{username_exists, User};
@@ -205,6 +206,8 @@ pub(crate) struct AdfProblem {
     pub(crate) username: String,
     pub(crate) code: String,
     pub(crate) parsing_used: Parsing,
+    #[serde(default)]
+    pub(crate) is_af: bool,
     pub(crate) adf: SimplifiedAdfOpt,
     pub(crate) acs_per_strategy: AcsPerStrategy,
 }
@@ -215,6 +218,7 @@ struct AddAdfProblemBodyMultipart {
     code: Option<Text<String>>, // Either Code or File is set
     file: Option<TempFile>,     // Either Code or File is set
     parsing: Text<Parsing>,
+    is_af: Text<bool>, // if its not an AF then it is an ADF
 }
 
 #[derive(Clone)]
@@ -222,6 +226,7 @@ struct AddAdfProblemBodyPlain {
     name: String,
     code: String,
     parsing: Parsing,
+    is_af: bool, // if its not an AF then it is an ADF
 }
 
 impl TryFrom<AddAdfProblemBodyMultipart> for AddAdfProblemBodyPlain {
@@ -237,6 +242,7 @@ impl TryFrom<AddAdfProblemBodyMultipart> for AddAdfProblemBodyPlain {
                 .and_then(|code| (!code.is_empty()).then_some(code))
                 .ok_or("Either a file or the code has to be provided.")?,
             parsing: source.parsing.into_inner(),
+            is_af: source.is_af.into_inner(),
         })
     }
 }
@@ -259,6 +265,7 @@ struct AdfProblemInfo {
     name: String,
     code: String,
     parsing_used: Parsing,
+    is_af: bool,
     acs_per_strategy: AcsPerStrategy,
     running_tasks: Vec<Task>,
 }
@@ -269,6 +276,7 @@ impl AdfProblemInfo {
             name: adf.name.clone(),
             code: adf.code,
             parsing_used: adf.parsing_used,
+            is_af: adf.is_af,
             acs_per_strategy: adf.acs_per_strategy,
             running_tasks: tasks
                 .iter()
@@ -278,6 +286,91 @@ impl AdfProblemInfo {
                 .collect(),
         }
     }
+}
+
+struct AF(Vec<Vec<usize>>);
+
+impl From<AF> for AdfParser {
+    fn from(source: AF) -> Self {
+        let names: Vec<String> = (0..source.0.len())
+            .map(|val| (val + 1).to_string())
+            .collect();
+        let dict: HashMap<String, usize> = names
+            .iter()
+            .enumerate()
+            .map(|(i, val)| (val.clone(), i))
+            .collect();
+        let formulae: Vec<Formula> = source
+            .0
+            .into_iter()
+            .map(|attackers| {
+                attackers.into_iter().fold(
+                    // TODO: is it correct to use Top here? what if something is not attacked at all?
+                    Formula::Top,
+                    |acc, attacker| {
+                        Formula::And(
+                            Box::new(acc),
+                            Box::new(Formula::Not(Box::new(Formula::Atom(
+                                (attacker + 1).to_string(),
+                            )))),
+                        )
+                    },
+                )
+            })
+            .collect();
+        let formulanames = names.clone();
+
+        Self {
+            namelist: Arc::new(RwLock::new(names)),
+            dict: Arc::new(RwLock::new(dict)),
+            formulae: RefCell::new(formulae),
+            formulaname: RefCell::new(formulanames),
+        }
+    }
+}
+
+fn parse_af(code: String) -> Result<AdfParser, &'static str> {
+    let mut lines = code.lines();
+
+    let Some(first_line) = lines.next() else {
+        return Err("There must be at least one line in the AF input.");
+    };
+
+    let first_line: Vec<_> = first_line.split(" ").collect();
+    if first_line[0] != "p" || first_line[1] != "af" {
+        return Err("Expected first line to be of the form: p af <n>");
+    }
+
+    let Ok(num_arguments) = first_line[2].parse::<usize>() else {
+        return Err("Could not convert number of arguments to u32; expected first line to be of the form: p af <n>");
+    };
+
+    let attacks_opt: Option<Vec<(usize, usize)>> = lines
+        .filter(|line| !line.starts_with('#') && !line.is_empty())
+        .map(|line| {
+            let mut line = line.split(" ");
+            let a = line.next()?;
+            let b = line.next()?;
+            if line.next().is_some() {
+                None
+            } else {
+                Some((a.parse::<usize>().ok()?, b.parse::<usize>().ok()?))
+            }
+        })
+        .collect();
+    let Some(attacks) = attacks_opt else {
+        return Err("Line must be of the form: n m");
+    };
+
+    // index in outer vector represents attacked element
+    let mut is_attacked_by: Vec<Vec<usize>> = vec![vec![]; num_arguments];
+    for (a, b) in attacks {
+        is_attacked_by[b - 1].push(a - 1); // we normalize names to be zero-indexed
+    }
+
+    let hacked_adf_parser = AdfParser::from(AF(is_attacked_by));
+
+    Ok(hacked_adf_parser)
 }
 
 #[post("/add")]
@@ -381,6 +474,7 @@ async fn add_adf_problem(
         username: username.clone(),
         code: adf_problem_input.code.clone(),
         parsing_used: adf_problem_input.parsing,
+        is_af: adf_problem_input.is_af,
         adf: SimplifiedAdfOpt::None,
         acs_per_strategy: AcsPerStrategy::default(),
     };
@@ -413,9 +507,20 @@ async fn add_adf_problem(
             #[cfg(feature = "mock_long_computations")]
             std::thread::sleep(Duration::from_secs(20));
 
-            let parser = AdfParser::default();
-            let parse_result = parser.parse()(&adf_problem_input.code)
-                .map_err(|_| "ADF could not be parsed, double check your input!");
+            let (parser, parse_result) = {
+                if adf_problem_input.is_af {
+                    parse_af(adf_problem_input.code)
+                        .map(|p| (p, Ok(())))
+                        .unwrap_or_else(|e| (AdfParser::default(), Err(e)))
+                } else {
+                    let parser = AdfParser::default();
+                    let parse_result = parser.parse()(&adf_problem_input.code)
+                        .map(|_| ())
+                        .map_err(|_| "ADF could not be parsed, double check your input!");
+
+                    (parser, parse_result)
+                }
+            };
 
             let result = parse_result.map(|_| {
                 let lib_adf = match adf_problem_input.parsing {
@@ -500,7 +605,7 @@ async fn solve_adf_problem(
         .collection(ADF_COLL);
 
     let username = match identity.map(|id| id.id()) {
-        None => {
+        Option::None => {
             return HttpResponse::Unauthorized().body("You need to login to add an ADF problem.")
         }
         Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
@@ -512,7 +617,7 @@ async fn solve_adf_problem(
         .await
     {
         Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(None) => {
+        Ok(Option::None) => {
             return HttpResponse::NotFound()
                 .body(format!("ADF problem with name {problem_name} not found."))
         }
@@ -644,7 +749,7 @@ async fn get_adf_problem(
         .collection(ADF_COLL);
 
     let username = match identity.map(|id| id.id()) {
-        None => {
+        Option::None => {
             return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
         }
         Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
@@ -656,7 +761,7 @@ async fn get_adf_problem(
         .await
     {
         Err(err) => return HttpResponse::InternalServerError().body(err.to_string()),
-        Ok(None) => {
+        Ok(Option::None) => {
             return HttpResponse::NotFound()
                 .body(format!("ADF problem with name {problem_name} not found."))
         }
@@ -682,7 +787,7 @@ async fn delete_adf_problem(
         .collection(ADF_COLL);
 
     let username = match identity.map(|id| id.id()) {
-        None => {
+        Option::None => {
             return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
         }
         Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
@@ -717,7 +822,7 @@ async fn get_adf_problems_for_user(
         .collection(ADF_COLL);
 
     let username = match identity.map(|id| id.id()) {
-        None => {
+        Option::None => {
             return HttpResponse::Unauthorized().body("You need to login to get an ADF problem.")
         }
         Some(Err(err)) => return HttpResponse::InternalServerError().body(err.to_string()),
