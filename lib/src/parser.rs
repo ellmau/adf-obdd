@@ -133,9 +133,13 @@ impl std::fmt::Debug for Formula {
 /// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
 pub struct AdfParser {
+    /// A name for each statement (identified by index in vector)
     pub namelist: Arc<RwLock<Vec<String>>>,
+    /// Inverse mapping from name to index of statement in vector above
     pub dict: Arc<RwLock<HashMap<String, usize>>>,
+    /// The formula (acceptance condition) for each statement identified by its index
     pub formulae: RefCell<Vec<Formula>>,
+    /// The formula for each statement identified by its index
     pub formulaname: RefCell<Vec<String>>,
 }
 
