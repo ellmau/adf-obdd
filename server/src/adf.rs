@@ -12,7 +12,7 @@ use actix_web::rt::time::timeout;
 use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use adf_bdd::datatypes::adf::VarContainer;
 use adf_bdd::datatypes::{BddNode, Term, Var};
-use futures_util::{FutureExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, TryStreamExt};
 use mongodb::bson::doc;
 use mongodb::bson::{to_bson, Bson};
 use mongodb::results::DeleteResult;
