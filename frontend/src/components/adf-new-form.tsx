@@ -40,6 +40,7 @@ function AdfNewForm({ fetchProblems }: { fetchProblems: () => void; }) {
   const [code, setCode] = useState(PLACEHOLDER);
   const [filename, setFilename] = useState('');
   const [parsing, setParsing] = useState<Parsing>('Naive');
+  const [isAf, setIsAf] = useState(false);
   const [name, setName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +60,7 @@ function AdfNewForm({ fetchProblems }: { fetchProblems: () => void; }) {
       }
 
       formData.append('parsing', parsing);
+      formData.append('is_af', isAf);
       formData.append('name', name);
 
       fetch(`${process.env.NODE_ENV === 'development' ? '//localhost:8080' : ''}/adf/add`, {
@@ -119,10 +121,13 @@ function AdfNewForm({ fetchProblems }: { fetchProblems: () => void; }) {
               label="Put your code here:"
               helperText={(
                 <>
-                  For more info on the syntax, have a
+                  For more info on the ADF syntax, have a
                   look
                   {' '}
                   <Link href="https://github.com/ellmau/adf-obdd" target="_blank" rel="noopener noreferrer">here</Link>
+                  . For the AF syntax, we currently only allow the ICCMA competition format, see for example
+                  {' '}
+                  <Link href="https://argumentationcompetition.org/2025/rules.html" target="_blank" rel="noopener noreferrer">here</Link>
                   .
                 </>
               )}
@@ -137,6 +142,20 @@ function AdfNewForm({ fetchProblems }: { fetchProblems: () => void; }) {
 
         <Container sx={{ marginTop: 2 }}>
           <Stack direction="row" justifyContent="center" spacing={2}>
+            <FormControl>
+              <FormLabel id="isAf-radio-group">ADF or AF?</FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="isAf-radio-group"
+                name="isAf"
+                value={isAf}
+                onChange={(e) => setIsAf(((e.target as HTMLInputElement).value))}
+              >
+                <FormControlLabel value={false} control={<Radio />} label="ADF" />
+                <FormControlLabel value={true} control={<Radio />} label="AF" />
+              </RadioGroup>
+              <span style={{ fontSize: "0.7em" }}>AFs are converted to ADFs internally.</span>
+            </FormControl>
             <FormControl>
               <FormLabel id="parsing-radio-group">Parsing Strategy</FormLabel>
               <RadioGroup

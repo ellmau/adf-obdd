@@ -20,28 +20,28 @@ use crate::datatypes::adf::VarContainer;
 
 /// A representation of a formula, still using the strings from the input.
 #[derive(Clone, PartialEq, Eq)]
-pub enum Formula<'a> {
+pub enum Formula {
     /// `c(f)` in the input format.
     Bot,
     /// `c(v)` in the input format.
     Top,
     /// Some atomic variable in the input format.
-    Atom(&'a str),
+    Atom(String),
     /// Negation of a subformula.
-    Not(Box<Formula<'a>>),
+    Not(Box<Formula>),
     /// Conjunction of two subformulae.
-    And(Box<Formula<'a>>, Box<Formula<'a>>),
+    And(Box<Formula>, Box<Formula>),
     /// Disjunction of two subformulae.
-    Or(Box<Formula<'a>>, Box<Formula<'a>>),
+    Or(Box<Formula>, Box<Formula>),
     /// Implication of two subformulae.
-    Imp(Box<Formula<'a>>, Box<Formula<'a>>),
+    Imp(Box<Formula>, Box<Formula>),
     /// Exclusive-Or of two subformulae.
-    Xor(Box<Formula<'a>>, Box<Formula<'a>>),
+    Xor(Box<Formula>, Box<Formula>),
     /// If and only if connective between two formulae.
-    Iff(Box<Formula<'a>>, Box<Formula<'a>>),
+    Iff(Box<Formula>, Box<Formula>),
 }
 
-impl Formula<'_> {
+impl Formula {
     pub(crate) fn to_boolean_expr(
         &self,
     ) -> biodivine_lib_bdd::boolean_expression::BooleanExpression {
@@ -90,29 +90,29 @@ impl Formula<'_> {
     }
 }
 
-impl std::fmt::Debug for Formula<'_> {
+impl std::fmt::Debug for Formula {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Formula::Atom(a) => {
-                write!(f, "{}", a)?;
+                write!(f, "{a}")?;
             }
             Formula::Not(n) => {
-                write!(f, "not({:?})", n)?;
+                write!(f, "not({n:?})")?;
             }
             Formula::And(f1, f2) => {
-                write!(f, "and({:?},{:?})", f1, f2)?;
+                write!(f, "and({f1:?},{f2:?})")?;
             }
             Formula::Or(f1, f2) => {
-                write!(f, "or({:?},{:?})", f1, f2)?;
+                write!(f, "or({f1:?},{f2:?})")?;
             }
             Formula::Imp(f1, f2) => {
-                write!(f, "imp({:?},{:?})", f1, f2)?;
+                write!(f, "imp({f1:?},{f2:?})")?;
             }
             Formula::Xor(f1, f2) => {
-                write!(f, "xor({:?},{:?})", f1, f2)?;
+                write!(f, "xor({f1:?},{f2:?})")?;
             }
             Formula::Iff(f1, f2) => {
-                write!(f, "iff({:?},{:?})", f1, f2)?;
+                write!(f, "iff({f1:?},{f2:?})")?;
             }
             Formula::Bot => {
                 write!(f, "Const(B)")?;
@@ -132,14 +132,18 @@ impl std::fmt::Debug for Formula<'_> {
 ///
 /// Note that the parser can be utilised by an [ADF][`crate::adf::Adf`] to initialise it with minimal overhead.
 #[derive(Debug)]
-pub struct AdfParser<'a> {
-    namelist: Arc<RwLock<Vec<String>>>,
-    dict: Arc<RwLock<HashMap<String, usize>>>,
-    formulae: RefCell<Vec<Formula<'a>>>,
-    formulaname: RefCell<Vec<String>>,
+pub struct AdfParser {
+    /// A name for each statement (identified by index in vector)
+    pub namelist: Arc<RwLock<Vec<String>>>,
+    /// Inverse mapping from name to index of statement in vector above
+    pub dict: Arc<RwLock<HashMap<String, usize>>>,
+    /// The formula (acceptance condition) for each statement identified by its index
+    pub formulae: RefCell<Vec<Formula>>,
+    /// The formula for each statement identified by its index
+    pub formulaname: RefCell<Vec<String>>,
 }
 
-impl Default for AdfParser<'_> {
+impl Default for AdfParser {
     fn default() -> Self {
         AdfParser {
             namelist: Arc::new(RwLock::new(Vec::new())),
@@ -150,10 +154,7 @@ impl Default for AdfParser<'_> {
     }
 }
 
-impl<'a, 'b> AdfParser<'b>
-where
-    'a: 'b,
-{
+impl<'a> AdfParser {
     #[allow(dead_code)]
     fn parse_statements(&'a self) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
         move |input| {
@@ -212,9 +213,9 @@ where
     }
 }
 
-impl<'a> AdfParser<'a> {
+impl AdfParser {
     /// Creates a new parser, utilising the already existing [VarContainer]
-    pub fn with_var_container(var_container: VarContainer) -> AdfParser<'a> {
+    pub fn with_var_container(var_container: VarContainer) -> AdfParser {
         AdfParser {
             namelist: var_container.names(),
             dict: var_container.mappings(),
@@ -224,7 +225,7 @@ impl<'a> AdfParser<'a> {
     }
 }
 
-impl AdfParser<'_> {
+impl AdfParser {
     /// after an update to the namelist, all indizes are updated
     fn regenerate_indizes(&self) {
         self.namelist
@@ -284,7 +285,7 @@ impl AdfParser<'_> {
     }
 
     fn atomic_term(input: &str) -> IResult<&str, Formula> {
-        AdfParser::atomic(input).map(|(input, result)| (input, Formula::Atom(result)))
+        AdfParser::atomic(input).map(|(input, result)| (input, Formula::Atom(result.to_string())))
     }
 
     fn formula(input: &str) -> IResult<&str, Formula> {
@@ -480,7 +481,7 @@ mod test {
         let (_remain, result) = AdfParser::formula(input).unwrap();
 
         assert_eq!(
-            format!("{:?}", result),
+            format!("{result:?}"),
             "and(or(not(a),iff( iff left ,b)),xor(imp(c,d),e))"
         );
 
@@ -504,7 +505,10 @@ mod test {
         assert_eq!(parser.dict_value("b"), Some(2usize));
         assert_eq!(
             format!("{:?}", parser.ac_at(1).unwrap()),
-            format!("{:?}", Formula::Not(Box::new(Formula::Atom("a"))))
+            format!(
+                "{:?}",
+                Formula::Not(Box::new(Formula::Atom("a".to_string())))
+            )
         );
         assert_eq!(parser.formula_count(), 3);
         assert_eq!(parser.formula_order(), vec![0, 2, 1]);

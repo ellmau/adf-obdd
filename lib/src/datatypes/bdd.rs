@@ -275,8 +275,8 @@ mod test {
         let term: Term = Term::from(value);
         let var = Var::from(value);
         // display
-        assert_eq!(format!("{}", term), format!("Term({})", value));
-        assert_eq!(format!("{}", var), format!("Var({})", value));
+        assert_eq!(format!("{term}"), format!("Term({})", value));
+        assert_eq!(format!("{var}"), format!("Var({})", value));
         //deref
         assert_eq!(value, *term);
         true
