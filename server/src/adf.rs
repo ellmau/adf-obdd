@@ -304,18 +304,14 @@ impl From<AF> for AdfParser {
             .0
             .into_iter()
             .map(|attackers| {
-                attackers.into_iter().fold(
-                    // TODO: is it correct to use Top here? what if something is not attacked at all?
-                    Formula::Top,
-                    |acc, attacker| {
-                        Formula::And(
-                            Box::new(acc),
-                            Box::new(Formula::Not(Box::new(Formula::Atom(
-                                (attacker + 1).to_string(),
-                            )))),
-                        )
-                    },
-                )
+                attackers.into_iter().fold(Formula::Top, |acc, attacker| {
+                    Formula::And(
+                        Box::new(acc),
+                        Box::new(Formula::Not(Box::new(Formula::Atom(
+                            (attacker + 1).to_string(),
+                        )))),
+                    )
+                })
             })
             .collect();
         let formulanames = names.clone();
