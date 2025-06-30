@@ -94,25 +94,25 @@ impl std::fmt::Debug for Formula {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Formula::Atom(a) => {
-                write!(f, "{}", a)?;
+                write!(f, "{a}")?;
             }
             Formula::Not(n) => {
-                write!(f, "not({:?})", n)?;
+                write!(f, "not({n:?})")?;
             }
             Formula::And(f1, f2) => {
-                write!(f, "and({:?},{:?})", f1, f2)?;
+                write!(f, "and({f1:?},{f2:?})")?;
             }
             Formula::Or(f1, f2) => {
-                write!(f, "or({:?},{:?})", f1, f2)?;
+                write!(f, "or({f1:?},{f2:?})")?;
             }
             Formula::Imp(f1, f2) => {
-                write!(f, "imp({:?},{:?})", f1, f2)?;
+                write!(f, "imp({f1:?},{f2:?})")?;
             }
             Formula::Xor(f1, f2) => {
-                write!(f, "xor({:?},{:?})", f1, f2)?;
+                write!(f, "xor({f1:?},{f2:?})")?;
             }
             Formula::Iff(f1, f2) => {
-                write!(f, "iff({:?},{:?})", f1, f2)?;
+                write!(f, "iff({f1:?},{f2:?})")?;
             }
             Formula::Bot => {
                 write!(f, "Const(B)")?;
@@ -481,7 +481,7 @@ mod test {
         let (_remain, result) = AdfParser::formula(input).unwrap();
 
         assert_eq!(
-            format!("{:?}", result),
+            format!("{result:?}"),
             "and(or(not(a),iff( iff left ,b)),xor(imp(c,d),e))"
         );
 

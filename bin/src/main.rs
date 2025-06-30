@@ -204,14 +204,14 @@ impl App {
                     Some("nai") => {
                         let naive_adf = adf.hybrid_step_opt(false);
                         for ac_counts in naive_adf.formulacounts(false) {
-                            print!("{:?} ", ac_counts);
+                            print!("{ac_counts:?} ");
                         }
                         println!();
                     }
                     Some("mem") => {
                         let naive_adf = adf.hybrid_step_opt(false);
                         for ac_counts in naive_adf.formulacounts(true) {
-                            print!("{:?}", ac_counts);
+                            print!("{ac_counts:?}");
                         }
                         println!();
                     }
@@ -383,13 +383,13 @@ impl App {
                 match self.counter.as_deref() {
                     Some("nai") => {
                         for ac_counts in adf.formulacounts(false) {
-                            print!("{:?} ", ac_counts);
+                            print!("{ac_counts:?} ");
                         }
                         println!();
                     }
                     Some("mem") => {
                         for ac_counts in adf.formulacounts(true) {
-                            print!("{:?}", ac_counts);
+                            print!("{ac_counts:?}");
                         }
                         println!();
                     }
